@@ -66,6 +66,10 @@
             <span>Mot de passe professeur</span>
             <input id="teacher-password" type="password" required>
           </label>
+          <label class="field">
+            <span>Rôle</span>
+            <select id="teacher-role" required></select>
+          </label>
           <button class="primary-button" type="submit">Ajouter le professeur</button>
           <p id="accounts-feedback" class="results-count"></p>
         </form>
@@ -80,6 +84,16 @@
         </div>
         <div id="accounts-summary" class="class-cards"></div>
         <div id="teacher-accounts-list" class="student-directory"></div>
+      </section>
+
+      <section class="panel wide-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Traçabilité</p>
+            <h2>Journal d'activité</h2>
+          </div>
+        </div>
+        <div id="activity-log-list" class="student-directory"></div>
       </section>
     </main>
   </div>

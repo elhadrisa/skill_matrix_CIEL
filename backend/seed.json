@@ -25,6 +25,7 @@
   ],
   "pfmpRecords": {},
   "evaluationActivities": [],
+  "activityLog": [],
   "accounts": [
     { "id": "admin-account", "username": "admin", "password": "admin123", "role": "admin", "label": "Administrateur" },
     { "id": "teacher-account-1", "username": "prof", "password": "prof123", "role": "professeur", "label": "Professeur" }

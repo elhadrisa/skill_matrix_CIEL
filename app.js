@@ -38,6 +38,19 @@ const defaultAccounts = [
   { id: "admin-account", username: "admin", password: "admin123", role: "admin", label: "Administrateur" },
   { id: "teacher-account-1", username: "prof", password: "prof123", role: "professeur", label: "Professeur" }
 ];
+const defaultActivityLog = [];
+const roleCatalog = [
+  { value: "admin", label: "Administrateur" },
+  { value: "prof_principal", label: "Prof principal" },
+  { value: "professeur", label: "Professeur" },
+  { value: "lecture", label: "Lecture seule" }
+];
+const rolePermissions = {
+  admin: new Set(["manage_accounts", "manage_structure", "manage_students", "edit_evaluations", "edit_skills", "edit_pfmp", "reset_app"]),
+  prof_principal: new Set(["manage_students", "edit_evaluations", "edit_skills", "edit_pfmp"]),
+  professeur: new Set(["edit_evaluations", "edit_skills", "edit_pfmp"]),
+  lecture: new Set([])
+};
 
 const levelLabels = {
   absent: "Absent",
@@ -77,29 +90,62 @@ const PFMP_PERIODS = [
 const page = document.body.dataset.page;
 const PROTECTED_PAGES = new Set(["dashboard", "classes", "evaluations", "pfmp", "accounts"]);
 const ADMIN_ONLY_PAGES = new Set(["accounts"]);
-const currentSession = getSession();
+const app = createEmptyApp();
+let persistTimeout = null;
 
-if (PROTECTED_PAGES.has(page) && !currentSession) {
-  window.location.replace("login.html");
+initializeApp();
+
+function createEmptyApp() {
+  return hydrateAppData({ classes: defaultClasses, students: defaultStudents, pfmpRecords: defaultPfmpRecords, evaluationActivities: defaultEvaluationActivities, accounts: defaultAccounts, activityLog: defaultActivityLog });
 }
 
-if (ADMIN_ONLY_PAGES.has(page) && currentSession && currentSession.role !== "admin") {
-  window.location.replace("dashboard.html");
+async function initializeApp() {
+  if (page === "home") {
+    initHomePage();
+    return;
+  }
+
+  if (page === "login") {
+    const bootstrap = await bootstrapFromApi();
+    if (bootstrap?.session) {
+      setSession(bootstrap.session);
+      if (bootstrap.data) replaceAppState(bootstrap.data);
+      window.location.replace("dashboard.html");
+      return;
+    }
+    initLoginPage();
+    return;
+  }
+
+  if (PROTECTED_PAGES.has(page)) {
+    const bootstrap = await bootstrapFromApi();
+    if (!bootstrap?.session) {
+      clearSession();
+      window.location.replace("login.html");
+      return;
+    }
+
+    setSession(bootstrap.session);
+    if (bootstrap.data) {
+      replaceAppState(bootstrap.data);
+    } else {
+      const fallback = loadLocalFallbackData();
+      replaceAppState(fallback);
+      persistAppData();
+    }
+
+    if (ADMIN_ONLY_PAGES.has(page) && bootstrap.session.role !== "admin") {
+      window.location.replace("dashboard.html");
+      return;
+    }
+
+    if (page === "dashboard") initDashboardPage();
+    if (page === "classes") initClassesPage();
+    if (page === "evaluations") initEvaluationsPage();
+    if (page === "pfmp") initPfmpPage();
+    if (page === "accounts") initAccountsPage();
+  }
 }
-
-if (page === "login" && currentSession) {
-  window.location.replace("dashboard.html");
-}
-
-const app = loadAppData();
-
-if (page === "home") initHomePage();
-if (page === "login") initLoginPage();
-if (page === "dashboard") initDashboardPage();
-if (page === "classes") initClassesPage();
-if (page === "evaluations") initEvaluationsPage();
-if (page === "pfmp") initPfmpPage();
-if (page === "accounts") initAccountsPage();
 
 function loadAppData() {
   const raw = localStorage.getItem(STORAGE_KEY);
@@ -122,6 +168,42 @@ function loadAppData() {
   return initial;
 }
 
+function loadLocalFallbackData() {
+  return loadAppData();
+}
+
+function replaceAppState(data) {
+  const hydrated = hydrateAppData(data);
+  Object.keys(app).forEach((key) => { delete app[key]; });
+  Object.assign(app, hydrated);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(app));
+}
+
+async function bootstrapFromApi() {
+  try {
+    const response = await fetch("/api/bootstrap", { credentials: "include" });
+    if (!response.ok) return null;
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
+async function pushStateToApi(data) {
+  try {
+    const response = await fetch("/api/state", {
+      method: "POST",
+      credentials: "include",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ data })
+    });
+    if (response.status === 401) {
+      clearSession();
+      if (PROTECTED_PAGES.has(page)) window.location.replace("login.html");
+    }
+  } catch {}
+}
+
 function hydrateAppData(data) {
   const classes = (data.classes || defaultClasses).map((classItem, index) => ({
     id: classItem.id || `class-${index + 1}`,
@@ -142,7 +224,8 @@ function hydrateAppData(data) {
   });
   const evaluationActivities = (data.evaluationActivities || defaultEvaluationActivities).map((activity, index) => hydrateEvaluationActivity(activity, index));
   const accounts = hydrateAccounts(data.accounts || defaultAccounts);
-  return { classes, students, pfmpRecords, evaluationActivities, accounts };
+  const activityLog = hydrateActivityLog(data.activityLog || defaultActivityLog);
+  return { classes, students, pfmpRecords, evaluationActivities, accounts, activityLog };
 }
 
 function hydrateAccounts(accounts) {
@@ -150,13 +233,25 @@ function hydrateAccounts(accounts) {
     id: account.id || `account-${index + 1}`,
     username: account.username || `user${index + 1}`,
     password: account.password || "changeme",
-    role: account.role || "professeur",
-    label: account.label || (account.role === "admin" ? "Administrateur" : "Professeur")
+    role: roleCatalog.some((item) => item.value === account.role) ? account.role : "professeur",
+    label: account.label || getRoleLabel(account.role || "professeur")
   }));
   if (!hydrated.some((account) => account.role === "admin")) {
     hydrated.unshift(defaultAccounts[0]);
   }
   return hydrated;
+}
+
+function hydrateActivityLog(items) {
+  return (items || []).map((item, index) => ({
+    id: item.id || `log-${index + 1}`,
+    timestamp: item.timestamp || new Date().toISOString(),
+    actor: item.actor || "Système",
+    role: item.role || "systeme",
+    action: item.action || "Mise à jour",
+    target: item.target || "",
+    detail: item.detail || ""
+  })).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 }
 
 function hydratePfmpRecord(record, student, classes = app?.classes || []) {
@@ -252,6 +347,12 @@ function normalizeStatus(value) {
 
 function persistAppData(data = app) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  if (!getSession()) return;
+  if (persistTimeout) window.clearTimeout(persistTimeout);
+  persistTimeout = window.setTimeout(() => {
+    persistTimeout = null;
+    pushStateToApi(data);
+  }, 400);
 }
 
 function initHomePage() {
@@ -267,17 +368,37 @@ function initLoginPage() {
   const passwordInput = document.querySelector("#login-password");
   const feedback = document.querySelector("#login-feedback");
 
-  form.addEventListener("submit", (event) => {
+  form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const username = usernameInput.value.trim().toLowerCase();
     const password = passwordInput.value;
-    const user = app.accounts.find((account) => account.username.toLowerCase() === username);
-    if (!user || user.password !== password) {
-      feedback.textContent = "Identifiants invalides.";
+    if (!username || !password) {
+      feedback.textContent = "Renseigne un identifiant et un mot de passe.";
       return;
     }
-    setSession({ username: user.username, role: user.role, label: user.label });
-    window.location.href = "dashboard.html";
+
+    feedback.textContent = "Connexion en cours...";
+
+    try {
+      const response = await fetch("/api/login", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok || !payload?.session) {
+        feedback.textContent = response.status === 401 ? "Identifiants invalides." : "Connexion impossible pour le moment.";
+        return;
+      }
+
+      setSession(payload.session);
+      if (payload.data) replaceAppState(payload.data);
+      window.location.href = "dashboard.html";
+    } catch {
+      feedback.textContent = "Serveur indisponible. Vérifie le déploiement Cloudflare.";
+    }
   });
 }
 
@@ -289,9 +410,16 @@ function initAccountsPage() {
   const adminPassword = document.querySelector("#admin-password");
   const teacherUsername = document.querySelector("#teacher-username");
   const teacherPassword = document.querySelector("#teacher-password");
+  const teacherRole = document.querySelector("#teacher-role");
   const feedback = document.querySelector("#accounts-feedback");
   const accountsSummary = document.querySelector("#accounts-summary");
   const teacherAccountsList = document.querySelector("#teacher-accounts-list");
+  const activityLogList = document.querySelector("#activity-log-list");
+
+  teacherRole.innerHTML = roleCatalog
+    .filter((role) => role.value !== "admin")
+    .map((role) => `<option value="${role.value}">${role.label}</option>`)
+    .join("");
 
   const adminAccount = getAccountByRole("admin");
   adminUsername.value = adminAccount.username;
@@ -367,6 +495,493 @@ function initAccountsPage() {
   }
 }
 
+function initClassesPage() {
+  bindProtectedChrome();
+  const classForm = document.querySelector("#class-form");
+  const classNameInput = document.querySelector("#class-name-input");
+  const classYearInput = document.querySelector("#class-year-input");
+  const classNoteInput = document.querySelector("#class-note-input");
+  const studentForm = document.querySelector("#student-form");
+  const studentNameInput = document.querySelector("#student-name-input");
+  const studentClassInput = document.querySelector("#student-class-input");
+  const importClassInput = document.querySelector("#import-class-input");
+  const csvInput = document.querySelector("#student-csv-input");
+  const importButton = document.querySelector("#import-csv-button");
+  const importFeedback = document.querySelector("#import-feedback");
+  const classFilter = document.querySelector("#class-filter");
+  const classCards = document.querySelector("#class-cards");
+  const studentDirectory = document.querySelector("#student-directory");
+  const canManageStudents = hasPermission("manage_students");
+
+  classForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!canManageStudents) return;
+    const name = classNameInput.value.trim();
+    const year = classYearInput.value.trim();
+    const note = classNoteInput.value.trim();
+    if (!name || !year || !note) return;
+    app.classes.push({ id: slugify(`${name}-${Date.now()}`), name, year, note });
+    logAction("Classe créée", name, `${year} // ${note}`);
+    persistAppData();
+    classForm.reset();
+    renderClassesPage();
+  });
+
+  studentForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!canManageStudents) return;
+    const name = studentNameInput.value.trim();
+    const classId = studentClassInput.value;
+    if (!name || !classId) return;
+    const id = slugify(`${name}-${Date.now()}`);
+    app.students.push({ id, name, classId, skills: buildSkillState({}) });
+    app.pfmpRecords[id] = hydratePfmpRecord({}, { id, classId }, app.classes);
+    logAction("Élève ajouté", name, getClassById(classId)?.name || classId);
+    persistAppData();
+    studentForm.reset();
+    renderClassesPage();
+  });
+
+  importButton.addEventListener("click", async () => {
+    if (!canManageStudents) return;
+    const file = csvInput.files?.[0];
+    const classId = importClassInput.value;
+    if (!file || !classId) {
+      importFeedback.textContent = "Sélectionne un fichier CSV et une classe cible.";
+      return;
+    }
+    const text = await file.text();
+    const rows = parseCsv(text);
+    const names = extractStudentNames(rows);
+    if (!names.length) {
+      importFeedback.textContent = "Aucun nom d'élève détecté dans le CSV.";
+      return;
+    }
+    const existing = new Set(getStudentsByClass(classId).map((student) => student.name.trim().toLowerCase()));
+    let imported = 0;
+    let skipped = 0;
+    names.forEach((name) => {
+      const key = name.trim().toLowerCase();
+      if (!key || existing.has(key)) {
+        skipped += 1;
+        return;
+      }
+      const id = slugify(`${name}-${Date.now()}-${imported}`);
+      app.students.push({ id, name, classId, skills: buildSkillState({}) });
+      app.pfmpRecords[id] = hydratePfmpRecord({}, { id, classId }, app.classes);
+      existing.add(key);
+      imported += 1;
+    });
+    if (imported) logAction("Import CSV", getClassById(classId)?.name || classId, `${imported} élève(s) ajoutés`);
+    persistAppData();
+    importFeedback.textContent = `${imported} élève(s) importé(s), ${skipped} ignoré(s).`;
+    csvInput.value = "";
+    renderClassesPage();
+  });
+
+  enforcePermission("manage_students", classNameInput, classYearInput, classNoteInput, studentNameInput, studentClassInput, importClassInput, csvInput, importButton);
+
+  classFilter.addEventListener("change", renderClassesPage);
+  renderClassesPage();
+
+  function renderClassesPage() {
+    populateClassSelect(studentClassInput);
+    populateClassSelect(importClassInput);
+    populateClassFilter(classFilter);
+    const activeClassId = classFilter.value || "all";
+    const visibleClasses = activeClassId === "all" ? app.classes : app.classes.filter((classItem) => classItem.id === activeClassId);
+
+    classCards.innerHTML = visibleClasses.map((classItem) => {
+      const students = getStudentsByClass(classItem.id);
+      const pfmpSummary = getPfmpSummary(students);
+      return `
+        <article class="class-card">
+          <div class="class-card-head">
+            <h3>${classItem.name}</h3>
+            <span class="badge accent">${students.length} élèves</span>
+          </div>
+          <p>${classItem.year}</p>
+          <p>${classItem.note}</p>
+          <div class="class-meta">
+            <span class="badge">${getClassProgress(classItem.id)}% validé</span>
+            <span class="badge">${pfmpSummary.withCompany} PFMP saisies</span>
+          </div>
+        </article>
+      `;
+    }).join("");
+
+    const directoryStudents = activeClassId === "all" ? app.students : getStudentsByClass(activeClassId);
+    studentDirectory.innerHTML = directoryStudents.map((student) => {
+      const filledPeriods = PFMP_PERIODS.filter((period) => getPfmpPeriodEntry(student.id, period.id).companyName).length;
+      return `
+        <article class="directory-row compact">
+          <div>
+            <strong>${student.name}</strong>
+            <p>${getClassById(student.classId)?.name || "Sans classe"}</p>
+            <p>${filledPeriods}/6 PFMP renseignées</p>
+          </div>
+          <div class="student-badges">
+            <span class="badge">${getStudentProgress(student)}% validé</span>
+            <span class="badge">${filledPeriods}/6 périodes</span>
+          </div>
+        </article>
+      `;
+    }).join("");
+  }
+}
+
+function initEvaluationsPage() {
+  bindProtectedChrome();
+  const activityForm = document.querySelector("#activity-form");
+  const activityType = document.querySelector("#activity-type");
+  const activityTitle = document.querySelector("#activity-title");
+  const activityClass = document.querySelector("#activity-class");
+  const activitySkill = document.querySelector("#activity-skill");
+  const activityDate = document.querySelector("#activity-date");
+  const activityIndicators = document.querySelector("#activity-indicators");
+  const activityFeedback = document.querySelector("#activity-feedback");
+  const sessionClassSelect = document.querySelector("#session-class-select");
+  const activitySelect = document.querySelector("#activity-select");
+  const activitySummary = document.querySelector("#activity-summary");
+  const activityMatrix = document.querySelector("#activity-matrix");
+  const activityReport = document.querySelector("#activity-report");
+  const activitySynthesis = document.querySelector("#activity-synthesis");
+  const evalClassSelect = document.querySelector("#eval-class-select");
+  const evalStudentSelect = document.querySelector("#eval-student-select");
+  const studentSkillsEditor = document.querySelector("#student-skills-editor");
+  const studentSheetMeta = document.querySelector("#student-sheet-meta");
+  const skillRowTemplate = document.querySelector("#skill-row-template");
+  const canEditEvaluations = hasPermission("edit_evaluations");
+  const canEditSkills = hasPermission("edit_skills");
+
+  populateClassSelect(activityClass);
+  populateSkillSelect(activitySkill);
+  populateClassSelect(sessionClassSelect);
+  populateClassSelect(evalClassSelect);
+  syncSessionActivities();
+  syncEvalStudents();
+
+  enforcePermission("edit_evaluations", activityType, activityTitle, activityClass, activitySkill, activityDate, activityIndicators);
+
+  activityForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!canEditEvaluations) return;
+    const indicators = activityIndicators.value
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((label, index) => ({ id: slugify(`${activityTitle.value}-${index}-${Date.now()}`), label }));
+    if (!activityTitle.value.trim() || !activityClass.value || !activitySkill.value || !indicators.length) {
+      activityFeedback.textContent = "Renseigne un titre, une classe, une compétence et au moins un indicateur.";
+      return;
+    }
+    const activity = {
+      id: slugify(`${activityTitle.value}-${Date.now()}`),
+      title: activityTitle.value.trim(),
+      type: activityType.value,
+      classId: activityClass.value,
+      skillId: activitySkill.value,
+      date: activityDate.value,
+      indicators,
+      evaluations: {}
+    };
+    app.evaluationActivities.push(activity);
+    logAction("Séance créée", activity.title, `${activity.type} // ${getClassById(activity.classId)?.name || activity.classId}`);
+    persistAppData();
+    activityForm.reset();
+    activityFeedback.textContent = "Séance créée.";
+    populateClassSelect(activityClass);
+    populateSkillSelect(activitySkill);
+    sessionClassSelect.value = activity.classId;
+    syncSessionActivities(activity.id);
+    renderEvaluationPage();
+  });
+
+  sessionClassSelect.addEventListener("change", () => {
+    syncSessionActivities();
+    renderEvaluationPage();
+  });
+  activitySelect.addEventListener("change", renderEvaluationPage);
+  evalClassSelect.addEventListener("change", () => {
+    syncEvalStudents();
+    renderEvaluationPage();
+  });
+  evalStudentSelect.addEventListener("change", renderEvaluationPage);
+
+  renderEvaluationPage();
+
+  function syncSessionActivities(selectedId = "") {
+    const classId = sessionClassSelect.value || app.classes[0]?.id || "";
+    const activities = getActivitiesByClass(classId);
+    activitySelect.innerHTML = activities.map((activity) => `<option value="${activity.id}">${activity.type} // ${activity.title}</option>`).join("");
+    if (selectedId && activities.some((activity) => activity.id === selectedId)) {
+      activitySelect.value = selectedId;
+    }
+  }
+
+  function syncEvalStudents() {
+    const classId = evalClassSelect.value || app.classes[0]?.id || "";
+    const students = getStudentsByClass(classId);
+    evalStudentSelect.innerHTML = students.map((student) => `<option value="${student.id}">${student.name}</option>`).join("");
+  }
+
+  function renderEvaluationPage() {
+    const classId = sessionClassSelect.value || app.classes[0]?.id || "";
+    const activities = getActivitiesByClass(classId);
+    const activity = getActivityById(activitySelect.value) || activities[0];
+    renderActivitySummary(activity, classId);
+    renderActivityMatrix(activity, classId);
+    renderActivityReport(activity, classId);
+    renderActivitySynthesis(classId);
+    renderStudentSheet();
+  }
+
+  function renderActivitySummary(activity, classId) {
+    const classItem = getClassById(classId);
+    if (!activity) {
+      activitySummary.innerHTML = `<article class="summary-card"><h3>Aucune séance</h3><p class="muted-copy">Crée un TP ou un TD pour commencer.</p></article>`;
+      return;
+    }
+    const skill = getSkillById(activity.skillId);
+    activitySummary.innerHTML = `
+      <article class="summary-card">
+        <h3>${activity.type} // ${activity.title}</h3>
+        <p class="muted-copy">${classItem?.name || ""} // ${skill?.code || ""} ${skill?.title || ""}</p>
+        <p class="muted-copy">${activity.date || "Date non renseignée"} // ${activity.indicators.length} indicateur(s)</p>
+      </article>
+    `;
+  }
+
+  function renderActivityMatrix(activity, classId) {
+    const students = getStudentsByClass(classId);
+    if (!activity) {
+      activityMatrix.innerHTML = "";
+      return;
+    }
+    activityMatrix.classList.add("activity-grid");
+    activityMatrix.innerHTML = `
+      <div class="matrix-header activity-header">
+        <strong>Élève</strong>
+        ${activity.indicators.map((indicator) => `<strong>${indicator.label}</strong>`).join("")}
+      </div>
+      ${students.map((student) => `
+        <div class="matrix-row activity-row">
+          <div><strong>${student.name}</strong><p class="muted-copy">${getStudentProgress(student)}% validé</p></div>
+          ${activity.indicators.map((indicator) => `
+            <label class="field">
+              <select data-activity-id="${activity.id}" data-student-id="${student.id}" data-indicator-id="${indicator.id}" class="activity-status-select"${canEditEvaluations ? "" : " disabled"}>
+                ${renderStatusOptions(getActivityIndicatorStatus(activity, student.id, indicator.id))}
+              </select>
+            </label>
+          `).join("")}
+        </div>
+      `).join("")}
+    `;
+
+    activityMatrix.querySelectorAll(".activity-status-select").forEach((select) => {
+      select.addEventListener("change", (event) => {
+        if (!canEditEvaluations) return;
+        const target = event.target;
+        setActivityIndicatorStatus(target.dataset.activityId, target.dataset.studentId, target.dataset.indicatorId, target.value);
+        persistAppData();
+        renderEvaluationPage();
+      });
+    });
+  }
+
+  function renderActivityReport(activity, classId) {
+    const students = getStudentsByClass(classId);
+    if (!activity) {
+      activityReport.innerHTML = "";
+      return;
+    }
+    const indicatorCards = activity.indicators.map((indicator) => {
+      const average = getIndicatorAverage(activity, students, indicator.id);
+      return `
+        <article class="summary-card">
+          <h3>${indicator.label}</h3>
+          <p class="muted-copy">Moyenne: ${average}%</p>
+          <p class="muted-copy">${renderIndicatorStatusBreakdown(activity, students, indicator.id)}</p>
+        </article>
+      `;
+    }).join("");
+    const activityAverage = getActivityAverage(activity, students);
+    activityReport.innerHTML = `
+      <article class="summary-card">
+        <h3>Bilan global</h3>
+        <p class="muted-copy">Moyenne de la séance: ${activityAverage}%</p>
+        <p class="muted-copy">${students.length} élève(s) évalué(s)</p>
+      </article>
+      ${indicatorCards}
+    `;
+  }
+
+  function renderActivitySynthesis(classId) {
+    const activities = getActivitiesByClass(classId);
+    const students = getStudentsByClass(classId);
+    activitySynthesis.innerHTML = activities.length ? activities.map((activity) => {
+      const skill = getSkillById(activity.skillId);
+      return `
+        <article class="directory-row compact">
+          <div>
+            <strong>${activity.type} // ${activity.title}</strong>
+            <p>${skill?.code || ""} ${skill?.title || ""}</p>
+            <p>${activity.date || "Date non renseignée"}</p>
+          </div>
+          <div class="student-badges">
+            <span class="badge">${activity.indicators.length} indicateurs</span>
+            <span class="badge">${getActivityAverage(activity, students)}% moyen</span>
+          </div>
+        </article>
+      `;
+    }).join("") : `<article class="summary-card"><h3>Aucune synthèse</h3><p class="muted-copy">Aucun TP/TD enregistré pour cette classe.</p></article>`;
+  }
+
+  function renderStudentSheet() {
+    const student = getStudentById(evalStudentSelect.value) || getStudentsByClass(evalClassSelect.value)[0];
+    if (!student) {
+      studentSkillsEditor.innerHTML = "";
+      studentSheetMeta.textContent = "Aucun élève disponible";
+      return;
+    }
+    studentSheetMeta.textContent = `${getClassById(student.classId)?.name || ""} // ${getStudentProgress(student)}% validé`;
+    studentSkillsEditor.innerHTML = "";
+    skillCatalog.forEach((skill) => {
+      const fragment = skillRowTemplate.content.cloneNode(true);
+      fragment.querySelector(".skill-code").textContent = skill.code;
+      fragment.querySelector(".skill-domain").textContent = skill.domain;
+      fragment.querySelector(".skill-title").textContent = skill.title;
+      fragment.querySelector(".skill-description").textContent = skill.description;
+      const select = fragment.querySelector(".skill-select");
+      select.value = student.skills[skill.id];
+      select.disabled = !canEditSkills;
+      select.addEventListener("change", (event) => {
+        if (!canEditSkills) return;
+        student.skills[skill.id] = event.target.value;
+        logAction("Compétence modifiée", student.name, `${skill.code} // ${levelLabels[event.target.value]}`);
+        persistAppData();
+        renderEvaluationPage();
+      });
+      studentSkillsEditor.appendChild(fragment);
+    });
+  }
+}
+
+function initPfmpPage() {
+  bindProtectedChrome();
+  const classSelect = document.querySelector("#pfmp-class-select");
+  const studentSelect = document.querySelector("#pfmp-student-select");
+  const periodSelect = document.querySelector("#pfmp-period-select");
+  const summaryCards = document.querySelector("#pfmp-summary-cards");
+  const periodsOverview = document.querySelector("#pfmp-periods-overview");
+  const directory = document.querySelector("#pfmp-directory");
+  const exportPfmpButton = document.querySelector("#export-pfmp-button");
+  const form = document.querySelector("#pfmp-form");
+  const canEditPfmp = hasPermission("edit_pfmp");
+  const inputs = {
+    companyName: document.querySelector("#pfmp-company"),
+    comment: document.querySelector("#pfmp-comment"),
+    address: document.querySelector("#pfmp-address"),
+    tutorName: document.querySelector("#pfmp-tutor"),
+    tutorEmail: document.querySelector("#pfmp-email"),
+    tutorPhone: document.querySelector("#pfmp-phone"),
+    conventionSent: document.querySelector("#pfmp-sent"),
+    conventionSignedCompany: document.querySelector("#pfmp-signed-company"),
+    conventionSignedParents: document.querySelector("#pfmp-signed-parents"),
+    conventionSignedSchool: document.querySelector("#pfmp-signed-school"),
+    teacher: document.querySelector("#pfmp-teacher"),
+    visitDate: document.querySelector("#pfmp-visit"),
+    reportDate: document.querySelector("#pfmp-report"),
+    bookletDate: document.querySelector("#pfmp-booklet"),
+    attendanceDate: document.querySelector("#pfmp-attendance")
+  };
+
+  populateClassSelect(classSelect);
+  periodSelect.innerHTML = PFMP_PERIODS.map((period) => `<option value="${period.id}">${period.label}</option>`).join("");
+  syncStudents();
+  renderPfmpPage();
+
+  enforcePermission("edit_pfmp", ...Object.values(inputs), form.querySelector('button[type="submit"]'));
+
+  classSelect.addEventListener("change", () => {
+    syncStudents();
+    renderPfmpPage();
+  });
+  studentSelect.addEventListener("change", renderPfmpPage);
+  periodSelect.addEventListener("change", renderPfmpPage);
+  exportPfmpButton.addEventListener("click", () => {
+    const classItem = getClassById(classSelect.value || app.classes[0]?.id || "");
+    exportPfmpWorkbook(classItem, getStudentsByClass(classItem?.id || ""));
+  });
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!canEditPfmp) return;
+    const student = getStudentById(studentSelect.value);
+    if (!student) return;
+    const record = getPfmpRecord(student.id);
+    record.periods[periodSelect.value] = hydratePfmpEntry(Object.fromEntries(Object.entries(inputs).map(([key, input]) => [key, input.value.trim()])));
+    logAction("PFMP mise à jour", student.name, PFMP_PERIODS.find((period) => period.id === periodSelect.value)?.label || periodSelect.value);
+    persistAppData();
+    renderPfmpPage();
+  });
+
+  function syncStudents() {
+    const classId = classSelect.value || app.classes[0]?.id || "";
+    const students = getStudentsByClass(classId);
+    studentSelect.innerHTML = students.map((student) => `<option value="${student.id}">${student.name}</option>`).join("");
+  }
+
+  function renderPfmpPage() {
+    const classId = classSelect.value || app.classes[0]?.id || "";
+    const students = getStudentsByClass(classId);
+    const selectedStudent = getStudentById(studentSelect.value) || students[0];
+    const summary = getPfmpSummary(students);
+
+    summaryCards.innerHTML = [
+      { label: "PFMP renseignées", value: summary.withCompany, trace: "entreprise saisie" },
+      { label: "Conventions complètes", value: summary.fullConvention, trace: "3 signatures" },
+      { label: "Visites planifiées", value: summary.visitPlanned, trace: "date de visite saisie" },
+      { label: "Dossiers complets", value: summary.completeFile, trace: "rapport + livret + présence" }
+    ].map(renderStatCard).join("");
+
+    const selectedRecord = selectedStudent ? getPfmpPeriodEntry(selectedStudent.id, periodSelect.value) : createEmptyPfmpEntry();
+    Object.entries(inputs).forEach(([key, input]) => { input.value = selectedRecord[key] || ""; });
+
+    periodsOverview.innerHTML = PFMP_PERIODS.map((period) => {
+      const entry = selectedStudent ? getPfmpPeriodEntry(selectedStudent.id, period.id) : createEmptyPfmpEntry();
+      return `
+        <article class="period-card">
+          <strong>${period.label}</strong>
+          <p class="muted-copy">${entry.companyName || "Entreprise non renseignée"}</p>
+          <div class="pfmp-kpis">
+            <span class="badge">${getPfmpCompletion(entry)} champs</span>
+            <span class="badge">${entry.visitDate ? "Visite OK" : "Visite à planifier"}</span>
+          </div>
+        </article>
+      `;
+    }).join("");
+
+    directory.innerHTML = students.map((student) => {
+      const filledPeriods = PFMP_PERIODS.filter((period) => getPfmpPeriodEntry(student.id, period.id).companyName).length;
+      return `
+        <article class="directory-row compact">
+          <div>
+            <strong>${student.name}</strong>
+            <p>${filledPeriods}/6 PFMP renseignées</p>
+            <p>${PFMP_PERIODS.filter((period) => getPfmpPeriodEntry(student.id, period.id).visitDate).length} visites planifiées</p>
+          </div>
+          <div class="pfmp-kpis">
+            <span class="badge">${filledPeriods}/6 périodes</span>
+            <span class="badge">${PFMP_PERIODS.filter((period) => hasFullConvention(getPfmpPeriodEntry(student.id, period.id))).length}/6 conventions</span>
+            <span class="badge">${PFMP_PERIODS.filter((period) => hasCompleteFile(getPfmpPeriodEntry(student.id, period.id))).length}/6 dossiers</span>
+          </div>
+        </article>
+      `;
+    }).join("");
+  }
+}
+
 function getSession() {
   const raw = localStorage.getItem(SESSION_KEY);
   if (!raw) return null;
@@ -404,7 +1019,13 @@ function bindProtectedChrome() {
     }
   });
   if (logoutButton) {
-    logoutButton.addEventListener("click", () => {
+    logoutButton.addEventListener("click", async () => {
+      try {
+        await fetch("/api/logout", {
+          method: "POST",
+          credentials: "include"
+        });
+      } catch {}
       clearSession();
       window.location.href = "login.html";
     });
@@ -479,6 +1100,9 @@ function initDashboardPage() {
     app.classes = initial.classes;
     app.students = initial.students;
     app.pfmpRecords = initial.pfmpRecords;
+    app.evaluationActivities = initial.evaluationActivities;
+    app.activityLog = initial.activityLog;
+    logAction("Réinitialisation", "Application", "Jeu de données par défaut restauré");
     persistAppData();
     populateClassSelect(classSelect);
     renderDashboardPage();
@@ -1343,4 +1967,234 @@ function downloadExcelTable(filename, sheetName, headers, rows) {
 
 function slugify(value) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
+function getRoleLabel(role) {
+  return roleCatalog.find((item) => item.value === role)?.label || "Professeur";
+}
+
+function formatRole(role) {
+  if (role === "systeme") return "Système";
+  return getRoleLabel(role);
+}
+
+function getTeacherRoleValues() {
+  return roleCatalog.filter((role) => role.value !== "admin").map((role) => role.value);
+}
+
+function hasPermission(permission) {
+  const role = getSession()?.role || "lecture";
+  return rolePermissions[role]?.has(permission) || false;
+}
+
+function enforcePermission(permission, ...elements) {
+  if (hasPermission(permission)) return;
+  elements.filter(Boolean).forEach((element) => {
+    if ("disabled" in element) element.disabled = true;
+    element.classList?.add("is-disabled");
+  });
+}
+
+function logAction(action, target = "", detail = "") {
+  const session = getSession();
+  app.activityLog.unshift({
+    id: slugify(`log-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`),
+    timestamp: new Date().toISOString(),
+    actor: session?.username || "Système",
+    role: session?.role || "systeme",
+    action,
+    target,
+    detail
+  });
+  app.activityLog = app.activityLog.slice(0, 250);
+}
+
+function formatLogTimestamp(value) {
+  return new Date(value).toLocaleString("fr-FR", {
+    dateStyle: "short",
+    timeStyle: "short"
+  });
+}
+
+function getTeacherAccounts() {
+  return app.accounts.filter((account) => account.role !== "admin");
+}
+
+function updateAccount(accountId, fields) {
+  const account = getAccountById(accountId);
+  if (!account) return;
+  const previousUsername = fields.previousUsername || account.username;
+  account.username = fields.username;
+  account.password = fields.password;
+  account.role = fields.role || account.role;
+  account.label = getRoleLabel(account.role);
+  const session = getSession();
+  if (session?.username === previousUsername) {
+    setSession({ username: account.username, role: account.role, label: account.label });
+  }
+  persistAppData();
+}
+
+function addTeacherAccount(username, password, role = "professeur") {
+  const account = {
+    id: slugify(`teacher-${username}-${Date.now()}`),
+    username,
+    password,
+    role,
+    label: getRoleLabel(role)
+  };
+  app.accounts.push(account);
+  persistAppData();
+  return account;
+}
+
+function removeTeacherAccount(accountId) {
+  app.accounts = app.accounts.filter((account) => !(account.role !== "admin" && account.id === accountId));
+  persistAppData();
+}
+
+function setActivityIndicatorStatus(activityId, studentId, indicatorId, status) {
+  const activity = getActivityById(activityId);
+  if (!activity) return;
+  if (!activity.evaluations[studentId]) activity.evaluations[studentId] = {};
+  const previous = activity.evaluations[studentId][indicatorId] || "non_evalue";
+  activity.evaluations[studentId][indicatorId] = status;
+  if (previous !== status) {
+    const student = getStudentById(studentId);
+    const indicator = activity.indicators.find((item) => item.id === indicatorId);
+    logAction("Évaluation saisie", student?.name || studentId, `${activity.title} // ${indicator?.label || indicatorId} // ${levelLabels[status]}`);
+  }
+}
+
+function initAccountsPage() {
+  bindProtectedChrome();
+  const adminForm = document.querySelector("#admin-account-form");
+  const teacherForm = document.querySelector("#teacher-account-form");
+  const adminUsername = document.querySelector("#admin-username");
+  const adminPassword = document.querySelector("#admin-password");
+  const teacherUsername = document.querySelector("#teacher-username");
+  const teacherPassword = document.querySelector("#teacher-password");
+  const teacherRole = document.querySelector("#teacher-role");
+  const feedback = document.querySelector("#accounts-feedback");
+  const accountsSummary = document.querySelector("#accounts-summary");
+  const teacherAccountsList = document.querySelector("#teacher-accounts-list");
+  const activityLogList = document.querySelector("#activity-log-list");
+
+  teacherRole.innerHTML = roleCatalog
+    .filter((role) => role.value !== "admin")
+    .map((role) => `<option value="${role.value}">${role.label}</option>`)
+    .join("");
+  teacherRole.value = "professeur";
+
+  const adminAccount = getAccountByRole("admin");
+  adminUsername.value = adminAccount.username;
+  adminPassword.value = adminAccount.password;
+
+  adminForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!adminUsername.value.trim() || !adminPassword.value.trim()) return;
+    updateAccount(adminAccount.id, {
+      username: adminUsername.value.trim(),
+      password: adminPassword.value.trim(),
+      previousUsername: adminAccount.username
+    });
+    logAction("Compte admin mis à jour", adminUsername.value.trim(), "Identifiant ou mot de passe modifié");
+    feedback.textContent = "Compte administrateur mis à jour.";
+    renderAdministration();
+  });
+
+  teacherForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!teacherUsername.value.trim() || !teacherPassword.value.trim()) return;
+    const account = addTeacherAccount(teacherUsername.value.trim(), teacherPassword.value.trim(), teacherRole.value);
+    logAction("Compte créé", account.username, `Rôle: ${getRoleLabel(account.role)}`);
+    teacherForm.reset();
+    teacherRole.value = "professeur";
+    feedback.textContent = "Compte ajouté.";
+    renderAdministration();
+  });
+
+  renderAdministration();
+
+  function renderAdministration() {
+    const teachers = getTeacherAccounts();
+    const countsByRole = roleCatalog
+      .filter((role) => role.value !== "admin")
+      .map((role) => ({
+        label: role.label,
+        count: teachers.filter((teacher) => teacher.role === role.value).length
+      }));
+
+    accountsSummary.innerHTML = `
+      <article class="summary-card">
+        <h3>Admin</h3>
+        <p class="muted-copy">${adminAccount.username}</p>
+      </article>
+      <article class="summary-card">
+        <h3>Comptes actifs</h3>
+        <p class="muted-copy">${teachers.length} compte(s)</p>
+      </article>
+      ${countsByRole.map((item) => `
+        <article class="summary-card">
+          <h3>${item.label}</h3>
+          <p class="muted-copy">${item.count} compte(s)</p>
+        </article>
+      `).join("")}
+    `;
+
+    teacherAccountsList.innerHTML = teachers.length ? teachers.map((teacher) => `
+      <article class="directory-row compact">
+        <div>
+          <strong>${teacher.username}</strong>
+          <p>${teacher.label}</p>
+        </div>
+        <div class="student-badges">
+          <button class="ghost-button teacher-edit" type="button" data-id="${teacher.id}">Modifier</button>
+          <button class="ghost-button teacher-delete" type="button" data-id="${teacher.id}">Supprimer</button>
+        </div>
+      </article>
+    `).join("") : `<article class="summary-card"><h3>Aucun compte</h3><p class="muted-copy">Ajoute un compte enseignant avec le formulaire ci-dessus.</p></article>`;
+
+    activityLogList.innerHTML = app.activityLog.length ? app.activityLog.slice(0, 30).map((entry) => `
+      <article class="directory-row compact">
+        <div>
+          <strong>${entry.action}</strong>
+          <p>${entry.actor} // ${formatRole(entry.role)} // ${formatLogTimestamp(entry.timestamp)}</p>
+          <p>${entry.target}${entry.detail ? ` // ${entry.detail}` : ""}</p>
+        </div>
+      </article>
+    `).join("") : `<article class="summary-card"><h3>Aucune activité</h3><p class="muted-copy">Le journal se remplira automatiquement dès les premières actions.</p></article>`;
+
+    teacherAccountsList.querySelectorAll(".teacher-edit").forEach((button) => {
+      button.addEventListener("click", () => {
+        const teacher = getAccountById(button.dataset.id);
+        if (!teacher) return;
+        const username = window.prompt("Nouvel identifiant du compte", teacher.username);
+        if (!username) return;
+        const password = window.prompt("Nouveau mot de passe du compte", teacher.password);
+        if (!password) return;
+        const role = window.prompt(`Nouveau rôle (${getTeacherRoleValues().join(", ")})`, teacher.role);
+        if (!role || !getTeacherRoleValues().includes(role.trim())) return;
+        updateAccount(teacher.id, {
+          username: username.trim(),
+          password: password.trim(),
+          role: role.trim(),
+          previousUsername: teacher.username
+        });
+        logAction("Compte modifié", username.trim(), `Rôle: ${getRoleLabel(role.trim())}`);
+        feedback.textContent = "Compte modifié.";
+        renderAdministration();
+      });
+    });
+
+    teacherAccountsList.querySelectorAll(".teacher-delete").forEach((button) => {
+      button.addEventListener("click", () => {
+        const removed = getAccountById(button.dataset.id);
+        removeTeacherAccount(button.dataset.id);
+        if (removed) logAction("Compte supprimé", removed.username, removed.label);
+        feedback.textContent = "Compte supprimé.";
+        renderAdministration();
+      });
+    });
+  }
 }
