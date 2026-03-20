@@ -1345,6 +1345,8 @@ function initDashboardPageFinal() {
 
   populateTeacherFilter(teacherFilter);
   populateClassSelect(classSelect);
+  const requestedClassId = getRequestedClassId();
+  if (requestedClassId) classSelect.value = requestedClassId;
   enforcePermission("reset_app", resetButton);
   classSelect.addEventListener("change", renderDashboardPage);
   alertFilter?.addEventListener("change", renderDashboardPage);
@@ -1522,6 +1524,8 @@ function initRemediationPageFinal() {
 
   populateClassSelect(classSelect);
   populateTeacherFilter(teacherSelect);
+  const requestedClassId = getRequestedClassId();
+  if (requestedClassId) classSelect.value = requestedClassId;
 
   classSelect.addEventListener("change", renderRemediationPage);
   severitySelect?.addEventListener("change", renderRemediationPage);
@@ -1603,6 +1607,12 @@ function initEvaluationsPageFinal() {
   populateSkillMultiSelect(activitySkill);
   populateClassSelect(sessionClassSelect);
   populateClassSelect(evalClassSelect);
+  const requestedClassId = getRequestedClassId();
+  if (requestedClassId) {
+    activityClass.value = requestedClassId;
+    sessionClassSelect.value = requestedClassId;
+    evalClassSelect.value = requestedClassId;
+  }
   syncSessionActivities();
   syncEvalStudents();
 
@@ -1937,6 +1947,8 @@ function initPfmpPageFinal() {
   const exportPfmpPdfClassButton = document.querySelector("#export-pfmp-pdf-class");
 
   populateClassSelect(classSelect);
+  const requestedClassId = getRequestedClassId();
+  if (requestedClassId) classSelect.value = requestedClassId;
   periodSelect.innerHTML = PFMP_PERIODS.map((period) => `<option value="${period.id}">${period.label}</option>`).join("");
   syncStudents();
   renderPfmpPage();
@@ -4549,21 +4561,13 @@ function bindProtectedChrome() {
     roleBadge.textContent = session.label;
   }
   navs.forEach((nav) => {
-    nav.querySelector('a[href="remediation.html"]')?.remove();
-    let remediationDropdown = nav.querySelector(".nav-dropdown");
-    if (!remediationDropdown) {
-      remediationDropdown = document.createElement("div");
-      remediationDropdown.className = "nav-dropdown";
-      remediationDropdown.innerHTML = `
-        <button class="nav-tab nav-dropdown-toggle" type="button">Remediations</button>
-        <div class="nav-dropdown-menu">
-          <a class="nav-dropdown-link" href="remediation-pfmp.html">PFMP</a>
-          <a class="nav-dropdown-link" href="remediation-competences.html">Competences</a>
-        </div>
-      `;
-      nav.insertBefore(remediationDropdown, roleBadge || logoutButton || null);
-    }
-    remediationDropdown.classList.toggle("active", page === "remediation_pfmp" || page === "remediation_competences");
+    upsertClassDropdown(nav, "dashboard.html", "Dashboard");
+    upsertClassDropdown(nav, "evaluations.html", "Evaluations");
+    upsertClassDropdown(nav, "pfmp.html", "PFMP");
+    upsertStaticDropdown(nav, "Remediations", [
+      { href: "remediation-pfmp.html", label: "PFMP" },
+      { href: "remediation-competences.html", label: "Competences" }
+    ], page === "remediation_pfmp" || page === "remediation_competences");
     const existing = nav.querySelector('a[href="accounts.html"]');
     if (session?.role === "admin" && !existing) {
       const link = document.createElement("a");
@@ -4585,6 +4589,53 @@ function bindProtectedChrome() {
       window.location.href = "login.html";
     });
   }
+
+  document.querySelectorAll(".nav-dropdown-toggle").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const dropdown = button.closest(".nav-dropdown");
+      document.querySelectorAll(".nav-dropdown.open").forEach((item) => {
+        if (item !== dropdown) item.classList.remove("open");
+      });
+      dropdown?.classList.toggle("open");
+    });
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest(".nav-dropdown")) {
+      document.querySelectorAll(".nav-dropdown.open").forEach((item) => item.classList.remove("open"));
+    }
+  });
+}
+
+function upsertClassDropdown(nav, href, label) {
+  nav.querySelector(`a[href="${href}"]`)?.remove();
+  const classLinks = app.classes.map((classItem) => ({
+    href: `${href}?class=${encodeURIComponent(classItem.id)}`,
+    label: getClassNavLabel(classItem)
+  }));
+  const isActive = (href === "dashboard.html" && page === "dashboard")
+    || (href === "evaluations.html" && page === "evaluations")
+    || (href === "pfmp.html" && page === "pfmp");
+  upsertStaticDropdown(nav, label, classLinks, isActive, href);
+}
+
+function upsertStaticDropdown(nav, label, links, isActive, key = label) {
+  let dropdown = nav.querySelector(`.nav-dropdown[data-key="${key}"]`);
+  if (!dropdown) {
+    dropdown = document.createElement("div");
+    dropdown.className = "nav-dropdown";
+    dropdown.dataset.key = key;
+    nav.insertBefore(dropdown, nav.querySelector("#session-role") || nav.querySelector("#logout-button") || null);
+  }
+  dropdown.classList.toggle("active", isActive);
+  dropdown.innerHTML = `
+    <button class="nav-tab nav-dropdown-toggle" type="button">${label} ▾</button>
+    <div class="nav-dropdown-menu">
+      ${links.map((item) => `<a class="nav-dropdown-link" href="${item.href}">${item.label}</a>`).join("")}
+    </div>
+  `;
 }
 
 function isAdmin() {
@@ -5273,6 +5324,24 @@ function getActivitySkillLabel(activity) {
   return skills.length
     ? skills.map((skill) => `${skill.code} ${skill.title}`).join(" | ")
     : "Aucune compétence";
+}
+
+function getRequestedClassId() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const classId = params.get("class");
+    return classId && getClassById(classId) ? classId : "";
+  } catch {
+    return "";
+  }
+}
+
+function getClassNavLabel(classItem) {
+  const name = normalizeText(classItem?.name || "");
+  if (name.includes("term")) return "TCIEL";
+  if (name.includes("prem")) return "1CIEL";
+  if (name.includes("seconde") || name.includes("2nde")) return "2CIEL";
+  return classItem?.name || "Classe";
 }
 
 function getStudentById(studentId) {
