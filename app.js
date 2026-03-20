@@ -435,6 +435,167 @@ function initLoginPage() {
   });
 }
 
+function initClassesPage() {
+  bindProtectedChrome();
+  const classForm = document.querySelector("#class-form");
+  const classNameInput = document.querySelector("#class-name-input");
+  const classYearInput = document.querySelector("#class-year-input");
+  const classNoteInput = document.querySelector("#class-note-input");
+  const studentForm = document.querySelector("#student-form");
+  const studentNameInput = document.querySelector("#student-name-input");
+  const studentClassInput = document.querySelector("#student-class-input");
+  const importClassInput = document.querySelector("#import-class-input");
+  const csvInput = document.querySelector("#student-csv-input");
+  const importButton = document.querySelector("#import-csv-button");
+  const importFeedback = document.querySelector("#import-feedback");
+  const classFilter = document.querySelector("#class-filter");
+  const classCards = document.querySelector("#class-cards");
+  const studentDirectory = document.querySelector("#student-directory");
+  const canManageStudents = hasPermission("manage_students");
+
+  classForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!canManageStudents) return;
+    const name = classNameInput.value.trim();
+    const year = classYearInput.value.trim();
+    const note = classNoteInput.value.trim();
+    if (!name || !year || !note) return;
+    app.classes.push({ id: slugify(`${name}-${Date.now()}`), name, year, note });
+    logAction("Classe créée", name, `${year} // ${note}`);
+    persistAppData();
+    classForm.reset();
+    renderClassesPage();
+  });
+
+  studentForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!canManageStudents) return;
+    const name = studentNameInput.value.trim();
+    const classId = studentClassInput.value;
+    if (!name || !classId) return;
+    const id = slugify(`${name}-${Date.now()}`);
+    app.students.push({ id, name, classId, skills: buildSkillState({}) });
+    app.pfmpRecords[id] = hydratePfmpRecord({}, { id, classId }, app.classes);
+    logAction("Élève ajouté", name, getClassById(classId)?.name || classId);
+    persistAppData();
+    studentForm.reset();
+    renderClassesPage();
+  });
+
+  importButton.addEventListener("click", async () => {
+    if (!canManageStudents) return;
+    const file = csvInput.files?.[0];
+    const classId = importClassInput.value;
+    if (!file || !classId) {
+      importFeedback.textContent = "Sélectionne un fichier CSV et une classe cible.";
+      return;
+    }
+    const text = await file.text();
+    const rows = parseCsv(text);
+    const names = extractStudentNames(rows);
+    if (!names.length) {
+      importFeedback.textContent = "Aucun nom d'élève détecté dans le CSV.";
+      return;
+    }
+    const existing = new Set(getStudentsByClass(classId).map((student) => student.name.trim().toLowerCase()));
+    let imported = 0;
+    let skipped = 0;
+    names.forEach((name) => {
+      const key = name.trim().toLowerCase();
+      if (!key || existing.has(key)) {
+        skipped += 1;
+        return;
+      }
+      const id = slugify(`${name}-${Date.now()}-${imported}`);
+      app.students.push({ id, name, classId, skills: buildSkillState({}) });
+      app.pfmpRecords[id] = hydratePfmpRecord({}, { id, classId }, app.classes);
+      existing.add(key);
+      imported += 1;
+    });
+    if (imported) logAction("Import CSV", getClassById(classId)?.name || classId, `${imported} élève(s) ajoutés`);
+    persistAppData();
+    importFeedback.textContent = `${imported} élève(s) importé(s), ${skipped} ignoré(s).`;
+    csvInput.value = "";
+    renderClassesPage();
+  });
+
+  enforcePermission("manage_students", classNameInput, classYearInput, classNoteInput, studentNameInput, studentClassInput, importClassInput, csvInput, importButton);
+
+  classFilter.addEventListener("change", renderClassesPage);
+  renderClassesPage();
+
+  function renderClassesPage() {
+    populateClassSelect(studentClassInput);
+    populateClassSelect(importClassInput);
+    populateClassFilter(classFilter);
+    const activeClassId = classFilter.value || "all";
+    const visibleClasses = activeClassId === "all" ? app.classes : app.classes.filter((classItem) => classItem.id === activeClassId);
+
+    classCards.innerHTML = visibleClasses.map((classItem) => {
+      const students = getStudentsByClass(classItem.id);
+      const pfmpSummary = getPfmpSummary(students);
+      return `
+        <article class="class-card">
+          <div class="class-card-head">
+            <h3>${classItem.name}</h3>
+            <span class="badge accent">${students.length} élèves</span>
+          </div>
+          <p>${classItem.year}</p>
+          <p>${classItem.note}</p>
+          <div class="class-meta">
+            <span class="badge">${getClassProgress(classItem.id)}% validé</span>
+            <span class="badge">${pfmpSummary.withCompany} PFMP saisies</span>
+          </div>
+          <div class="student-badges">
+            <button class="ghost-button class-delete" type="button" data-id="${classItem.id}"${canManageStudents ? "" : " disabled"}>Supprimer la classe</button>
+          </div>
+        </article>
+      `;
+    }).join("");
+
+    const directoryStudents = activeClassId === "all" ? app.students : getStudentsByClass(activeClassId);
+    studentDirectory.innerHTML = directoryStudents.map((student) => {
+      const filledPeriods = PFMP_PERIODS.filter((period) => getPfmpPeriodEntry(student.id, period.id).companyName).length;
+      return `
+        <article class="directory-row compact">
+          <div>
+            <strong>${student.name}</strong>
+            <p>${getClassById(student.classId)?.name || "Sans classe"}</p>
+            <p>${filledPeriods}/6 PFMP renseignées</p>
+          </div>
+          <div class="student-badges">
+            <span class="badge">${getStudentProgress(student)}% validé</span>
+            <span class="badge">${filledPeriods}/6 périodes</span>
+            <button class="ghost-button student-delete" type="button" data-id="${student.id}"${canManageStudents ? "" : " disabled"}>Supprimer l'élève</button>
+          </div>
+        </article>
+      `;
+    }).join("");
+
+    classCards.querySelectorAll(".class-delete").forEach((button) => {
+      button.addEventListener("click", () => {
+        if (!canManageStudents) return;
+        const classItem = getClassById(button.dataset.id);
+        if (!classItem) return;
+        if (!window.confirm(`Supprimer la classe "${classItem.name}" et tous ses élèves ?`)) return;
+        deleteClass(button.dataset.id);
+        renderClassesPage();
+      });
+    });
+
+    studentDirectory.querySelectorAll(".student-delete").forEach((button) => {
+      button.addEventListener("click", () => {
+        if (!canManageStudents) return;
+        const student = getStudentById(button.dataset.id);
+        if (!student) return;
+        if (!window.confirm(`Supprimer l'élève "${student.name}" ?`)) return;
+        deleteStudent(button.dataset.id);
+        renderClassesPage();
+      });
+    });
+  }
+}
+
 function initAccountsPage() {
   bindProtectedChrome();
   const adminForm = document.querySelector("#admin-account-form");
