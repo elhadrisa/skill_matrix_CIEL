@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CIEL // Bulletin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="bulletin">
+  <div class="noise"></div>
+  <div class="page-shell">
+    <header class="topbar panel">
+      <div>
+        <p class="eyebrow">Bac Pro CIEL // Skill Matrix</p>
+        <h1 class="topbar-title">Bulletin de compétences</h1>
+      </div>
+      <nav class="nav-tabs app-nav">
+        <a class="nav-tab" href="index.html">Accueil</a>
+        <a class="nav-tab" href="dashboard.html">Dashboard</a>
+        <a class="nav-tab" href="classes.html">Classes</a>
+        <a class="nav-tab" href="evaluations.html">Évaluations</a>
+        <a class="nav-tab" href="pfmp.html">PFMP</a>
+        <a class="nav-tab active" href="bulletin.html">Bulletin</a>
+        <span id="session-role" class="badge accent"></span>
+        <button id="logout-button" class="ghost-button" type="button">Déconnexion</button>
+      </nav>
+    </header>
+
+    <section class="hero panel">
+      <div class="hero-copy">
+        <p class="eyebrow">Student Report</p>
+        <h2 class="hero-title">Synthèse imprimable par élève</h2>
+        <p class="hero-text">
+          Génère une fiche claire avec les compétences, les évaluations TP/TD et l'état PFMP de l'élève sélectionné.
+        </p>
+      </div>
+      <section class="hero-side">
+        <div class="hero-side-head">
+          <div>
+            <h2>Paramètres</h2>
+            <p id="bulletin-meta" class="results-count"></p>
+          </div>
+          <button id="print-bulletin-button" class="primary-button" type="button">Imprimer / PDF</button>
+        </div>
+        <div class="mini-grid">
+          <label class="field">
+            <span>Classe</span>
+            <select id="bulletin-class-select"></select>
+          </label>
+          <label class="field">
+            <span>Élève</span>
+            <select id="bulletin-student-select"></select>
+          </label>
+        </div>
+      </section>
+    </section>
+
+    <main class="dashboard-layout">
+      <section id="bulletin-sheet" class="panel bulletin-sheet"></section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

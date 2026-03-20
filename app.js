@@ -88,7 +88,7 @@ const PFMP_PERIODS = [
 ];
 
 const page = document.body.dataset.page;
-const PROTECTED_PAGES = new Set(["dashboard", "classes", "evaluations", "pfmp", "accounts"]);
+const PROTECTED_PAGES = new Set(["dashboard", "classes", "evaluations", "pfmp", "accounts", "bulletin"]);
 const ADMIN_ONLY_PAGES = new Set(["accounts"]);
 const app = createEmptyApp();
 let persistTimeout = null;
@@ -144,6 +144,7 @@ async function initializeApp() {
     if (page === "evaluations") initEvaluationsPage();
     if (page === "pfmp") initPfmpPage();
     if (page === "accounts") initAccountsPage();
+    if (page === "bulletin") initBulletinPage();
   }
 }
 
@@ -493,6 +494,493 @@ function initAccountsPage() {
       });
     });
   }
+}
+
+function bindProtectedChrome() {
+  const roleBadge = document.querySelector("#session-role");
+  const logoutButton = document.querySelector("#logout-button");
+  const navs = [...document.querySelectorAll(".nav-tabs")];
+  const session = getSession();
+  if (roleBadge && session) {
+    roleBadge.textContent = session.label;
+  }
+  navs.forEach((nav) => {
+    upsertNavLink(nav, "bulletin.html", "Bulletin", page === "bulletin");
+    if (session?.role === "admin") {
+      upsertNavLink(nav, "accounts.html", "Comptes", page === "accounts");
+    }
+  });
+  if (logoutButton) {
+    logoutButton.addEventListener("click", async () => {
+      try {
+        await fetch("/api/logout", {
+          method: "POST",
+          credentials: "include"
+        });
+      } catch {}
+      clearSession();
+      window.location.href = "login.html";
+    });
+  }
+}
+
+function upsertNavLink(nav, href, label, active) {
+  let link = nav.querySelector(`a[href="${href}"]`);
+  if (!link) {
+    link = document.createElement("a");
+    link.href = href;
+    link.textContent = label;
+    link.className = `nav-tab${active ? " active" : ""}`;
+    const roleBadge = nav.querySelector("#session-role");
+    const logoutButton = nav.querySelector("#logout-button");
+    nav.insertBefore(link, roleBadge || logoutButton || null);
+  } else {
+    link.className = `nav-tab${active ? " active" : ""}`;
+  }
+}
+
+function initDashboardPage() {
+  bindProtectedChrome();
+  const statsGrid = document.querySelector("#stats-grid");
+  const statusChart = document.querySelector("#status-chart");
+  const blockChart = document.querySelector("#block-chart");
+  const pfmpChart = document.querySelector("#pfmp-chart");
+  const studentChart = document.querySelector("#student-chart");
+  const catalogGrid = document.querySelector("#catalog-grid");
+  const alertsGrid = document.querySelector("#alerts-grid");
+  const resetButton = document.querySelector("#reset-data");
+  const classSelect = document.querySelector("#dashboard-class-select");
+  const classMeta = document.querySelector("#dashboard-class-meta");
+
+  populateClassSelect(classSelect);
+  enforcePermission("reset_app", resetButton);
+  classSelect.addEventListener("change", renderDashboardPage);
+  resetButton.addEventListener("click", () => {
+    if (!hasPermission("reset_app")) return;
+    const initial = hydrateAppData({ classes: defaultClasses, students: defaultStudents, pfmpRecords: defaultPfmpRecords, evaluationActivities: defaultEvaluationActivities, accounts: app.accounts, activityLog: [] });
+    app.classes = initial.classes;
+    app.students = initial.students;
+    app.pfmpRecords = initial.pfmpRecords;
+    app.evaluationActivities = initial.evaluationActivities;
+    app.activityLog = initial.activityLog;
+    logAction("Réinitialisation", "Application", "Jeu de données par défaut restauré");
+    persistAppData();
+    populateClassSelect(classSelect);
+    renderDashboardPage();
+  });
+
+  renderDashboardPage();
+
+  function renderDashboardPage() {
+    const classId = classSelect.value || app.classes[0]?.id || "";
+    const classItem = getClassById(classId);
+    const students = getStudentsByClass(classId);
+    const counts = getStatusCounts(students);
+    const progressAverage = students.length ? Math.round(students.reduce((sum, student) => sum + getStudentProgress(student), 0) / students.length) : 0;
+    const strongestBlock = [...getBlockAverages(students)].sort((a, b) => b.progress - a.progress)[0];
+    const pfmpSummary = getPfmpSummary(students);
+    const exportSkillsButton = document.querySelector("#export-skills-button");
+
+    classMeta.textContent = classItem ? `${classItem.name} // ${classItem.year} // ${students.length} élèves` : "Aucune classe";
+    statsGrid.innerHTML = [
+      { label: "Élèves", value: students.length, trace: "effectif de la classe" },
+      { label: "Progression moyenne", value: `${progressAverage}%`, trace: strongestBlock ? `bloc fort: ${strongestBlock.domain}` : "aucune donnée" },
+      { label: "PFMP renseignées", value: pfmpSummary.withCompany, trace: "entreprise saisie" },
+      { label: "Conventions complètes", value: pfmpSummary.fullConvention, trace: "entreprise + parents + lycée" }
+    ].map(renderStatCard).join("");
+
+    renderStatusChart(statusChart, counts);
+    renderBlockChart(blockChart, getBlockAverages(students));
+    renderPfmpChart(pfmpChart, pfmpSummary);
+    renderStudentChart(studentChart, students);
+
+    if (alertsGrid) {
+      const alerts = getClassAlerts(classId);
+      alertsGrid.innerHTML = alerts.length ? alerts.map((alert) => `
+        <article class="summary-card alert-card ${alert.level}">
+          <p class="alert-level">${alert.level}</p>
+          <h3>${alert.title}</h3>
+          <p class="muted-copy">${alert.detail}</p>
+        </article>
+      `).join("") : `<article class="summary-card"><h3>Aucune alerte</h3><p class="muted-copy">La classe n'a pas d'alerte prioritaire pour le moment.</p></article>`;
+    }
+
+    exportSkillsButton.onclick = () => exportSkillsWorkbook(classItem, students);
+
+    catalogGrid.innerHTML = skillCatalog.map((skill) => `
+      <article class="catalog-card">
+        <div class="skill-headline">
+          <span class="skill-code">${skill.code}</span>
+          <span class="skill-domain">${skill.domain}</span>
+        </div>
+        <h3>${skill.title}</h3>
+        <p>${skill.description}</p>
+      </article>
+    `).join("");
+  }
+}
+
+function initAccountsPage() {
+  bindProtectedChrome();
+  const adminForm = document.querySelector("#admin-account-form");
+  const teacherForm = document.querySelector("#teacher-account-form");
+  const adminUsername = document.querySelector("#admin-username");
+  const adminPassword = document.querySelector("#admin-password");
+  const teacherUsername = document.querySelector("#teacher-username");
+  const teacherPassword = document.querySelector("#teacher-password");
+  const teacherRole = document.querySelector("#teacher-role");
+  const feedback = document.querySelector("#accounts-feedback");
+  const accountsSummary = document.querySelector("#accounts-summary");
+  const teacherAccountsList = document.querySelector("#teacher-accounts-list");
+  const activityLogList = document.querySelector("#activity-log-list");
+  const exportJsonButton = document.querySelector("#export-json-button");
+  const restoreJsonInput = document.querySelector("#restore-json-input");
+  const restoreJsonButton = document.querySelector("#restore-json-button");
+  const restoreFeedback = document.querySelector("#restore-feedback");
+
+  teacherRole.innerHTML = roleCatalog
+    .filter((role) => role.value !== "admin")
+    .map((role) => `<option value="${role.value}">${role.label}</option>`)
+    .join("");
+  teacherRole.value = "professeur";
+
+  const adminAccount = getAccountByRole("admin");
+  adminUsername.value = adminAccount.username;
+  adminPassword.value = adminAccount.password;
+
+  exportJsonButton?.addEventListener("click", () => {
+    const payload = JSON.stringify(app, null, 2);
+    downloadTextFile(`ciel-backup-${new Date().toISOString().slice(0, 10)}.json`, payload, "application/json");
+    logAction("Export JSON", "Sauvegarde", "Base téléchargée localement");
+    persistAppData();
+    restoreFeedback.textContent = "Sauvegarde JSON téléchargée.";
+  });
+
+  restoreJsonButton?.addEventListener("click", async () => {
+    const file = restoreJsonInput?.files?.[0];
+    if (!file) {
+      restoreFeedback.textContent = "Sélectionne d'abord un fichier JSON.";
+      return;
+    }
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      replaceAppState(data);
+      logAction("Restauration JSON", "Base", file.name);
+      persistAppData();
+      restoreFeedback.textContent = "Base restaurée avec succès.";
+      renderAdministration();
+    } catch {
+      restoreFeedback.textContent = "Le fichier JSON est invalide.";
+    }
+  });
+
+  adminForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!adminUsername.value.trim() || !adminPassword.value.trim()) return;
+    updateAccount(adminAccount.id, {
+      username: adminUsername.value.trim(),
+      password: adminPassword.value.trim(),
+      previousUsername: adminAccount.username
+    });
+    logAction("Compte admin mis à jour", adminUsername.value.trim(), "Identifiant ou mot de passe modifié");
+    feedback.textContent = "Compte administrateur mis à jour.";
+    renderAdministration();
+  });
+
+  teacherForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!teacherUsername.value.trim() || !teacherPassword.value.trim()) return;
+    const account = addTeacherAccount(teacherUsername.value.trim(), teacherPassword.value.trim(), teacherRole.value);
+    logAction("Compte créé", account.username, `Rôle: ${getRoleLabel(account.role)}`);
+    teacherForm.reset();
+    teacherRole.value = "professeur";
+    feedback.textContent = "Compte ajouté.";
+    renderAdministration();
+  });
+
+  renderAdministration();
+
+  function renderAdministration() {
+    const teachers = getTeacherAccounts();
+    const countsByRole = roleCatalog
+      .filter((role) => role.value !== "admin")
+      .map((role) => ({
+        label: role.label,
+        count: teachers.filter((teacher) => teacher.role === role.value).length
+      }));
+
+    accountsSummary.innerHTML = `
+      <article class="summary-card">
+        <h3>Admin</h3>
+        <p class="muted-copy">${adminAccount.username}</p>
+      </article>
+      <article class="summary-card">
+        <h3>Comptes actifs</h3>
+        <p class="muted-copy">${teachers.length} compte(s)</p>
+      </article>
+      ${countsByRole.map((item) => `
+        <article class="summary-card">
+          <h3>${item.label}</h3>
+          <p class="muted-copy">${item.count} compte(s)</p>
+        </article>
+      `).join("")}
+    `;
+
+    teacherAccountsList.innerHTML = teachers.length ? teachers.map((teacher) => `
+      <article class="directory-row compact">
+        <div>
+          <strong>${teacher.username}</strong>
+          <p>${teacher.label}</p>
+        </div>
+        <div class="student-badges">
+          <button class="ghost-button teacher-edit" type="button" data-id="${teacher.id}">Modifier</button>
+          <button class="ghost-button teacher-delete" type="button" data-id="${teacher.id}">Supprimer</button>
+        </div>
+      </article>
+    `).join("") : `<article class="summary-card"><h3>Aucun compte</h3><p class="muted-copy">Ajoute un compte enseignant avec le formulaire ci-dessus.</p></article>`;
+
+    activityLogList.innerHTML = app.activityLog.length ? app.activityLog.slice(0, 30).map((entry) => `
+      <article class="directory-row compact">
+        <div>
+          <strong>${entry.action}</strong>
+          <p>${entry.actor} // ${formatRole(entry.role)} // ${formatLogTimestamp(entry.timestamp)}</p>
+          <p>${entry.target}${entry.detail ? ` // ${entry.detail}` : ""}</p>
+        </div>
+      </article>
+    `).join("") : `<article class="summary-card"><h3>Aucune activité</h3><p class="muted-copy">Le journal se remplira automatiquement dès les premières actions.</p></article>`;
+
+    teacherAccountsList.querySelectorAll(".teacher-edit").forEach((button) => {
+      button.addEventListener("click", () => {
+        const teacher = getAccountById(button.dataset.id);
+        if (!teacher) return;
+        const username = window.prompt("Nouvel identifiant du compte", teacher.username);
+        if (!username) return;
+        const password = window.prompt("Nouveau mot de passe du compte", teacher.password);
+        if (!password) return;
+        const role = window.prompt(`Nouveau rôle (${getTeacherRoleValues().join(", ")})`, teacher.role);
+        if (!role || !getTeacherRoleValues().includes(role.trim())) return;
+        updateAccount(teacher.id, {
+          username: username.trim(),
+          password: password.trim(),
+          role: role.trim(),
+          previousUsername: teacher.username
+        });
+        logAction("Compte modifié", username.trim(), `Rôle: ${getRoleLabel(role.trim())}`);
+        feedback.textContent = "Compte modifié.";
+        renderAdministration();
+      });
+    });
+
+    teacherAccountsList.querySelectorAll(".teacher-delete").forEach((button) => {
+      button.addEventListener("click", () => {
+        const removed = getAccountById(button.dataset.id);
+        removeTeacherAccount(button.dataset.id);
+        if (removed) logAction("Compte supprimé", removed.username, removed.label);
+        feedback.textContent = "Compte supprimé.";
+        renderAdministration();
+      });
+    });
+  }
+}
+
+function initBulletinPage() {
+  bindProtectedChrome();
+  const classSelect = document.querySelector("#bulletin-class-select");
+  const studentSelect = document.querySelector("#bulletin-student-select");
+  const meta = document.querySelector("#bulletin-meta");
+  const sheet = document.querySelector("#bulletin-sheet");
+  const printButton = document.querySelector("#print-bulletin-button");
+
+  populateClassSelect(classSelect);
+  syncStudents();
+  renderBulletin();
+
+  classSelect.addEventListener("change", () => {
+    syncStudents();
+    renderBulletin();
+  });
+  studentSelect.addEventListener("change", renderBulletin);
+  printButton.addEventListener("click", () => window.print());
+
+  function syncStudents() {
+    const classId = classSelect.value || app.classes[0]?.id || "";
+    const students = getStudentsByClass(classId);
+    studentSelect.innerHTML = students.map((student) => `<option value="${student.id}">${student.name}</option>`).join("");
+  }
+
+  function renderBulletin() {
+    const classId = classSelect.value || app.classes[0]?.id || "";
+    const student = getStudentById(studentSelect.value) || getStudentsByClass(classId)[0];
+    if (!student) {
+      meta.textContent = "Aucun élève disponible";
+      sheet.innerHTML = `<article class="summary-card"><h3>Aucun bulletin</h3><p class="muted-copy">Ajoute des élèves dans une classe pour générer un bulletin.</p></article>`;
+      return;
+    }
+
+    const classItem = getClassById(student.classId);
+    const studentActivities = app.evaluationActivities.filter((activity) => activity.classId === student.classId && activity.evaluations?.[student.id]);
+    const pfmpSummary = getStudentPfmpSummary(student.id);
+    const blockAverages = getBlockAverages([student]);
+    meta.textContent = `${classItem?.name || ""} // ${getStudentProgress(student)}% validé`;
+
+    sheet.innerHTML = `
+      <div class="bulletin-header">
+        <div>
+          <p class="eyebrow">Bulletin</p>
+          <h2 class="bulletin-title">${student.name}</h2>
+          <p class="muted-copy">${classItem?.name || ""} // ${classItem?.year || ""}</p>
+        </div>
+        <div class="print-only">
+          <p>${new Date().toLocaleDateString("fr-FR")}</p>
+        </div>
+      </div>
+
+      <div class="bulletin-kpis">
+        ${renderStatCard({ label: "Progression", value: `${getStudentProgress(student)}%`, trace: "sur l'ensemble du référentiel" })}
+        ${renderStatCard({ label: "TP/TD saisis", value: studentActivities.length, trace: "activités avec notes" })}
+        ${renderStatCard({ label: "PFMP remplies", value: `${pfmpSummary.filled}/6`, trace: "périodes avec entreprise" })}
+      </div>
+
+      <div class="bulletin-grid">
+        <section class="summary-card">
+          <h3>Compétences</h3>
+          <div class="bulletin-skills">
+            ${skillCatalog.map((skill) => `
+              <div class="bulletin-skill-row">
+                <div>
+                  <strong>${skill.code} // ${skill.title}</strong>
+                  <p class="muted-copy">${skill.domain}</p>
+                </div>
+                ${renderBulletinStatus(student.skills[skill.id])}
+              </div>
+            `).join("")}
+          </div>
+        </section>
+
+        <section class="summary-card">
+          <h3>Synthèse par bloc</h3>
+          <div class="bulletin-pfmp">
+            ${blockAverages.map((block) => `
+              <article class="period-card">
+                <strong>${block.domain}</strong>
+                <p class="muted-copy">${block.validated}/${block.total} compétences consolidées</p>
+                <div class="pfmp-kpis">
+                  <span class="badge">${block.progress}%</span>
+                </div>
+              </article>
+            `).join("")}
+          </div>
+        </section>
+      </div>
+
+      <div class="bulletin-grid">
+        <section class="summary-card">
+          <h3>Historique TP / TD</h3>
+          <div class="bulletin-activities">
+            ${studentActivities.length ? studentActivities.map((activity) => `
+              <article class="period-card">
+                <strong>${activity.type} // ${activity.title}</strong>
+                <p class="muted-copy">${activity.date || "Date non renseignée"}</p>
+                <p class="muted-copy">${getSkillById(activity.skillId)?.code || ""} ${getSkillById(activity.skillId)?.title || ""}</p>
+                <div class="pfmp-kpis">
+                  <span class="badge">${getStudentActivityAverage(activity, student.id)}%</span>
+                  <span class="badge">${Object.keys(activity.evaluations?.[student.id] || {}).length} indicateurs</span>
+                </div>
+              </article>
+            `).join("") : `<article class="period-card"><strong>Aucune activité</strong><p class="muted-copy">Aucun TP/TD saisi pour cet élève.</p></article>`}
+          </div>
+        </section>
+
+        <section class="summary-card">
+          <h3>État PFMP</h3>
+          <div class="bulletin-pfmp">
+            ${PFMP_PERIODS.map((period) => {
+              const entry = getPfmpPeriodEntry(student.id, period.id);
+              return `
+                <article class="period-card">
+                  <strong>${period.label}</strong>
+                  <p class="muted-copy">${entry.companyName || "Entreprise non renseignée"}</p>
+                  <div class="pfmp-kpis">
+                    <span class="badge">${getPfmpCompletion(entry)} champs</span>
+                    <span class="badge">${entry.visitDate ? "Visite OK" : "Visite à planifier"}</span>
+                  </div>
+                </article>
+              `;
+            }).join("")}
+          </div>
+        </section>
+      </div>
+    `;
+  }
+}
+
+function getClassAlerts(classId) {
+  const students = getStudentsByClass(classId);
+  const activities = getActivitiesByClass(classId);
+  const alerts = [];
+  const lowProgress = students.filter((student) => getStudentProgress(student) < 35);
+  const noPfmp = students.filter((student) => PFMP_PERIODS.every((period) => !getPfmpPeriodEntry(student.id, period.id).companyName));
+  const incompletePfmp = students.filter((student) => PFMP_PERIODS.some((period) => {
+    const entry = getPfmpPeriodEntry(student.id, period.id);
+    return entry.companyName && (!hasFullConvention(entry) || !hasCompleteFile(entry));
+  }));
+  const unevaluatedSkills = skillCatalog.filter((skill) => students.some((student) => student.skills[skill.id] === "non_evalue"));
+  const activitiesWithoutMarks = activities.filter((activity) => !Object.keys(activity.evaluations || {}).length);
+
+  if (lowProgress.length) {
+    alerts.push({ level: "critical", title: "Élèves en forte difficulté", detail: `${lowProgress.length} élève(s) ont une progression sous 35%.` });
+  }
+  if (noPfmp.length) {
+    alerts.push({ level: "warning", title: "PFMP non renseignées", detail: `${noPfmp.length} élève(s) n'ont encore aucune entreprise saisie.` });
+  }
+  if (incompletePfmp.length) {
+    alerts.push({ level: "warning", title: "Dossiers PFMP incomplets", detail: `${incompletePfmp.length} élève(s) ont une convention ou un dossier incomplet.` });
+  }
+  if (unevaluatedSkills.length) {
+    alerts.push({ level: "info", title: "Compétences jamais consolidées", detail: `${unevaluatedSkills.length} compétence(s) contiennent encore du non évalué dans la classe.` });
+  }
+  if (activitiesWithoutMarks.length) {
+    alerts.push({ level: "info", title: "Séances sans saisie", detail: `${activitiesWithoutMarks.length} TP/TD existent mais n'ont encore aucune évaluation.` });
+  }
+  return alerts;
+}
+
+function renderBulletinStatus(status) {
+  const colors = {
+    absent: "#8a94a6",
+    non_evalue: "#59c6ff",
+    non_acquis: "#ff657d",
+    en_cours_acquisition: "#ff8c42",
+    partiellement_acquis: "#f7c35f",
+    acquis: "#63f597"
+  };
+  const color = colors[status] || "#8a94a6";
+  return `<span class="bulletin-pill" style="background:${color};color:${status === "non_evalue" ? "#ffffff" : "#06111b"};">${levelLabels[status] || status}</span>`;
+}
+
+function getStudentPfmpSummary(studentId) {
+  return {
+    filled: PFMP_PERIODS.filter((period) => getPfmpPeriodEntry(studentId, period.id).companyName).length
+  };
+}
+
+function getStudentActivityAverage(activity, studentId) {
+  const scores = Object.values(activity.evaluations?.[studentId] || {}).map((status) => levelScores[status] || 0);
+  if (!scores.length) return 0;
+  return Math.round((scores.reduce((sum, score) => sum + score, 0) / (scores.length * (levelScores.acquis || 1))) * 100);
+}
+
+function downloadTextFile(filename, content, type = "text/plain;charset=utf-8") {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 function initClassesPage() {

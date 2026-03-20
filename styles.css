@@ -96,6 +96,13 @@ body[data-page="pfmp"]::after {
     radial-gradient(circle at 50% 82%, rgba(127, 140, 255, 0.16), transparent 22%);
 }
 
+body[data-page="bulletin"]::after {
+  background:
+    radial-gradient(circle at 18% 20%, rgba(98, 245, 212, 0.18), transparent 24%),
+    radial-gradient(circle at 82% 20%, rgba(247, 195, 95, 0.12), transparent 22%),
+    radial-gradient(circle at 50% 84%, rgba(89, 198, 255, 0.15), transparent 24%);
+}
+
 .noise {
   position: fixed;
   inset: 0;
@@ -251,12 +258,26 @@ button, input, select { font: inherit; }
 .class-card-head { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
 .period-card { padding: 18px 14px 14px; border-radius: var(--radius-lg); border: 1px solid var(--line); background: rgba(6, 17, 27, 0.82); }
 .period-card strong { display: block; margin: 2px 0 8px; line-height: 1.3; }
+.alert-card.critical { border-color: rgba(255, 101, 125, 0.35); box-shadow: inset 0 0 0 1px rgba(255, 101, 125, 0.08); }
+.alert-card.warning { border-color: rgba(247, 195, 95, 0.35); box-shadow: inset 0 0 0 1px rgba(247, 195, 95, 0.08); }
+.alert-card.info { border-color: rgba(89, 198, 255, 0.35); box-shadow: inset 0 0 0 1px rgba(89, 198, 255, 0.08); }
+.alert-level { color: var(--cyan); text-transform: uppercase; letter-spacing: 0.16em; font-size: 0.72rem; }
 .matrix-grid.activity-grid { grid-template-columns: none; }
 .matrix-row.activity-row, .matrix-header.activity-header {
   grid-template-columns: minmax(180px, 220px) repeat(auto-fit, minmax(170px, 1fr));
 }
 .summary-card { padding: 20px 16px 16px; border-radius: var(--radius-lg); border: 1px solid var(--line); background: rgba(6, 17, 27, 0.82); }
 .summary-card h3 { margin: 2px 0 8px; font-family: "Orbitron", sans-serif; font-size: 1rem; line-height: 1.3; }
+.bulletin-sheet { padding: 30px 24px 24px; }
+.bulletin-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 18px; margin-top: 18px; }
+.bulletin-header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+.bulletin-title { margin: 0; font-family: "Orbitron", sans-serif; font-size: clamp(1.6rem, 3vw, 2.4rem); }
+.bulletin-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
+.bulletin-skills { display: grid; gap: 12px; }
+.bulletin-skill-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 14px 16px; border-radius: 14px; border: 1px solid var(--line); background: rgba(5,15,24,0.84); }
+.bulletin-pill { display: inline-flex; align-items: center; min-height: 34px; padding: 0 12px; border-radius: 999px; font-weight: 700; }
+.bulletin-pfmp, .bulletin-activities { display: grid; gap: 12px; }
+.print-only { display: none; }
 
 .directory-row {
   display: flex;
@@ -307,11 +328,37 @@ button, input, select { font: inherit; }
 .main-text { fill: var(--text); font-size: 13px; }
 
 @media (max-width: 1160px) {
-  .topbar, .hero, .dashboard-grid, .management-layout, .evaluation-layout, .class-cards, .catalog-grid, .skill-row, .matrix-header, .matrix-row, .pfmp-form-grid, .periods-grid, .login-layout {
+  .topbar, .hero, .dashboard-grid, .management-layout, .evaluation-layout, .class-cards, .catalog-grid, .skill-row, .matrix-header, .matrix-row, .pfmp-form-grid, .periods-grid, .login-layout, .bulletin-grid, .bulletin-kpis {
     grid-template-columns: 1fr;
   }
   .page-shell { width: min(100% - 16px, 1440px); }
   .wide-field { grid-column: auto; }
+}
+
+@media print {
+  body {
+    background: #ffffff;
+    color: #111111;
+  }
+  body::before, body::after, .noise, .topbar, .hero-side, .ghost-button, .primary-button {
+    display: none !important;
+  }
+  .page-shell {
+    width: 100%;
+    margin: 0;
+  }
+  .panel, .summary-card, .bulletin-skill-row, .period-card, .directory-row {
+    background: #ffffff;
+    color: #111111;
+    box-shadow: none;
+    border-color: #d0d0d0;
+  }
+  .muted-copy, .results-count, .directory-row p, .field span {
+    color: #555555 !important;
+  }
+  .print-only {
+    display: block;
+  }
 }
 
 @keyframes spin {
