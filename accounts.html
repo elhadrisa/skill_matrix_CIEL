@@ -79,14 +79,18 @@
         <div class="section-head">
           <div>
             <p class="eyebrow">Sauvegarde</p>
-            <h2>Export / restauration JSON</h2>
+            <h2>Sauvegarder ou remettre l'application</h2>
           </div>
         </div>
+        <p class="muted-copy">
+          Clique sur <strong>Sauvegarder l'application</strong> pour télécharger une copie complète.
+          Si besoin, choisis ensuite un fichier de sauvegarde et clique sur <strong>Remettre la sauvegarde</strong>.
+        </p>
         <div class="student-badges">
-          <button id="export-json-button" class="primary-button" type="button">Exporter la base JSON</button>
-          <label class="ghost-button button-link" for="restore-json-input">Choisir un JSON</label>
+          <button id="export-json-button" class="primary-button" type="button">Sauvegarder l'application</button>
+          <label class="ghost-button button-link" for="restore-json-input">Choisir une sauvegarde</label>
           <input id="restore-json-input" type="file" accept=".json,application/json" hidden>
-          <button id="restore-json-button" class="ghost-button" type="button">Restaurer</button>
+          <button id="restore-json-button" class="ghost-button" type="button">Remettre la sauvegarde</button>
         </div>
         <p id="restore-feedback" class="results-count"></p>
       </section>
