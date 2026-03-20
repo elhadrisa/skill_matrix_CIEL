@@ -4577,6 +4577,26 @@ function bindProtectedChrome() {
       nav.insertBefore(link, roleBadge || logoutButton || null);
     }
   });
+
+  document.querySelectorAll(".nav-dropdown").forEach((dropdown) => {
+    dropdown.addEventListener("toggle", () => {
+      if (!dropdown.open) return;
+      document.querySelectorAll(".nav-dropdown").forEach((other) => {
+        if (other !== dropdown) other.removeAttribute("open");
+      });
+    });
+    dropdown.addEventListener("mouseleave", () => {
+      dropdown.removeAttribute("open");
+    });
+  });
+
+  document.addEventListener("click", (event) => {
+    if (event.target.closest(".nav-dropdown")) return;
+    document.querySelectorAll(".nav-dropdown").forEach((dropdown) => {
+      dropdown.removeAttribute("open");
+    });
+  });
+
   if (logoutButton) {
     logoutButton.addEventListener("click", async () => {
       try {
