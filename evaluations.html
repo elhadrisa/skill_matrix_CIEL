@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CIEL // Évaluations</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="evaluations">
+  <div class="noise"></div>
+  <div class="page-shell">
+    <header class="topbar panel">
+      <div>
+        <p class="eyebrow">Bac Pro CIEL // Skill Matrix</p>
+        <h1 class="topbar-title">Évaluations</h1>
+      </div>
+      <nav class="nav-tabs">
+        <a class="nav-tab" href="index.html">Accueil</a>
+        <a class="nav-tab" href="dashboard.html">Dashboard</a>
+        <a class="nav-tab" href="classes.html">Classes</a>
+        <a class="nav-tab active" href="evaluations.html">Évaluations</a>
+        <a class="nav-tab" href="pfmp.html">PFMP</a>
+        <span id="session-role" class="badge accent"></span>
+        <button id="logout-button" class="ghost-button" type="button">Déconnexion</button>
+      </nav>
+    </header>
+
+    <main class="evaluation-layout">
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Session Builder</p>
+            <h2>Créer un TP / TD</h2>
+          </div>
+        </div>
+        <form id="activity-form" class="stack-form">
+          <label class="field">
+            <span>Type</span>
+            <select id="activity-type">
+              <option value="TP">TP</option>
+              <option value="TD">TD</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Titre</span>
+            <input id="activity-title" type="text" placeholder="Ex. TP VLAN et supervision" required>
+          </label>
+          <label class="field">
+            <span>Classe</span>
+            <select id="activity-class"></select>
+          </label>
+          <label class="field">
+            <span>Compétence</span>
+            <select id="activity-skill"></select>
+          </label>
+          <label class="field">
+            <span>Date</span>
+            <input id="activity-date" type="date">
+          </label>
+          <label class="field">
+            <span>Indicateurs d'évaluation</span>
+            <textarea id="activity-indicators" rows="5" placeholder="Un indicateur par ligne"></textarea>
+          </label>
+          <button class="primary-button" type="submit">Créer la séance</button>
+          <p id="activity-feedback" class="results-count"></p>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Session Scope</p>
+            <h2>Choisir une séance</h2>
+          </div>
+        </div>
+        <div class="stack-form">
+          <label class="field">
+            <span>Classe</span>
+            <select id="session-class-select"></select>
+          </label>
+          <label class="field">
+            <span>TP / TD</span>
+            <select id="activity-select"></select>
+          </label>
+        </div>
+        <div id="activity-summary" class="class-cards"></div>
+      </section>
+
+      <section class="panel wide-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Evaluation Grid</p>
+            <h2>Évaluer la séance</h2>
+          </div>
+        </div>
+        <div id="activity-matrix" class="matrix-grid"></div>
+      </section>
+
+      <section class="panel wide-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">TP Report</p>
+            <h2>Bilan de la séance</h2>
+          </div>
+        </div>
+        <div id="activity-report" class="class-cards"></div>
+      </section>
+
+      <section class="panel wide-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">TP Synthesis</p>
+            <h2>Synthèse moyenne des TP / TD</h2>
+          </div>
+        </div>
+        <div id="activity-synthesis" class="student-directory"></div>
+      </section>
+
+      <section class="panel wide-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Student Sheet</p>
+            <h2>Compétences de l'élève</h2>
+          </div>
+          <p id="student-sheet-meta" class="results-count"></p>
+        </div>
+        <div class="stack-form mini-grid">
+          <label class="field">
+            <span>Classe</span>
+            <select id="eval-class-select"></select>
+          </label>
+          <label class="field">
+            <span>Élève</span>
+            <select id="eval-student-select"></select>
+          </label>
+        </div>
+        <div id="student-skills-editor" class="skills-table"></div>
+      </section>
+    </main>
+
+    <template id="skill-row-template">
+      <article class="skill-row">
+        <div class="skill-main">
+          <div class="skill-headline">
+            <span class="skill-code"></span>
+            <span class="skill-domain"></span>
+          </div>
+          <h3 class="skill-title"></h3>
+          <p class="skill-description"></p>
+        </div>
+        <div class="skill-actions">
+          <label class="field compact-field">
+            <span>Niveau</span>
+            <select class="skill-select">
+              <option value="absent">Absent</option>
+              <option value="non_evalue">Non évalué</option>
+              <option value="non_acquis">Non acquis</option>
+              <option value="en_cours_acquisition">En cours d'acquisition</option>
+              <option value="partiellement_acquis">Partiellement acquis</option>
+              <option value="acquis">Acquis</option>
+            </select>
+          </label>
+        </div>
+      </article>
+    </template>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

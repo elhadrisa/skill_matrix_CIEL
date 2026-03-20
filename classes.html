@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CIEL // Classes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="classes">
+  <div class="noise"></div>
+  <div class="page-shell">
+    <header class="topbar panel">
+      <div>
+        <p class="eyebrow">Bac Pro CIEL // Skill Matrix</p>
+        <h1 class="topbar-title">Classes</h1>
+      </div>
+      <nav class="nav-tabs">
+        <a class="nav-tab" href="index.html">Accueil</a>
+        <a class="nav-tab" href="dashboard.html">Dashboard</a>
+        <a class="nav-tab active" href="classes.html">Classes</a>
+        <a class="nav-tab" href="evaluations.html">Évaluations</a>
+        <a class="nav-tab" href="pfmp.html">PFMP</a>
+        <span id="session-role" class="badge accent"></span>
+        <button id="logout-button" class="ghost-button" type="button">Déconnexion</button>
+      </nav>
+    </header>
+
+    <main class="management-layout">
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Class Registry</p>
+            <h2>Créer une classe</h2>
+          </div>
+        </div>
+        <form id="class-form" class="stack-form">
+          <label class="field">
+            <span>Nom de la classe</span>
+            <input id="class-name-input" type="text" placeholder="Ex. Terminale CIEL" required>
+          </label>
+          <label class="field">
+            <span>Année</span>
+            <input id="class-year-input" type="text" placeholder="Ex. 2025-2026" required>
+          </label>
+          <label class="field">
+            <span>Référence</span>
+            <input id="class-note-input" type="text" placeholder="Ex. Groupe A - Réseau" required>
+          </label>
+          <button class="primary-button" type="submit">Ajouter la classe</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Student Registry</p>
+            <h2>Ajouter un élève</h2>
+          </div>
+        </div>
+        <form id="student-form" class="stack-form">
+          <label class="field">
+            <span>Nom de l'élève</span>
+            <input id="student-name-input" type="text" placeholder="Ex. Sarah Dupont" required>
+          </label>
+          <label class="field">
+            <span>Classe</span>
+            <select id="student-class-input" required></select>
+          </label>
+          <button class="primary-button" type="submit">Ajouter l'élève</button>
+        </form>
+        <div class="import-box">
+          <p class="eyebrow">CSV Import</p>
+          <label class="field">
+            <span>Classe cible</span>
+            <select id="import-class-input" required></select>
+          </label>
+          <label class="field">
+            <span>Fichier CSV</span>
+            <input id="student-csv-input" type="file" accept=".csv,text/csv">
+          </label>
+          <button id="import-csv-button" class="ghost-button" type="button">Importer les élèves</button>
+          <p id="import-feedback" class="results-count"></p>
+        </div>
+      </section>
+
+      <section class="panel wide-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Class Monitor</p>
+            <h2>Vue classes et effectifs</h2>
+          </div>
+          <label class="field inline-field">
+            <span>Classe affichée</span>
+            <select id="class-filter"></select>
+          </label>
+        </div>
+        <div id="class-cards" class="class-cards"></div>
+        <div id="student-directory" class="student-directory"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

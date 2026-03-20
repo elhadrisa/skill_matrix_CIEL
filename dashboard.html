@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CIEL // Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="dashboard">
+  <div class="noise"></div>
+  <div class="page-shell">
+    <header class="topbar panel">
+      <div>
+        <p class="eyebrow">Bac Pro CIEL // Skill Matrix</p>
+        <h1 class="topbar-title">Dashboard par classe</h1>
+      </div>
+      <nav class="nav-tabs app-nav">
+        <a class="nav-tab" href="index.html">Accueil</a>
+        <a class="nav-tab active" href="dashboard.html">Dashboard</a>
+        <a class="nav-tab" href="classes.html">Classes</a>
+        <a class="nav-tab" href="evaluations.html">Évaluations</a>
+        <a class="nav-tab" href="pfmp.html">PFMP</a>
+        <span id="session-role" class="badge accent"></span>
+        <button id="logout-button" class="ghost-button" type="button">Déconnexion</button>
+      </nav>
+    </header>
+
+    <section class="hero panel">
+      <div class="hero-copy">
+        <p class="eyebrow">Control Room</p>
+        <h2 class="hero-title">Pilotage ciblé d'une classe</h2>
+        <p class="hero-text">
+          Le dashboard est désormais focalisé sur la classe sélectionnée pour éviter une lecture trop globale
+          et mieux piloter les compétences ainsi que le suivi PFMP.
+        </p>
+        <div class="hero-tags">
+          <span class="tag">Filtre classe</span>
+          <span class="tag">Compétences C1 à C11</span>
+          <span class="tag">PFMP intégré</span>
+        </div>
+      </div>
+      <section class="hero-side">
+        <div class="hero-side-head">
+          <div>
+            <h2>Classe analysée</h2>
+            <p id="dashboard-class-meta" class="results-count"></p>
+          </div>
+          <button id="reset-data" class="ghost-button" type="button">Réinitialiser</button>
+        </div>
+        <label class="field">
+          <span>Choisir la classe</span>
+          <select id="dashboard-class-select"></select>
+        </label>
+        <button id="export-skills-button" class="primary-button" type="button">Exporter bilan compétences</button>
+        <div id="stats-grid" class="stats-grid"></div>
+      </section>
+    </section>
+
+    <main class="dashboard-layout">
+      <section class="dashboard-grid">
+        <article class="panel chart-panel">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Status Map</p>
+              <h2>Répartition de la classe</h2>
+            </div>
+          </div>
+          <div id="status-chart" class="chart-box"></div>
+        </article>
+
+        <article class="panel chart-panel">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Block Scan</p>
+              <h2>Progression par bloc</h2>
+            </div>
+          </div>
+          <div id="block-chart" class="chart-box"></div>
+        </article>
+
+        <article class="panel chart-panel">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">PFMP Monitor</p>
+              <h2>État PFMP de la classe</h2>
+            </div>
+          </div>
+          <div id="pfmp-chart" class="chart-box"></div>
+        </article>
+
+        <article class="panel chart-panel">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Student Ranking</p>
+              <h2>Comparatif élèves</h2>
+            </div>
+          </div>
+          <div id="student-chart" class="chart-box"></div>
+        </article>
+      </section>
+
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Référentiel</p>
+            <h2>Compétences officielles embarquées</h2>
+          </div>
+        </div>
+        <div id="catalog-grid" class="catalog-grid"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
