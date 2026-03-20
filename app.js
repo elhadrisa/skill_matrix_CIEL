@@ -328,13 +328,18 @@ function hydrateEvaluationActivity(activity, index) {
     id: indicator.id || `indicator-${index + 1}-${indicatorIndex + 1}`,
     label: indicator.label || `Indicateur ${indicatorIndex + 1}`
   })) : [];
+  const skillIds = Array.isArray(activity.skillIds) && activity.skillIds.length
+    ? activity.skillIds.filter((skillId) => getSkillById(skillId))
+    : [activity.skillId || skillCatalog[0].id].filter((skillId) => getSkillById(skillId));
   return {
     id: activity.id || `activity-${index + 1}`,
     title: activity.title || `Séance ${index + 1}`,
     type: activity.type || "TP",
     classId: activity.classId || "",
-    skillId: activity.skillId || skillCatalog[0].id,
+    skillId: skillIds[0] || skillCatalog[0].id,
+    skillIds,
     date: activity.date || "",
+    comment: activity.comment || "",
     indicators,
     evaluations: activity.evaluations || {}
   };
@@ -1113,6 +1118,7 @@ function initDashboardPageFinal() {
   let searchResults = document.querySelector("#global-search-results");
   let teacherFilter = document.querySelector("#teacher-filter-select");
   let deadlinesPanel = document.querySelector("#deadlines-panel");
+  let agendaPanel = document.querySelector("#agenda-panel");
 
   if (heroSide && !searchInput) {
     const wrapper = document.createElement("div");
@@ -1128,12 +1134,14 @@ function initDashboardPageFinal() {
       </label>
       <div id="global-search-results" class="student-directory"></div>
       <div id="deadlines-panel" class="student-directory"></div>
+      <div id="agenda-panel" class="student-directory"></div>
     `;
     heroSide.appendChild(wrapper);
     teacherFilter = wrapper.querySelector("#teacher-filter-select");
     searchInput = wrapper.querySelector("#global-search-input");
     searchResults = wrapper.querySelector("#global-search-results");
     deadlinesPanel = wrapper.querySelector("#deadlines-panel");
+    agendaPanel = wrapper.querySelector("#agenda-panel");
   }
 
   populateTeacherFilter(teacherFilter);
@@ -1219,6 +1227,22 @@ function initDashboardPageFinal() {
         </article>
       `).join("") : `<article class="summary-card"><h3>Aucune échéance</h3><p class="muted-copy">Aucune échéance prioritaire sur ce périmètre.</p></article>`;
     }
+
+    if (agendaPanel) {
+      const agendaItems = getAgendaEntries(classId, selectedTeacher);
+      agendaPanel.innerHTML = agendaItems.length ? agendaItems.map((item) => `
+        <article class="directory-row compact">
+          <div>
+            <strong>${item.title}</strong>
+            <p>${item.meta}</p>
+          </div>
+          <div class="student-badges">
+            <span class="badge">${item.kind}</span>
+            <span class="badge">${item.when}</span>
+          </div>
+        </article>
+      `).join("") : `<article class="summary-card"><h3>Aucun agenda</h3><p class="muted-copy">Aucune date exploitable pour cette classe ou ce professeur.</p></article>`;
+    }
   }
 
   function renderSearchResults() {
@@ -1242,8 +1266,7 @@ function initDashboardPageFinal() {
       }
     });
     app.evaluationActivities.filter((activity) => selectedTeacher === "all" || activityTouchesTeacher(activity, selectedTeacher)).forEach((activity) => {
-      const skill = getSkillById(activity.skillId);
-      if (`${activity.title} ${activity.type} ${activity.date} ${skill?.title || ""}`.toLowerCase().includes(term)) {
+      if (`${activity.title} ${activity.type} ${activity.date} ${getActivitySkillLabel(activity)} ${(activity.comment || "")}`.toLowerCase().includes(term)) {
         results.push({ label: activity.title, meta: `${activity.type} // ${getClassById(activity.classId)?.name || ""}` });
       }
     });
@@ -1276,6 +1299,7 @@ function initEvaluationsPageFinal() {
   const activitySkill = document.querySelector("#activity-skill");
   const activityDate = document.querySelector("#activity-date");
   const activityIndicators = document.querySelector("#activity-indicators");
+  const activityComment = document.querySelector("#activity-comment");
   const activityFeedback = document.querySelector("#activity-feedback");
   const sessionClassSelect = document.querySelector("#session-class-select");
   const activitySelect = document.querySelector("#activity-select");
@@ -1310,19 +1334,20 @@ function initEvaluationsPageFinal() {
   const activitySynthesisPdfButton = document.querySelector("#activity-synthesis-pdf");
 
   populateClassSelect(activityClass);
-  populateSkillSelect(activitySkill);
+  populateSkillMultiSelect(activitySkill);
   populateClassSelect(sessionClassSelect);
   populateClassSelect(evalClassSelect);
   syncSessionActivities();
   syncEvalStudents();
 
-  enforcePermission("edit_evaluations", activityType, activityTitle, activityClass, activitySkill, activityDate, activityIndicators, activityEditButton, activityDeleteButton);
+  enforcePermission("edit_evaluations", activityType, activityTitle, activityClass, activitySkill, activityDate, activityIndicators, activityComment, activityEditButton, activityDeleteButton);
 
   activityForm.addEventListener("submit", (event) => {
     event.preventDefault();
     if (!canEditEvaluations) return;
+    const selectedSkillIds = getSelectedValues(activitySkill);
     const indicators = activityIndicators.value.split("\n").map((line) => line.trim()).filter(Boolean).map((label, index) => ({ id: slugify(`${activityTitle.value}-${index}-${Date.now()}`), label }));
-    if (!activityTitle.value.trim() || !activityClass.value || !activitySkill.value || !indicators.length) {
+    if (!activityTitle.value.trim() || !activityClass.value || !selectedSkillIds.length || !indicators.length) {
       activityFeedback.textContent = "Renseigne un titre, une classe, une compétence et au moins un indicateur.";
       return;
     }
@@ -1331,14 +1356,17 @@ function initEvaluationsPageFinal() {
       title: activityTitle.value.trim(),
       type: activityType.value,
       classId: activityClass.value,
-      skillId: activitySkill.value,
+      skillId: selectedSkillIds[0],
+      skillIds: selectedSkillIds,
       date: activityDate.value,
+      comment: activityComment?.value.trim() || "",
       indicators,
       evaluations: {}
     });
     logAction("Séance créée", activityTitle.value.trim(), `${activityType.value} // ${getClassById(activityClass.value)?.name || ""}`);
     persistAppData();
     activityForm.reset();
+    clearMultiSelect(activitySkill);
     activityFeedback.textContent = "Séance créée.";
     sessionClassSelect.value = activityClass.value;
     syncSessionActivities();
@@ -1366,10 +1394,17 @@ function initEvaluationsPageFinal() {
     const title = window.prompt("Nouveau titre de la séance", activity.title);
     if (!title) return;
     const date = window.prompt("Nouvelle date", activity.date || "");
+    const skillsValue = window.prompt("CompÃ©tences (codes sÃ©parÃ©s par , ex: C4,C8)", getActivitySkills(activity).map((skill) => skill.code).join(", "));
     const indicators = window.prompt("Indicateurs (séparés par |)", activity.indicators.map((item) => item.label).join(" | "));
+    const comment = window.prompt("Commentaire enseignant", activity.comment || "");
     if (!indicators) return;
+    const skillIds = parseSkillCodesInput(skillsValue);
+    if (!skillIds.length) return;
     activity.title = title.trim();
     activity.date = date.trim();
+    activity.skillIds = skillIds;
+    activity.skillId = skillIds[0];
+    activity.comment = (comment || "").trim();
     activity.indicators = indicators.split("|").map((item, index) => ({ id: activity.indicators[index]?.id || slugify(`${title}-${index}-${Date.now()}`), label: item.trim() })).filter((item) => item.label);
     logAction("Séance modifiée", activity.title, activity.type);
     persistAppData();
@@ -1415,8 +1450,7 @@ function initEvaluationsPageFinal() {
     const search = activitySearchInput?.value.trim().toLowerCase() || "";
     const activities = getActivitiesByClass(classId).filter((activity) => {
       if (!search) return true;
-      const skill = getSkillById(activity.skillId);
-      return `${activity.title} ${activity.type} ${activity.date} ${skill?.title || ""}`.toLowerCase().includes(search);
+      return `${activity.title} ${activity.type} ${activity.date} ${getActivitySkillLabel(activity)} ${(activity.comment || "")}`.toLowerCase().includes(search);
     });
     activitySelect.innerHTML = activities.map((activity) => `<option value="${activity.id}">${activity.type} // ${activity.title}</option>`).join("");
     if (selectedId && activities.some((activity) => activity.id === selectedId)) activitySelect.value = selectedId;
@@ -1445,11 +1479,10 @@ function initEvaluationsPageFinal() {
       activitySummary.innerHTML = `<article class="summary-card"><h3>Aucune séance</h3><p class="muted-copy">Crée un TP ou un TD pour commencer.</p></article>`;
       return;
     }
-    const skill = getSkillById(activity.skillId);
     activitySummary.innerHTML = `
       <article class="summary-card">
         <h3>${activity.type} // ${activity.title}</h3>
-        <p class="muted-copy">${classItem?.name || ""} // ${skill?.code || ""} ${skill?.title || ""}</p>
+        <p class="muted-copy">${classItem?.name || ""} // ${getActivitySkillLabel(activity)}</p>
         <p class="muted-copy">${activity.date || "Date non renseignée"} // ${activity.indicators.length} indicateur(s)</p>
       </article>
     `;
@@ -1523,7 +1556,7 @@ function initEvaluationsPageFinal() {
         <article class="directory-row compact">
           <div>
             <strong>${activity.type} // ${activity.title}</strong>
-            <p>${skill?.code || ""} ${skill?.title || ""}</p>
+            <p>${getActivitySkillLabel(activity)}</p>
             <p>${activity.date || "Date non renseignée"}</p>
           </div>
           <div class="student-badges">
@@ -2740,6 +2773,79 @@ function getDeadlinesForClass(classId, teacher = "all") {
   return notices.sort((a, b) => a.priority - b.priority).slice(0, 12);
 }
 
+function populateSkillMultiSelect(select) {
+  if (!select) return;
+  select.innerHTML = skillCatalog.map((skill) => `<option value="${skill.id}">${skill.code} // ${skill.title}</option>`).join("");
+}
+
+function getSelectedValues(select) {
+  return [...(select?.selectedOptions || [])].map((option) => option.value).filter(Boolean);
+}
+
+function clearMultiSelect(select) {
+  [...(select?.options || [])].forEach((option) => {
+    option.selected = false;
+  });
+}
+
+function parseSkillCodesInput(value) {
+  const codes = String(value || "")
+    .split(",")
+    .map((item) => normalizeText(item).toUpperCase())
+    .filter(Boolean);
+  return skillCatalog
+    .filter((skill) => codes.includes(skill.code.toUpperCase()))
+    .map((skill) => skill.id);
+}
+
+function parseSortableDate(value) {
+  if (!value) return null;
+  const direct = new Date(value);
+  if (!Number.isNaN(direct.getTime())) return direct;
+  const match = String(value).match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  if (!match) return null;
+  return new Date(`${match[3]}-${match[2]}-${match[1]}`);
+}
+
+function formatAgendaDate(value) {
+  const date = parseSortableDate(value);
+  if (!date) return "À planifier";
+  return date.toLocaleDateString("fr-FR");
+}
+
+function getAgendaEntries(classId, teacher = "all") {
+  const entries = [];
+  const students = getStudentsByClass(classId).filter((student) => teacher === "all" || studentMatchesTeacher(student, teacher));
+
+  getActivitiesByClass(classId).forEach((activity) => {
+    if (teacher !== "all" && !activityTouchesTeacher(activity, teacher)) return;
+    if (!activity.date) return;
+    entries.push({
+      sortKey: parseSortableDate(activity.date)?.getTime() || Number.MAX_SAFE_INTEGER,
+      title: `${activity.type} - ${activity.title}`,
+      meta: `${getActivitySkillLabel(activity)} // ${getClassById(classId)?.name || ""}`,
+      kind: "Séance",
+      when: formatAgendaDate(activity.date)
+    });
+  });
+
+  students.forEach((student) => {
+    PFMP_PERIODS.forEach((period) => {
+      const entry = getPfmpPeriodEntry(student.id, period.id);
+      if (!entry.visitDate) return;
+      entries.push({
+        sortKey: parseSortableDate(entry.visitDate)?.getTime() || Number.MAX_SAFE_INTEGER,
+        title: `${student.name} - ${period.label}`,
+        meta: `${entry.companyName || "Entreprise non renseignée"} // ${entry.teacher || "Professeur non renseigné"}`,
+        kind: "Visite PFMP",
+        when: formatAgendaDate(entry.visitDate)
+      });
+    });
+  });
+
+  return entries.sort((a, b) => a.sortKey - b.sortKey).slice(0, 12);
+}
+
 function buildPrintShell(title, subtitle, bodyHtml) {
   return `
     <!DOCTYPE html>
@@ -2785,7 +2891,7 @@ function printHtmlDocument(title, html) {
 
 function buildActivityPdfHtml(activity, classId) {
   const classItem = getClassById(classId);
-  const skill = getSkillById(activity.skillId);
+  const skill = { code: getActivitySkills(activity).map((item) => item.code).join(", "), title: "" };
   const students = getStudentsByClass(classId);
   const summaryHtml = `
     <div class="card">
@@ -2836,7 +2942,7 @@ function buildActivitySynthesisPdfHtml(classId) {
   const activities = getActivitiesByClass(classId);
   const students = getStudentsByClass(classId);
   const rows = activities.map((activity) => {
-    const skill = getSkillById(activity.skillId);
+    const skill = { code: getActivitySkills(activity).map((item) => item.code).join(", ") };
     return `
       <tr>
         <td>${escapeHtml(activity.type)}</td>
@@ -4681,6 +4787,25 @@ function getClassById(classId) {
 
 function getSkillById(skillId) {
   return skillCatalog.find((skill) => skill.id === skillId);
+}
+
+function getActivitySkillIds(activity) {
+  if (!activity) return [];
+  const ids = Array.isArray(activity.skillIds) && activity.skillIds.length
+    ? activity.skillIds
+    : [activity.skillId].filter(Boolean);
+  return ids.filter((skillId, index) => getSkillById(skillId) && ids.indexOf(skillId) === index);
+}
+
+function getActivitySkills(activity) {
+  return getActivitySkillIds(activity).map((skillId) => getSkillById(skillId)).filter(Boolean);
+}
+
+function getActivitySkillLabel(activity) {
+  const skills = getActivitySkills(activity);
+  return skills.length
+    ? skills.map((skill) => `${skill.code} ${skill.title}`).join(" | ")
+    : "Aucune compétence";
 }
 
 function getStudentById(studentId) {

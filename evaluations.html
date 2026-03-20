@@ -54,7 +54,8 @@
           </label>
           <label class="field">
             <span>Compétence</span>
-            <select id="activity-skill"></select>
+            <select id="activity-skill" multiple size="6"></select>
+            <small>Utilise `Ctrl` ou `Cmd` pour choisir plusieurs compétences.</small>
           </label>
           <label class="field">
             <span>Date</span>
@@ -63,6 +64,10 @@
           <label class="field">
             <span>Indicateurs d'évaluation</span>
             <textarea id="activity-indicators" rows="5" placeholder="Un indicateur par ligne"></textarea>
+          </label>
+          <label class="field">
+            <span>Commentaire enseignant</span>
+            <textarea id="activity-comment" rows="4" placeholder="Consignes, remarques, synthèse de la séance..."></textarea>
           </label>
           <button class="primary-button" type="submit">Créer la séance</button>
           <p id="activity-feedback" class="results-count"></p>
