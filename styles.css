@@ -132,6 +132,7 @@ button, input, select { font: inherit; }
 }
 
 .topbar, .hero, .chart-panel, .wide-panel, .panel { position: relative; z-index: 1; }
+.topbar { z-index: 40; }
 .topbar, .hero, .chart-panel, .wide-panel, .management-layout > .panel, .evaluation-layout > .panel, .dashboard-layout > .panel { padding: 34px 22px 22px; }
 .topbar {
   display: grid;
@@ -214,7 +215,7 @@ button, input, select { font: inherit; }
   background: rgba(6, 17, 27, 0.96);
   box-shadow: var(--shadow);
   display: none;
-  z-index: 20;
+  z-index: 80;
 }
 .nav-dropdown:hover .nav-dropdown-menu,
 .nav-dropdown:focus-within .nav-dropdown-menu,
