@@ -88,7 +88,7 @@ const PFMP_PERIODS = [
 ];
 
 const page = document.body.dataset.page;
-const PROTECTED_PAGES = new Set(["dashboard", "classes", "evaluations", "pfmp", "accounts", "bulletin"]);
+const PROTECTED_PAGES = new Set(["dashboard", "classes", "evaluations", "pfmp", "accounts", "bulletin", "remediation"]);
 const ADMIN_ONLY_PAGES = new Set(["accounts"]);
 const app = createEmptyApp();
 let persistTimeout = null;
@@ -143,6 +143,7 @@ async function initializeApp() {
       if (page === "pfmp") initPfmpPageFinal();
       if (page === "accounts") initAccountsPage();
       if (page === "bulletin") initBulletinPage();
+      if (page === "remediation") initRemediationPageFinal();
       return;
     }
 
@@ -166,6 +167,7 @@ async function initializeApp() {
     if (page === "pfmp") initPfmpPageFinal();
     if (page === "accounts") initAccountsPage();
     if (page === "bulletin") initBulletinPage();
+    if (page === "remediation") initRemediationPageFinal();
   }
 }
 
@@ -1295,6 +1297,9 @@ function initDashboardPageFinal() {
   let deadlinesPanel = document.querySelector("#deadlines-panel");
   let agendaPanel = document.querySelector("#agenda-panel");
   let calendarGrid = document.querySelector("#calendar-grid");
+  const alertsPanel = document.querySelector("#alerts-grid")?.closest(".panel");
+
+  if (alertsPanel) alertsPanel.style.display = "none";
 
   if (heroSide && !searchInput) {
     const wrapper = document.createElement("div");
@@ -1503,6 +1508,49 @@ function initDashboardPageFinal() {
       </article>
     `).join("") : `<article class="summary-card"><h3>Aucun résultat</h3><p class="muted-copy">Aucune correspondance pour cette recherche.</p></article>`;
   }
+}
+
+function initRemediationPageFinal() {
+  bindProtectedChrome();
+  const classSelect = document.querySelector("#remediation-class-select");
+  const severitySelect = document.querySelector("#remediation-severity-select");
+  const teacherSelect = document.querySelector("#remediation-teacher-select");
+  const summaryGrid = document.querySelector("#remediation-summary-grid");
+  const pfmpGrid = document.querySelector("#remediation-pfmp-grid");
+  const evaluationGrid = document.querySelector("#remediation-evaluation-grid");
+
+  populateClassSelect(classSelect);
+  populateTeacherFilter(teacherSelect);
+
+  classSelect.addEventListener("change", renderRemediationPage);
+  severitySelect?.addEventListener("change", renderRemediationPage);
+  teacherSelect?.addEventListener("change", renderRemediationPage);
+
+  renderRemediationPage();
+
+  function renderRemediationPage() {
+    const classId = classSelect.value || app.classes[0]?.id || "";
+    const teacher = teacherSelect?.value || "all";
+    const severity = severitySelect?.value || "all";
+    const alerts = getClassAlerts(classId, teacher).filter((item) => severity === "all" || item.level === severity);
+    const pfmpItems = getPfmpRemediationItems(classId, teacher).filter((item) => severity === "all" || item.level === severity);
+    const evaluationItems = getEvaluationRemediationItems(classId, teacher).filter((item) => severity === "all" || item.level === severity);
+
+    summaryGrid.innerHTML = alerts.length ? alerts.map(renderRemediationCard).join("") : `<article class="summary-card"><h3>Aucune remédiation globale</h3><p class="muted-copy">Aucun signal bloquant pour ce filtre.</p></article>`;
+    pfmpGrid.innerHTML = pfmpItems.length ? pfmpItems.map(renderRemediationCard).join("") : `<article class="summary-card"><h3>Aucune remédiation PFMP</h3><p class="muted-copy">Les dossiers PFMP ne présentent pas d'action prioritaire.</p></article>`;
+    evaluationGrid.innerHTML = evaluationItems.length ? evaluationItems.map(renderRemediationCard).join("") : `<article class="summary-card"><h3>Aucune remédiation évaluation</h3><p class="muted-copy">Aucune relance pédagogique à traiter pour ce filtre.</p></article>`;
+  }
+}
+
+function renderRemediationCard(item) {
+  return `
+    <article class="summary-card alert-card ${item.level}">
+      <p class="alert-level">${item.level}</p>
+      <h3>${item.title}</h3>
+      <p class="muted-copy">${item.detail}</p>
+      <p class="muted-copy">${item.action || ""}</p>
+    </article>
+  `;
 }
 
 function initEvaluationsPageFinal() {
@@ -2884,6 +2932,113 @@ function getClassAlerts(classId, teacher = "all") {
     alerts.push({ level: "info", title: "Séances sans saisie", detail: `${activitiesWithoutMarks.length} TP/TD existent mais n'ont encore aucune évaluation.` });
   }
   return alerts;
+}
+
+function getPfmpRemediationItems(classId, teacher = "all") {
+  return getStudentsByClass(classId)
+    .filter((student) => teacher === "all" || studentMatchesTeacher(student, teacher))
+    .flatMap((student) =>
+      PFMP_PERIODS.flatMap((period) => {
+        const entry = getPfmpPeriodEntry(student.id, period.id);
+        const items = [];
+        if (!entry.companyName) {
+          items.push({
+            level: "warning",
+            category: "PFMP",
+            title: `${student.name} // ${period.label}`,
+            detail: "Entreprise non renseignée.",
+            action: "Saisir une entreprise ou vérifier le placement."
+          });
+        }
+        if (entry.companyName && !hasFullConvention(entry)) {
+          items.push({
+            level: "critical",
+            category: "PFMP",
+            title: `${student.name} // ${period.label}`,
+            detail: "Convention incomplète.",
+            action: "Compléter les signatures entreprise, parents et lycée."
+          });
+        }
+        if (entry.companyName && !entry.visitDate) {
+          items.push({
+            level: "warning",
+            category: "PFMP",
+            title: `${student.name} // ${period.label}`,
+            detail: "Visite PFMP non planifiée.",
+            action: "Planifier la visite ou consigner un contact téléphonique."
+          });
+        }
+        if (entry.companyName && !hasCompleteFile(entry)) {
+          items.push({
+            level: "info",
+            category: "PFMP",
+            title: `${student.name} // ${period.label}`,
+            detail: "Dossier PFMP incomplet.",
+            action: "Renseigner rapport, livret et fiche de présence."
+          });
+        }
+        return items;
+      })
+    );
+}
+
+function getEvaluationRemediationItems(classId, teacher = "all") {
+  const students = getStudentsByClass(classId).filter((student) => teacher === "all" || studentMatchesTeacher(student, teacher));
+  const items = [];
+
+  students
+    .filter((student) => getStudentProgress(student) < 35)
+    .forEach((student) => {
+      items.push({
+        level: "critical",
+        category: "Evaluation",
+        title: student.name,
+        detail: `Progression sous 35% (${getStudentProgress(student)}%).`,
+        action: "Prévoir une reprise ciblée, un TP d'appui ou une séance différenciée."
+      });
+    });
+
+  getActivitiesByClass(classId)
+    .filter((activity) => teacher === "all" || activityTouchesTeacher(activity, teacher))
+    .forEach((activity) => {
+      if (!Object.keys(activity.evaluations || {}).length) {
+        items.push({
+          level: "warning",
+          category: "Evaluation",
+          title: `${activity.type} // ${activity.title}`,
+          detail: "Aucune évaluation saisie.",
+          action: "Compléter la grille avant clôture de la séance."
+        });
+      }
+
+      students.forEach((student) => {
+        const missing = activity.indicators.filter((indicator) => getActivityIndicatorStatus(activity, student.id, indicator.id) === "non_evalue");
+        if (missing.length) {
+          items.push({
+            level: "info",
+            category: "Evaluation",
+            title: `${student.name} // ${activity.title}`,
+            detail: `${missing.length} indicateur(s) non évalué(s).`,
+            action: "Finaliser la saisie ou justifier l'absence."
+          });
+        }
+      });
+    });
+
+  skillCatalog.forEach((skill) => {
+    const impacted = students.filter((student) => student.skills[skill.id] === "non_evalue");
+    if (impacted.length) {
+      items.push({
+        level: "info",
+        category: "Evaluation",
+        title: `${skill.code} // ${skill.title}`,
+        detail: `${impacted.length} élève(s) encore non évalué(s).`,
+        action: "Prévoir une évaluation dédiée ou rattacher la compétence à un TP/TD."
+      });
+    }
+  });
+
+  return items;
 }
 
 function normalizeText(value) {
@@ -4391,6 +4546,16 @@ function bindProtectedChrome() {
     roleBadge.textContent = session.label;
   }
   navs.forEach((nav) => {
+    const remediationExisting = nav.querySelector('a[href="remediation.html"]');
+    if (!remediationExisting) {
+      const remediationLink = document.createElement("a");
+      remediationLink.href = "remediation.html";
+      remediationLink.className = `nav-tab${page === "remediation" ? " active" : ""}`;
+      remediationLink.textContent = "Remediation";
+      nav.insertBefore(remediationLink, roleBadge || logoutButton || null);
+    } else {
+      remediationExisting.className = `nav-tab${page === "remediation" ? " active" : ""}`;
+    }
     const existing = nav.querySelector('a[href="accounts.html"]');
     if (session?.role === "admin" && !existing) {
       const link = document.createElement("a");

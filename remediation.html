@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CIEL // Remediation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="remediation">
+  <div class="noise"></div>
+  <div class="page-shell">
+    <header class="topbar panel">
+      <div>
+        <p class="eyebrow">Bac Pro CIEL // Skill Matrix</p>
+        <h1 class="topbar-title">Remediation</h1>
+      </div>
+      <nav class="nav-tabs">
+        <a class="nav-tab" href="index.html">Accueil</a>
+        <a class="nav-tab" href="dashboard.html">Dashboard</a>
+        <a class="nav-tab" href="classes.html">Classes</a>
+        <a class="nav-tab" href="evaluations.html">Evaluations</a>
+        <a class="nav-tab" href="pfmp.html">PFMP</a>
+        <span id="session-role" class="badge accent"></span>
+        <button id="logout-button" class="ghost-button" type="button">Deconnexion</button>
+      </nav>
+    </header>
+
+    <main class="dashboard-layout">
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Remediation Scope</p>
+            <h2>Vue globale des actions a mener</h2>
+          </div>
+        </div>
+        <div class="mini-grid">
+          <label class="field">
+            <span>Classe</span>
+            <select id="remediation-class-select"></select>
+          </label>
+          <label class="field">
+            <span>Professeur</span>
+            <select id="remediation-teacher-select"></select>
+          </label>
+        </div>
+        <label class="field inline-field">
+          <span>Gravite</span>
+          <select id="remediation-severity-select">
+            <option value="all">Toutes</option>
+            <option value="critical">Critique</option>
+            <option value="warning">Avertissement</option>
+            <option value="info">Information</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Global</p>
+            <h2>Remediation generale</h2>
+          </div>
+        </div>
+        <div id="remediation-summary-grid" class="class-cards"></div>
+      </section>
+
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">PFMP</p>
+            <h2>Remediation PFMP</h2>
+          </div>
+        </div>
+        <div id="remediation-pfmp-grid" class="class-cards"></div>
+      </section>
+
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Evaluations</p>
+            <h2>Remediation evaluation</h2>
+          </div>
+        </div>
+        <div id="remediation-evaluation-grid" class="class-cards"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
