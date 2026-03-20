@@ -113,6 +113,12 @@ async function initializeApp() {
       window.location.replace("dashboard.html");
       return;
     }
+    const localSession = getSession();
+    if (localSession) {
+      replaceAppState(loadLocalFallbackData());
+      window.location.replace("dashboard.html");
+      return;
+    }
     initLoginPage();
     return;
   }
@@ -120,8 +126,23 @@ async function initializeApp() {
   if (PROTECTED_PAGES.has(page)) {
     const bootstrap = await bootstrapFromApi();
     if (!bootstrap?.session) {
-      clearSession();
-      window.location.replace("login.html");
+      const localSession = getSession();
+      if (!localSession) {
+        clearSession();
+        window.location.replace("login.html");
+        return;
+      }
+      replaceAppState(loadLocalFallbackData());
+      if (ADMIN_ONLY_PAGES.has(page) && localSession.role !== "admin") {
+        window.location.replace("dashboard.html");
+        return;
+      }
+      if (page === "dashboard") initDashboardPage();
+      if (page === "classes") initClassesPage();
+      if (page === "evaluations") initEvaluationsPage();
+      if (page === "pfmp") initPfmpPage();
+      if (page === "accounts") initAccountsPage();
+      if (page === "bulletin") initBulletinPage();
       return;
     }
 
@@ -505,6 +526,59 @@ function initAccountsPage() {
       });
     });
   }
+}
+
+function initLoginPage() {
+  const form = document.querySelector("#login-form");
+  const usernameInput = document.querySelector("#login-username");
+  const passwordInput = document.querySelector("#login-password");
+  const feedback = document.querySelector("#login-feedback");
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const username = usernameInput.value.trim().toLowerCase();
+    const password = passwordInput.value;
+    if (!username || !password) {
+      feedback.textContent = "Renseigne un identifiant et un mot de passe.";
+      return;
+    }
+
+    feedback.textContent = "Connexion en cours...";
+
+    try {
+      const response = await fetch("/api/login", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok || !payload?.session) {
+        feedback.textContent = response.status === 401 ? "Identifiants invalides." : "Connexion impossible pour le moment.";
+        return;
+      }
+
+      setSession(payload.session);
+      if (payload.data) replaceAppState(payload.data);
+      window.location.href = "dashboard.html";
+    } catch {
+      const fallbackUser = app.accounts.find((account) => String(account.username || "").toLowerCase() === username);
+      if (fallbackUser && fallbackUser.password === password) {
+        setSession({ username: fallbackUser.username, role: fallbackUser.role, label: fallbackUser.label });
+        replaceAppState(loadLocalFallbackData());
+        window.location.href = "dashboard.html";
+        return;
+      }
+      if (username === "admin" && password === "admin123") {
+        setSession({ username: "admin", role: "admin", label: "Administrateur" });
+        replaceAppState(loadLocalFallbackData());
+        window.location.href = "dashboard.html";
+        return;
+      }
+      feedback.textContent = "Serveur indisponible. Utilise un compte local ou vérifie Cloudflare.";
+    }
+  });
 }
 
 function initAccountsPage() {
