@@ -1111,26 +1111,40 @@ function initDashboardPageFinal() {
   const heroSide = document.querySelector(".hero-side");
   let searchInput = document.querySelector("#global-search-input");
   let searchResults = document.querySelector("#global-search-results");
+  let teacherFilter = document.querySelector("#teacher-filter-select");
+  let deadlinesPanel = document.querySelector("#deadlines-panel");
 
   if (heroSide && !searchInput) {
     const wrapper = document.createElement("div");
     wrapper.className = "stack-form";
     wrapper.innerHTML = `
       <label class="field">
+        <span>Professeur référent</span>
+        <select id="teacher-filter-select"></select>
+      </label>
+      <label class="field">
         <span>Recherche globale</span>
         <input id="global-search-input" type="text" placeholder="Élève, classe, entreprise, TP/TD...">
       </label>
       <div id="global-search-results" class="student-directory"></div>
+      <div id="deadlines-panel" class="student-directory"></div>
     `;
     heroSide.appendChild(wrapper);
+    teacherFilter = wrapper.querySelector("#teacher-filter-select");
     searchInput = wrapper.querySelector("#global-search-input");
     searchResults = wrapper.querySelector("#global-search-results");
+    deadlinesPanel = wrapper.querySelector("#deadlines-panel");
   }
 
+  populateTeacherFilter(teacherFilter);
   populateClassSelect(classSelect);
   enforcePermission("reset_app", resetButton);
   classSelect.addEventListener("change", renderDashboardPage);
   alertFilter?.addEventListener("change", renderDashboardPage);
+  teacherFilter?.addEventListener("change", () => {
+    renderDashboardPage();
+    renderSearchResults();
+  });
   searchInput?.addEventListener("input", renderSearchResults);
   resetButton.addEventListener("click", () => {
     if (!hasPermission("reset_app")) return;
@@ -1152,14 +1166,15 @@ function initDashboardPageFinal() {
   function renderDashboardPage() {
     const classId = classSelect.value || app.classes[0]?.id || "";
     const classItem = getClassById(classId);
-    const students = getStudentsByClass(classId);
+    const selectedTeacher = teacherFilter?.value || "all";
+    const students = getStudentsByClass(classId).filter((student) => selectedTeacher === "all" || studentMatchesTeacher(student, selectedTeacher));
     const counts = getStatusCounts(students);
     const progressAverage = students.length ? Math.round(students.reduce((sum, student) => sum + getStudentProgress(student), 0) / students.length) : 0;
     const strongestBlock = [...getBlockAverages(students)].sort((a, b) => b.progress - a.progress)[0];
     const pfmpSummary = getPfmpSummary(students);
     const exportSkillsButton = document.querySelector("#export-skills-button");
 
-    classMeta.textContent = classItem ? `${classItem.name} // ${classItem.year} // ${students.length} élèves` : "Aucune classe";
+    classMeta.textContent = classItem ? `${classItem.name} // ${classItem.year} // ${students.length} élèves${selectedTeacher !== "all" ? ` // ${selectedTeacher}` : ""}` : "Aucune classe";
     statsGrid.innerHTML = [
       { label: "Élèves", value: students.length, trace: "effectif de la classe" },
       { label: "Progression moyenne", value: `${progressAverage}%`, trace: strongestBlock ? `bloc fort: ${strongestBlock.domain}` : "aucune donnée" },
@@ -1172,7 +1187,7 @@ function initDashboardPageFinal() {
     renderPfmpChart(pfmpChart, pfmpSummary);
     renderStudentChart(studentChart, students);
 
-    const alerts = getClassAlerts(classId).filter((alert) => !alertFilter || alertFilter.value === "all" || alert.level === alertFilter.value);
+    const alerts = getClassAlerts(classId, selectedTeacher).filter((alert) => !alertFilter || alertFilter.value === "all" || alert.level === alertFilter.value);
     alertsGrid.innerHTML = alerts.length ? alerts.map((alert) => `
       <article class="summary-card alert-card ${alert.level}">
         <p class="alert-level">${alert.level}</p>
@@ -1192,6 +1207,18 @@ function initDashboardPageFinal() {
         <p>${skill.description}</p>
       </article>
     `).join("");
+
+    if (deadlinesPanel) {
+      const notices = getDeadlinesForClass(classId, selectedTeacher);
+      deadlinesPanel.innerHTML = notices.length ? notices.map((notice) => `
+        <article class="directory-row compact">
+          <div>
+            <strong>${notice.title}</strong>
+            <p>${notice.meta}</p>
+          </div>
+        </article>
+      `).join("") : `<article class="summary-card"><h3>Aucune échéance</h3><p class="muted-copy">Aucune échéance prioritaire sur ce périmètre.</p></article>`;
+    }
   }
 
   function renderSearchResults() {
@@ -1202,7 +1229,8 @@ function initDashboardPageFinal() {
       return;
     }
     const results = [];
-    app.students.forEach((student) => {
+    const selectedTeacher = teacherFilter?.value || "all";
+    app.students.filter((student) => selectedTeacher === "all" || studentMatchesTeacher(student, selectedTeacher)).forEach((student) => {
       const className = getClassById(student.classId)?.name || "";
       if (`${student.name} ${className}`.toLowerCase().includes(term)) {
         results.push({ label: student.name, meta: `Élève // ${className}` });
@@ -1213,13 +1241,13 @@ function initDashboardPageFinal() {
         results.push({ label: classItem.name, meta: `Classe // ${classItem.year}` });
       }
     });
-    app.evaluationActivities.forEach((activity) => {
+    app.evaluationActivities.filter((activity) => selectedTeacher === "all" || activityTouchesTeacher(activity, selectedTeacher)).forEach((activity) => {
       const skill = getSkillById(activity.skillId);
       if (`${activity.title} ${activity.type} ${activity.date} ${skill?.title || ""}`.toLowerCase().includes(term)) {
         results.push({ label: activity.title, meta: `${activity.type} // ${getClassById(activity.classId)?.name || ""}` });
       }
     });
-    app.students.forEach((student) => {
+    app.students.filter((student) => selectedTeacher === "all" || studentMatchesTeacher(student, selectedTeacher)).forEach((student) => {
       PFMP_PERIODS.forEach((period) => {
         const entry = getPfmpPeriodEntry(student.id, period.id);
         if (`${entry.companyName} ${entry.tutorName} ${entry.teacher}`.toLowerCase().includes(term) && (entry.companyName || entry.tutorName || entry.teacher)) {
@@ -1265,6 +1293,21 @@ function initEvaluationsPageFinal() {
   const skillRowTemplate = document.querySelector("#skill-row-template");
   const canEditEvaluations = hasPermission("edit_evaluations");
   const canEditSkills = hasPermission("edit_skills");
+  let exportBar = document.querySelector("#activity-export-bar");
+
+  if (!exportBar && activityReport) {
+    exportBar = document.createElement("div");
+    exportBar.id = "activity-export-bar";
+    exportBar.className = "student-badges";
+    exportBar.innerHTML = `
+      <button id="activity-export-pdf" class="ghost-button" type="button">Exporter PDF séance</button>
+      <button id="activity-synthesis-pdf" class="ghost-button" type="button">Exporter PDF synthèse classe</button>
+    `;
+    activityReport.parentElement?.insertBefore(exportBar, activityReport);
+  }
+
+  const activityExportPdfButton = document.querySelector("#activity-export-pdf");
+  const activitySynthesisPdfButton = document.querySelector("#activity-synthesis-pdf");
 
   populateClassSelect(activityClass);
   populateSkillSelect(activitySkill);
@@ -1343,6 +1386,26 @@ function initEvaluationsPageFinal() {
     persistAppData();
     syncSessionActivities();
     renderEvaluationPage();
+  });
+
+  activityExportPdfButton?.addEventListener("click", () => {
+    const classId = sessionClassSelect.value || app.classes[0]?.id || "";
+    const activity = getActivityById(activitySelect.value) || getActivitiesByClass(classId)[0];
+    if (!activity) return;
+    printHtmlDocument(
+      `${activity.type} - ${activity.title}`,
+      buildActivityPdfHtml(activity, classId)
+    );
+  });
+
+  activitySynthesisPdfButton?.addEventListener("click", () => {
+    const classId = sessionClassSelect.value || app.classes[0]?.id || "";
+    const classItem = getClassById(classId);
+    if (!classItem) return;
+    printHtmlDocument(
+      `Synthese ${classItem.name}`,
+      buildActivitySynthesisPdfHtml(classId)
+    );
   });
 
   renderEvaluationPage();
@@ -1515,6 +1578,7 @@ function initPfmpPageFinal() {
   const scopePanel = form?.closest(".evaluation-layout")?.querySelector(".panel");
   let searchInput = document.querySelector("#pfmp-search-input");
   let statusFilter = document.querySelector("#pfmp-status-filter");
+  let pdfToolbar = document.querySelector("#pfmp-pdf-toolbar");
   const canEditPfmp = hasPermission("edit_pfmp");
   const inputs = {
     companyName: document.querySelector("#pfmp-company"),
@@ -1559,6 +1623,20 @@ function initPfmpPageFinal() {
     statusFilter = extra.querySelector("#pfmp-status-filter");
   }
 
+  if (summaryCards && !pdfToolbar) {
+    pdfToolbar = document.createElement("div");
+    pdfToolbar.id = "pfmp-pdf-toolbar";
+    pdfToolbar.className = "student-badges";
+    pdfToolbar.innerHTML = `
+      <button id="export-pfmp-pdf-student" class="ghost-button" type="button">Exporter PDF élève</button>
+      <button id="export-pfmp-pdf-class" class="ghost-button" type="button">Exporter PDF classe</button>
+    `;
+    exportPfmpButton.insertAdjacentElement("afterend", pdfToolbar);
+  }
+
+  const exportPfmpPdfStudentButton = document.querySelector("#export-pfmp-pdf-student");
+  const exportPfmpPdfClassButton = document.querySelector("#export-pfmp-pdf-class");
+
   populateClassSelect(classSelect);
   periodSelect.innerHTML = PFMP_PERIODS.map((period) => `<option value="${period.id}">${period.label}</option>`).join("");
   syncStudents();
@@ -1577,6 +1655,17 @@ function initPfmpPageFinal() {
   exportPfmpButton.addEventListener("click", () => {
     const classItem = getClassById(classSelect.value || app.classes[0]?.id || "");
     exportPfmpWorkbook(classItem, getStudentsByClass(classItem?.id || ""));
+  });
+  exportPfmpPdfStudentButton?.addEventListener("click", () => {
+    const student = getStudentById(studentSelect.value);
+    if (!student) return;
+    printHtmlDocument(`PFMP ${student.name}`, buildPfmpStudentPdfHtml(student));
+  });
+  exportPfmpPdfClassButton?.addEventListener("click", () => {
+    const classId = classSelect.value || app.classes[0]?.id || "";
+    const classItem = getClassById(classId);
+    if (!classItem) return;
+    printHtmlDocument(`PFMP ${classItem.name}`, buildPfmpClassPdfHtml(classId));
   });
 
   form.addEventListener("submit", (event) => {
@@ -2518,9 +2607,9 @@ function initBulletinPage() {
   }
 }
 
-function getClassAlerts(classId) {
-  const students = getStudentsByClass(classId);
-  const activities = getActivitiesByClass(classId);
+function getClassAlerts(classId, teacher = "all") {
+  const students = getStudentsByClass(classId).filter((student) => teacher === "all" || studentMatchesTeacher(student, teacher));
+  const activities = getActivitiesByClass(classId).filter((activity) => teacher === "all" || activityTouchesTeacher(activity, teacher));
   const alerts = [];
   const lowProgress = students.filter((student) => getStudentProgress(student) < 35);
   const noPfmp = students.filter((student) => PFMP_PERIODS.every((period) => !getPfmpPeriodEntry(student.id, period.id).companyName));
@@ -2547,6 +2636,299 @@ function getClassAlerts(classId) {
     alerts.push({ level: "info", title: "Séances sans saisie", detail: `${activitiesWithoutMarks.length} TP/TD existent mais n'ont encore aucune évaluation.` });
   }
   return alerts;
+}
+
+function normalizeText(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function getTeacherFilterValues() {
+  const accountNames = getTeacherAccounts().map((account) => account.username);
+  const pfmpNames = app.students.flatMap((student) =>
+    PFMP_PERIODS.map((period) => getPfmpPeriodEntry(student.id, period.id).teacher).filter(Boolean)
+  );
+  return ["all", ...new Set([...accountNames, ...pfmpNames].map((value) => value.trim()).filter(Boolean))];
+}
+
+function populateTeacherFilter(select) {
+  if (!select) return;
+  const currentValue = select.value || "all";
+  const values = getTeacherFilterValues();
+  select.innerHTML = values.map((value) => `
+    <option value="${escapeHtml(value)}">${value === "all" ? "Tous les professeurs" : escapeHtml(value)}</option>
+  `).join("");
+  select.value = values.includes(currentValue) ? currentValue : "all";
+}
+
+function studentMatchesTeacher(student, teacher) {
+  const target = normalizeText(teacher);
+  if (!target || target === "all") return true;
+  return PFMP_PERIODS.some((period) => normalizeText(getPfmpPeriodEntry(student.id, period.id).teacher) === target);
+}
+
+function activityTouchesTeacher(activity, teacher) {
+  return getStudentsByClass(activity.classId).some((student) => studentMatchesTeacher(student, teacher));
+}
+
+function getDeadlinesForClass(classId, teacher = "all") {
+  const notices = [];
+  const students = getStudentsByClass(classId).filter((student) => teacher === "all" || studentMatchesTeacher(student, teacher));
+
+  students.forEach((student) => {
+    PFMP_PERIODS.forEach((period) => {
+      const entry = getPfmpPeriodEntry(student.id, period.id);
+      if (!entry.companyName) {
+        notices.push({
+          priority: 1,
+          title: `${student.name} - ${period.label}`,
+          meta: "Entreprise non renseignée."
+        });
+        return;
+      }
+      if (!hasFullConvention(entry)) {
+        notices.push({
+          priority: 2,
+          title: `${student.name} - ${period.label}`,
+          meta: "Convention incomplète."
+        });
+      }
+      if (!entry.visitDate) {
+        notices.push({
+          priority: 3,
+          title: `${student.name} - ${period.label}`,
+          meta: "Visite PFMP à planifier."
+        });
+      }
+      if (!hasCompleteFile(entry)) {
+        notices.push({
+          priority: 4,
+          title: `${student.name} - ${period.label}`,
+          meta: "Dossier PFMP à finaliser."
+        });
+      }
+    });
+  });
+
+  const activities = getActivitiesByClass(classId).filter((activity) => teacher === "all" || activityTouchesTeacher(activity, teacher));
+  activities.forEach((activity) => {
+    const studentsInClass = getStudentsByClass(activity.classId).filter((student) => teacher === "all" || studentMatchesTeacher(student, teacher));
+    const unevaluatedStudents = studentsInClass.filter((student) =>
+      activity.indicators.some((indicator) => getActivityIndicatorStatus(activity, student.id, indicator.id) === "non_evalue")
+    );
+    if (unevaluatedStudents.length) {
+      notices.push({
+        priority: 5,
+        title: `${activity.type} - ${activity.title}`,
+        meta: `${unevaluatedStudents.length} élève(s) encore non évalué(s).`
+      });
+    }
+  });
+
+  return notices.sort((a, b) => a.priority - b.priority).slice(0, 12);
+}
+
+function buildPrintShell(title, subtitle, bodyHtml) {
+  return `
+    <!DOCTYPE html>
+    <html lang="fr">
+    <head>
+      <meta charset="UTF-8">
+      <title>${escapeHtml(title)}</title>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 24px; color: #111; }
+        h1 { margin: 0 0 6px; font-size: 24px; }
+        h2 { margin: 24px 0 10px; font-size: 18px; }
+        p { margin: 4px 0; line-height: 1.4; }
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        th, td { border: 1px solid #cfd6e4; padding: 8px; text-align: left; vertical-align: top; font-size: 12px; }
+        th { background: #edf2ff; }
+        .meta { color: #4b5563; margin-bottom: 16px; }
+        .chip { display: inline-block; padding: 4px 8px; margin: 0 8px 8px 0; border-radius: 999px; background: #edf2ff; font-size: 12px; }
+        .card { border: 1px solid #d8e0ef; border-radius: 10px; padding: 12px; margin-bottom: 12px; }
+        .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+        @media print { body { margin: 12mm; } }
+      </style>
+    </head>
+    <body>
+      <h1>${escapeHtml(title)}</h1>
+      <p class="meta">${escapeHtml(subtitle)}</p>
+      ${bodyHtml}
+    </body>
+    </html>
+  `;
+}
+
+function printHtmlDocument(title, html) {
+  const printWindow = window.open("", "_blank", "width=1200,height=900");
+  if (!printWindow) return;
+  printWindow.document.open();
+  printWindow.document.write(html);
+  printWindow.document.close();
+  printWindow.focus();
+  setTimeout(() => {
+    printWindow.print();
+  }, 250);
+}
+
+function buildActivityPdfHtml(activity, classId) {
+  const classItem = getClassById(classId);
+  const skill = getSkillById(activity.skillId);
+  const students = getStudentsByClass(classId);
+  const summaryHtml = `
+    <div class="card">
+      <p><strong>Classe :</strong> ${escapeHtml(classItem?.name || "")}</p>
+      <p><strong>Compétence :</strong> ${escapeHtml(`${skill?.code || ""} ${skill?.title || ""}`.trim())}</p>
+      <p><strong>Date :</strong> ${escapeHtml(activity.date || "Non renseignée")}</p>
+      <p><strong>Moyenne de séance :</strong> ${getActivityAverage(activity, students)}%</p>
+    </div>
+  `;
+  const tableHtml = `
+    <table>
+      <thead>
+        <tr>
+          <th>Élève</th>
+          ${activity.indicators.map((indicator) => `<th>${escapeHtml(indicator.label)}</th>`).join("")}
+        </tr>
+      </thead>
+      <tbody>
+        ${students.map((student) => `
+          <tr>
+            <td>${escapeHtml(student.name)}</td>
+            ${activity.indicators.map((indicator) => `<td>${escapeHtml(levelLabels[getActivityIndicatorStatus(activity, student.id, indicator.id)] || "Non évalué")}</td>`).join("")}
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  `;
+  const indicatorsHtml = `
+    <div class="grid">
+      ${activity.indicators.map((indicator) => `
+        <div class="card">
+          <p><strong>${escapeHtml(indicator.label)}</strong></p>
+          <p>Moyenne : ${getIndicatorAverage(activity, students, indicator.id)}%</p>
+          <p>${escapeHtml(renderIndicatorStatusBreakdown(activity, students, indicator.id))}</p>
+        </div>
+      `).join("")}
+    </div>
+  `;
+  return buildPrintShell(
+    `${activity.type} - ${activity.title}`,
+    `${classItem?.name || ""} - ${skill?.code || ""}`,
+    `${summaryHtml}<h2>Grille de saisie</h2>${tableHtml}<h2>Bilan par indicateur</h2>${indicatorsHtml}`
+  );
+}
+
+function buildActivitySynthesisPdfHtml(classId) {
+  const classItem = getClassById(classId);
+  const activities = getActivitiesByClass(classId);
+  const students = getStudentsByClass(classId);
+  const rows = activities.map((activity) => {
+    const skill = getSkillById(activity.skillId);
+    return `
+      <tr>
+        <td>${escapeHtml(activity.type)}</td>
+        <td>${escapeHtml(activity.title)}</td>
+        <td>${escapeHtml(skill?.code || "")}</td>
+        <td>${escapeHtml(activity.date || "Non renseignée")}</td>
+        <td>${activity.indicators.length}</td>
+        <td>${getActivityAverage(activity, students)}%</td>
+      </tr>
+    `;
+  }).join("");
+  return buildPrintShell(
+    `Synthèse des séances - ${classItem?.name || ""}`,
+    `${activities.length} séance(s) enregistrée(s)`,
+    `
+      <table>
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th>Séance</th>
+            <th>Compétence</th>
+            <th>Date</th>
+            <th>Indicateurs</th>
+            <th>Moyenne</th>
+          </tr>
+        </thead>
+        <tbody>${rows || '<tr><td colspan="6">Aucune séance enregistrée.</td></tr>'}</tbody>
+      </table>
+    `
+  );
+}
+
+function buildPfmpStudentPdfHtml(student) {
+  const classItem = getClassById(student.classId);
+  const periodsHtml = PFMP_PERIODS.map((period) => {
+    const entry = getPfmpPeriodEntry(student.id, period.id);
+    return `
+      <div class="card">
+        <h2>${escapeHtml(period.label)}</h2>
+        <p><strong>Entreprise :</strong> ${escapeHtml(entry.companyName || "Non renseignée")}</p>
+        <p><strong>Tuteur :</strong> ${escapeHtml(entry.tutorName || "-")}</p>
+        <p><strong>Professeur référent :</strong> ${escapeHtml(entry.teacher || "-")}</p>
+        <p><strong>Visite :</strong> ${escapeHtml(entry.visitDate || "À planifier")}</p>
+        <p><strong>Convention :</strong> ${hasFullConvention(entry) ? "Complète" : "Incomplète"}</p>
+        <p><strong>Dossier final :</strong> ${hasCompleteFile(entry) ? "Complet" : "Incomplet"}</p>
+        <p><strong>Commentaire :</strong> ${escapeHtml(entry.comment || "-")}</p>
+      </div>
+    `;
+  }).join("");
+  return buildPrintShell(
+    `Suivi PFMP - ${student.name}`,
+    `${classItem?.name || ""}`,
+    periodsHtml
+  );
+}
+
+function buildPfmpClassPdfHtml(classId) {
+  const classItem = getClassById(classId);
+  const students = getStudentsByClass(classId);
+  const rows = students.map((student) => {
+    const filled = PFMP_PERIODS.filter((period) => getPfmpPeriodEntry(student.id, period.id).companyName).length;
+    const conventions = PFMP_PERIODS.filter((period) => hasFullConvention(getPfmpPeriodEntry(student.id, period.id))).length;
+    const visits = PFMP_PERIODS.filter((period) => getPfmpPeriodEntry(student.id, period.id).visitDate).length;
+    const files = PFMP_PERIODS.filter((period) => hasCompleteFile(getPfmpPeriodEntry(student.id, period.id))).length;
+    return `
+      <tr>
+        <td>${escapeHtml(student.name)}</td>
+        <td>${filled}/6</td>
+        <td>${conventions}/6</td>
+        <td>${visits}/6</td>
+        <td>${files}/6</td>
+      </tr>
+    `;
+  }).join("");
+  return buildPrintShell(
+    `Synthèse PFMP - ${classItem?.name || ""}`,
+    `${students.length} élève(s)`,
+    `
+      <table>
+        <thead>
+          <tr>
+            <th>Élève</th>
+            <th>Périodes renseignées</th>
+            <th>Conventions complètes</th>
+            <th>Visites planifiées</th>
+            <th>Dossiers complets</th>
+          </tr>
+        </thead>
+        <tbody>${rows || '<tr><td colspan="5">Aucun élève.</td></tr>'}</tbody>
+      </table>
+    `
+  );
 }
 
 function renderBulletinStatus(status) {
