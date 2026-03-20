@@ -249,7 +249,9 @@ function hydrateAppData(data) {
     id: student.id || `student-${index + 1}`,
     name: student.name || `Élève ${index + 1}`,
     classId: classes.some((classItem) => classItem.id === student.classId) ? student.classId : fallbackClassId,
-    skills: buildSkillState(student.skills || {})
+    skills: buildSkillState(student.skills || {}),
+    attendance: hydrateAttendanceEntries(student.attendance || []),
+    notes: hydrateStudentNotes(student.notes || [])
   }));
   const pfmpRecords = {};
   students.forEach((student) => {
@@ -285,6 +287,25 @@ function hydrateActivityLog(items) {
     target: item.target || "",
     detail: item.detail || ""
   })).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+}
+
+function hydrateAttendanceEntries(items) {
+  return (items || []).map((item, index) => ({
+    id: item.id || `attendance-${index + 1}`,
+    date: item.date || new Date().toISOString().slice(0, 10),
+    status: ["present", "retard", "absent"].includes(item.status) ? item.status : "present",
+    reason: item.reason || "",
+    createdAt: item.createdAt || new Date().toISOString()
+  })).sort((a, b) => new Date(b.date) - new Date(a.date));
+}
+
+function hydrateStudentNotes(items) {
+  return (items || []).map((item, index) => ({
+    id: item.id || `note-${index + 1}`,
+    date: item.date || new Date().toISOString(),
+    content: item.content || "",
+    author: item.author || getSession()?.username || "admin"
+  })).sort((a, b) => new Date(b.date) - new Date(a.date));
 }
 
 function hydratePfmpRecord(record, student, classes = app?.classes || []) {
@@ -618,6 +639,69 @@ function initClassesPage() {
   const classCards = document.querySelector("#class-cards");
   const studentDirectory = document.querySelector("#student-directory");
   const canManageStudents = hasPermission("manage_students");
+  const monitorPanel = studentDirectory?.parentElement;
+  let supportPanel = document.querySelector("#student-support-panel");
+
+  if (monitorPanel && !supportPanel) {
+    supportPanel = document.createElement("div");
+    supportPanel.id = "student-support-panel";
+    supportPanel.className = "stack-form";
+    supportPanel.innerHTML = `
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Student Support</p>
+          <h2>Absences, retards et commentaires</h2>
+        </div>
+      </div>
+      <div class="mini-grid">
+        <label class="field">
+          <span>Élève suivi</span>
+          <select id="support-student-select"></select>
+        </label>
+        <label class="field">
+          <span>Date</span>
+          <input id="support-date-input" type="date">
+        </label>
+      </div>
+      <div class="mini-grid">
+        <label class="field">
+          <span>Présence</span>
+          <select id="support-status-select">
+            <option value="present">Présent</option>
+            <option value="retard">Retard</option>
+            <option value="absent">Absent</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Motif / précision</span>
+          <input id="support-reason-input" type="text" placeholder="Ex. convocation, oubli matériel, absence justifiée">
+        </label>
+      </div>
+      <div class="student-badges">
+        <button id="support-attendance-save" class="ghost-button" type="button">Ajouter un événement</button>
+      </div>
+      <label class="field">
+        <span>Commentaire horodaté</span>
+        <textarea id="support-note-input" rows="4" placeholder="Remarque pédagogique, comportement, point d'appui, vigilance..."></textarea>
+      </label>
+      <div class="student-badges">
+        <button id="support-note-save" class="ghost-button" type="button">Ajouter un commentaire</button>
+      </div>
+      <div id="support-stats-grid" class="class-cards"></div>
+      <div id="support-history" class="student-directory"></div>
+    `;
+    monitorPanel.appendChild(supportPanel);
+  }
+
+  const supportStudentSelect = document.querySelector("#support-student-select");
+  const supportDateInput = document.querySelector("#support-date-input");
+  const supportStatusSelect = document.querySelector("#support-status-select");
+  const supportReasonInput = document.querySelector("#support-reason-input");
+  const supportAttendanceSave = document.querySelector("#support-attendance-save");
+  const supportNoteInput = document.querySelector("#support-note-input");
+  const supportNoteSave = document.querySelector("#support-note-save");
+  const supportStatsGrid = document.querySelector("#support-stats-grid");
+  const supportHistory = document.querySelector("#support-history");
 
   classForm.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -640,7 +724,7 @@ function initClassesPage() {
     const classId = studentClassInput.value;
     if (!name || !classId) return;
     const id = slugify(`${name}-${Date.now()}`);
-    app.students.push({ id, name, classId, skills: buildSkillState({}) });
+    app.students.push({ id, name, classId, skills: buildSkillState({}), attendance: [], notes: [] });
     app.pfmpRecords[id] = hydratePfmpRecord({}, { id, classId }, app.classes);
     logAction("Élève ajouté", name, getClassById(classId)?.name || classId);
     persistAppData();
@@ -673,7 +757,7 @@ function initClassesPage() {
         return;
       }
       const id = slugify(`${name}-${Date.now()}-${imported}`);
-      app.students.push({ id, name, classId, skills: buildSkillState({}) });
+      app.students.push({ id, name, classId, skills: buildSkillState({}), attendance: [], notes: [] });
       app.pfmpRecords[id] = hydratePfmpRecord({}, { id, classId }, app.classes);
       existing.add(key);
       imported += 1;
@@ -686,11 +770,37 @@ function initClassesPage() {
   });
 
   enforcePermission("manage_students", classNameInput, classYearInput, classNoteInput, studentNameInput, studentClassInput, importClassInput, csvInput, importButton);
+  if (supportDateInput && !supportDateInput.value) supportDateInput.value = new Date().toISOString().slice(0, 10);
+  enforcePermission("manage_students", supportStudentSelect, supportDateInput, supportStatusSelect, supportReasonInput, supportAttendanceSave, supportNoteInput, supportNoteSave);
 
-  classFilter.addEventListener("change", renderClassesPage);
+  supportAttendanceSave?.addEventListener("click", () => {
+    if (!canManageStudents) return;
+    const student = getStudentById(supportStudentSelect.value);
+    if (!student || !supportDateInput.value) return;
+    addAttendanceEntry(student.id, supportStatusSelect.value, supportDateInput.value, supportReasonInput.value);
+    logAction("Présence saisie", student.name, `${supportStatusSelect.value} // ${supportDateInput.value}`);
+    persistAppData();
+    supportReasonInput.value = "";
+    renderClassesPage(student.id);
+  });
+
+  supportNoteSave?.addEventListener("click", () => {
+    if (!canManageStudents) return;
+    const student = getStudentById(supportStudentSelect.value);
+    if (!student || !supportNoteInput.value.trim()) return;
+    addStudentNote(student.id, supportNoteInput.value);
+    logAction("Commentaire élève", student.name, "Note horodatée ajoutée");
+    persistAppData();
+    supportNoteInput.value = "";
+    renderClassesPage(student.id);
+  });
+
+  supportStudentSelect?.addEventListener("change", renderStudentSupportArea);
+
+  classFilter.addEventListener("change", () => renderClassesPage());
   renderClassesPage();
 
-  function renderClassesPage() {
+  function renderClassesPage(preselectedStudentId = "") {
     populateClassSelect(studentClassInput);
     populateClassSelect(importClassInput);
     populateClassFilter(classFilter);
@@ -729,6 +839,7 @@ function initClassesPage() {
             <div class="directory-head">
               <strong>${student.name}</strong>
               <div class="student-badges">
+                <button class="ghost-button student-follow" type="button" data-id="${student.id}">Suivi</button>
                 <button class="ghost-button student-edit" type="button" data-id="${student.id}"${canManageStudents ? "" : " disabled"}>Modifier</button>
                 <button class="ghost-button student-delete" type="button" data-id="${student.id}"${canManageStudents ? "" : " disabled"}>Supprimer</button>
               </div>
@@ -743,6 +854,9 @@ function initClassesPage() {
         </article>
       `;
     }).join("");
+
+    syncSupportStudents(preselectedStudentId);
+    renderStudentSupportArea();
 
     classCards.querySelectorAll(".class-edit").forEach((button) => {
       button.addEventListener("click", () => {
@@ -774,6 +888,14 @@ function initClassesPage() {
       });
     });
 
+    studentDirectory.querySelectorAll(".student-follow").forEach((button) => {
+      button.addEventListener("click", () => {
+        if (supportStudentSelect) supportStudentSelect.value = button.dataset.id;
+        renderStudentSupportArea();
+        supportPanel?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
+
     studentDirectory.querySelectorAll(".student-edit").forEach((button) => {
       button.addEventListener("click", () => {
         const student = getStudentById(button.dataset.id);
@@ -801,6 +923,58 @@ function initClassesPage() {
         renderClassesPage();
       });
     });
+  }
+
+  function syncSupportStudents(preselectedStudentId = "") {
+    if (!supportStudentSelect) return;
+    const activeClassId = classFilter.value || "all";
+    const students = activeClassId === "all" ? app.students : getStudentsByClass(activeClassId);
+    supportStudentSelect.innerHTML = students.map((student) => `<option value="${student.id}">${student.name}</option>`).join("");
+    if (preselectedStudentId && students.some((student) => student.id === preselectedStudentId)) {
+      supportStudentSelect.value = preselectedStudentId;
+    }
+  }
+
+  function renderStudentSupportArea() {
+    if (!supportStatsGrid || !supportHistory || !supportStudentSelect) return;
+    const student = getStudentById(supportStudentSelect.value) || app.students[0];
+    if (!student) {
+      supportStatsGrid.innerHTML = "";
+      supportHistory.innerHTML = `<article class="summary-card"><h3>Aucun élève</h3><p class="muted-copy">Ajoute un élève pour activer le suivi.</p></article>`;
+      return;
+    }
+    const stats = getAttendanceStats(student);
+    supportStatsGrid.innerHTML = [
+      { label: "Absences", value: stats.absent, trace: "événements saisis" },
+      { label: "Retards", value: stats.retard, trace: "événements saisis" },
+      { label: "Commentaires", value: (student.notes || []).length, trace: "notes horodatées" },
+      { label: "Progression", value: `${getStudentProgress(student)}%`, trace: getClassById(student.classId)?.name || "sans classe" }
+    ].map(renderStatCard).join("");
+
+    const attendanceRows = (student.attendance || []).slice(0, 8).map((entry) => `
+      <article class="directory-row compact">
+        <div>
+          <strong>${entry.status === "absent" ? "Absence" : entry.status === "retard" ? "Retard" : "Présence"}</strong>
+          <p>${entry.date}</p>
+          <p>${entry.reason || "Sans précision"}</p>
+        </div>
+      </article>
+    `).join("");
+
+    const noteRows = (student.notes || []).slice(0, 8).map((note) => `
+      <article class="directory-row compact">
+        <div>
+          <strong>Commentaire</strong>
+          <p>${formatLogTimestamp(note.date)} // ${note.author}</p>
+          <p>${note.content}</p>
+        </div>
+      </article>
+    `).join("");
+
+    supportHistory.innerHTML = `
+      ${attendanceRows || `<article class="summary-card"><h3>Aucune présence</h3><p class="muted-copy">Aucun événement saisi pour cet élève.</p></article>`}
+      ${noteRows || `<article class="summary-card"><h3>Aucun commentaire</h3><p class="muted-copy">Aucune note horodatée pour cet élève.</p></article>`}
+    `;
   }
 }
 
@@ -1114,11 +1288,13 @@ function initDashboardPageFinal() {
   const classSelect = document.querySelector("#dashboard-class-select");
   const classMeta = document.querySelector("#dashboard-class-meta");
   const heroSide = document.querySelector(".hero-side");
+  const dashboardLayout = document.querySelector(".dashboard-layout");
   let searchInput = document.querySelector("#global-search-input");
   let searchResults = document.querySelector("#global-search-results");
   let teacherFilter = document.querySelector("#teacher-filter-select");
   let deadlinesPanel = document.querySelector("#deadlines-panel");
   let agendaPanel = document.querySelector("#agenda-panel");
+  let calendarGrid = document.querySelector("#calendar-grid");
 
   if (heroSide && !searchInput) {
     const wrapper = document.createElement("div");
@@ -1142,6 +1318,24 @@ function initDashboardPageFinal() {
     searchResults = wrapper.querySelector("#global-search-results");
     deadlinesPanel = wrapper.querySelector("#deadlines-panel");
     agendaPanel = wrapper.querySelector("#agenda-panel");
+  }
+
+  if (dashboardLayout && !calendarGrid) {
+    const calendarSection = document.createElement("section");
+    calendarSection.className = "panel";
+    calendarSection.id = "calendar-panel";
+    calendarSection.innerHTML = `
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Calendar</p>
+          <h2>Calendrier pédagogique</h2>
+        </div>
+        <p id="calendar-month-label" class="results-count"></p>
+      </div>
+      <div id="calendar-grid" class="calendar-grid"></div>
+    `;
+    dashboardLayout.insertBefore(calendarSection, dashboardLayout.children[1] || null);
+    calendarGrid = calendarSection.querySelector("#calendar-grid");
   }
 
   populateTeacherFilter(teacherFilter);
@@ -1242,6 +1436,27 @@ function initDashboardPageFinal() {
           </div>
         </article>
       `).join("") : `<article class="summary-card"><h3>Aucun agenda</h3><p class="muted-copy">Aucune date exploitable pour cette classe ou ce professeur.</p></article>`;
+    }
+
+    if (calendarGrid) {
+      const monthLabel = document.querySelector("#calendar-month-label");
+      const calendar = getMonthCalendarData(classId, selectedTeacher);
+      if (monthLabel) monthLabel.textContent = calendar.label;
+      calendarGrid.innerHTML = `
+        ${calendar.weekdays.map((weekday) => `<div class="calendar-head">${weekday}</div>`).join("")}
+        ${calendar.days.map((day) => {
+          if (!day) return `<article class="calendar-cell is-empty"></article>`;
+          return `
+            <article class="calendar-cell${day.isToday ? " is-today" : ""}">
+              <div class="calendar-day">${day.dayNumber}</div>
+              <div class="calendar-events">
+                ${day.events.slice(0, 2).map((event) => `<span class="calendar-event">${event.kind} // ${event.title}</span>`).join("")}
+                ${day.events.length > 2 ? `<span class="calendar-event">+${day.events.length - 2} autres</span>` : ""}
+              </div>
+            </article>
+          `;
+        }).join("")}
+      `;
     }
   }
 
@@ -2844,6 +3059,85 @@ function getAgendaEntries(classId, teacher = "all") {
   });
 
   return entries.sort((a, b) => a.sortKey - b.sortKey).slice(0, 12);
+}
+
+function addAttendanceEntry(studentId, status, date, reason = "") {
+  const student = getStudentById(studentId);
+  if (!student) return;
+  if (!Array.isArray(student.attendance)) student.attendance = [];
+  student.attendance.unshift({
+    id: slugify(`attendance-${studentId}-${status}-${date}-${Date.now()}`),
+    status,
+    date,
+    reason: reason.trim(),
+    createdAt: new Date().toISOString()
+  });
+  student.attendance = hydrateAttendanceEntries(student.attendance).slice(0, 100);
+}
+
+function addStudentNote(studentId, content) {
+  const student = getStudentById(studentId);
+  if (!student || !content.trim()) return;
+  if (!Array.isArray(student.notes)) student.notes = [];
+  student.notes.unshift({
+    id: slugify(`note-${studentId}-${Date.now()}`),
+    date: new Date().toISOString(),
+    content: content.trim(),
+    author: getSession()?.username || "admin"
+  });
+  student.notes = hydrateStudentNotes(student.notes).slice(0, 100);
+}
+
+function getAttendanceStats(student) {
+  const entries = student?.attendance || [];
+  return {
+    absent: entries.filter((entry) => entry.status === "absent").length,
+    retard: entries.filter((entry) => entry.status === "retard").length,
+    present: entries.filter((entry) => entry.status === "present").length
+  };
+}
+
+function getMonthCalendarData(classId, teacher = "all") {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const startOffset = (firstDay.getDay() + 6) % 7;
+  const totalCells = Math.ceil((startOffset + lastDay.getDate()) / 7) * 7;
+  const agendaItems = getAgendaEntries(classId, teacher);
+  const eventsByDay = new Map();
+
+  agendaItems.forEach((item) => {
+    const parsed = parseSortableDate(item.when);
+    if (!parsed || parsed.getMonth() !== month || parsed.getFullYear() !== year) return;
+    const key = parsed.toISOString().slice(0, 10);
+    if (!eventsByDay.has(key)) eventsByDay.set(key, []);
+    eventsByDay.get(key).push(item);
+  });
+
+  const days = [];
+  for (let index = 0; index < totalCells; index += 1) {
+    const dayNumber = index - startOffset + 1;
+    if (dayNumber < 1 || dayNumber > lastDay.getDate()) {
+      days.push(null);
+      continue;
+    }
+    const date = new Date(year, month, dayNumber);
+    const key = date.toISOString().slice(0, 10);
+    days.push({
+      key,
+      dayNumber,
+      isToday: key === new Date().toISOString().slice(0, 10),
+      events: eventsByDay.get(key) || []
+    });
+  }
+
+  return {
+    label: now.toLocaleDateString("fr-FR", { month: "long", year: "numeric" }),
+    weekdays: ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
+    days
+  };
 }
 
 function buildPrintShell(title, subtitle, bodyHtml) {
