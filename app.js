@@ -554,30 +554,30 @@ function initLoginPage() {
       });
       const payload = await response.json().catch(() => null);
 
-      if (!response.ok || !payload?.session) {
-        feedback.textContent = response.status === 401 ? "Identifiants invalides." : "Connexion impossible pour le moment.";
+      if (response.ok && payload?.session) {
+        setSession(payload.session);
+        if (payload.data) replaceAppState(payload.data);
+        window.location.href = "dashboard.html";
         return;
       }
-
-      setSession(payload.session);
-      if (payload.data) replaceAppState(payload.data);
-      window.location.href = "dashboard.html";
     } catch {
-      const fallbackUser = app.accounts.find((account) => String(account.username || "").toLowerCase() === username);
-      if (fallbackUser && fallbackUser.password === password) {
-        setSession({ username: fallbackUser.username, role: fallbackUser.role, label: fallbackUser.label });
-        replaceAppState(loadLocalFallbackData());
-        window.location.href = "dashboard.html";
-        return;
-      }
-      if (username === "admin" && password === "admin123") {
-        setSession({ username: "admin", role: "admin", label: "Administrateur" });
-        replaceAppState(loadLocalFallbackData());
-        window.location.href = "dashboard.html";
-        return;
-      }
-      feedback.textContent = "Serveur indisponible. Utilise un compte local ou vérifie Cloudflare.";
+      // Fall through to local rescue mode below.
     }
+
+    const fallbackUser = app.accounts.find((account) => String(account.username || "").toLowerCase() === username);
+    if (fallbackUser && fallbackUser.password === password) {
+      setSession({ username: fallbackUser.username, role: fallbackUser.role, label: fallbackUser.label });
+      replaceAppState(loadLocalFallbackData());
+      window.location.href = "dashboard.html";
+      return;
+    }
+    if (username === "admin" && password === "admin123") {
+      setSession({ username: "admin", role: "admin", label: "Administrateur" });
+      replaceAppState(loadLocalFallbackData());
+      window.location.href = "dashboard.html";
+      return;
+    }
+    feedback.textContent = "Identifiants invalides ou backend indisponible.";
   });
 }
 
