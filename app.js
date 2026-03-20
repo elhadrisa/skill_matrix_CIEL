@@ -205,6 +205,17 @@ async function pushStateToApi(data) {
   } catch {}
 }
 
+async function persistCriticalAppData(data = app) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  if (persistTimeout) {
+    window.clearTimeout(persistTimeout);
+    persistTimeout = null;
+  }
+  if (!getSession()) return false;
+  await pushStateToApi(data);
+  return true;
+}
+
 function hydrateAppData(data) {
   const classes = (data.classes || defaultClasses).map((classItem, index) => ({
     id: classItem.id || `class-${index + 1}`,
@@ -491,6 +502,174 @@ function initAccountsPage() {
         removeTeacherAccount(button.dataset.id);
         feedback.textContent = "Professeur supprimé.";
         renderTeachers();
+      });
+    });
+  }
+}
+
+function initAccountsPage() {
+  bindProtectedChrome();
+  const adminForm = document.querySelector("#admin-account-form");
+  const teacherForm = document.querySelector("#teacher-account-form");
+  const adminUsername = document.querySelector("#admin-username");
+  const adminPassword = document.querySelector("#admin-password");
+  const teacherUsername = document.querySelector("#teacher-username");
+  const teacherPassword = document.querySelector("#teacher-password");
+  const teacherRole = document.querySelector("#teacher-role");
+  const feedback = document.querySelector("#accounts-feedback");
+  const accountsSummary = document.querySelector("#accounts-summary");
+  const teacherAccountsList = document.querySelector("#teacher-accounts-list");
+  const activityLogList = document.querySelector("#activity-log-list");
+  const exportJsonButton = document.querySelector("#export-json-button");
+  const restoreJsonInput = document.querySelector("#restore-json-input");
+  const restoreJsonButton = document.querySelector("#restore-json-button");
+  const restoreFeedback = document.querySelector("#restore-feedback");
+
+  teacherRole.innerHTML = roleCatalog
+    .filter((role) => role.value !== "admin")
+    .map((role) => `<option value="${role.value}">${role.label}</option>`)
+    .join("");
+  teacherRole.value = "professeur";
+
+  const adminAccount = getAccountByRole("admin");
+  adminUsername.value = adminAccount.username;
+  adminPassword.value = adminAccount.password;
+
+  exportJsonButton?.addEventListener("click", () => {
+    const payload = JSON.stringify(app, null, 2);
+    downloadTextFile(`ciel-backup-${new Date().toISOString().slice(0, 10)}.json`, payload, "application/json");
+    logAction("Export JSON", "Sauvegarde", "Base téléchargée localement");
+    persistAppData();
+    restoreFeedback.textContent = "Sauvegarde JSON téléchargée.";
+  });
+
+  restoreJsonButton?.addEventListener("click", async () => {
+    const file = restoreJsonInput?.files?.[0];
+    if (!file) {
+      restoreFeedback.textContent = "Sélectionne d'abord un fichier JSON.";
+      return;
+    }
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      replaceAppState(data);
+      logAction("Restauration JSON", "Base", file.name);
+      await persistCriticalAppData();
+      restoreFeedback.textContent = "Base restaurée avec succès.";
+      renderAdministration();
+    } catch {
+      restoreFeedback.textContent = "Le fichier JSON est invalide.";
+    }
+  });
+
+  adminForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!adminUsername.value.trim() || !adminPassword.value.trim()) return;
+    updateAccount(adminAccount.id, {
+      username: adminUsername.value.trim(),
+      password: adminPassword.value.trim(),
+      previousUsername: adminAccount.username
+    });
+    logAction("Compte admin mis à jour", adminUsername.value.trim(), "Identifiant ou mot de passe modifié");
+    await persistCriticalAppData();
+    feedback.textContent = "Compte administrateur synchronisé.";
+    renderAdministration();
+  });
+
+  teacherForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!teacherUsername.value.trim() || !teacherPassword.value.trim()) return;
+    const account = addTeacherAccount(teacherUsername.value.trim(), teacherPassword.value.trim(), teacherRole.value);
+    logAction("Compte créé", account.username, `Rôle: ${getRoleLabel(account.role)}`);
+    teacherForm.reset();
+    teacherRole.value = "professeur";
+    await persistCriticalAppData();
+    feedback.textContent = "Compte ajouté et synchronisé.";
+    renderAdministration();
+  });
+
+  renderAdministration();
+
+  function renderAdministration() {
+    const teachers = getTeacherAccounts();
+    const countsByRole = roleCatalog
+      .filter((role) => role.value !== "admin")
+      .map((role) => ({
+        label: role.label,
+        count: teachers.filter((teacher) => teacher.role === role.value).length
+      }));
+
+    accountsSummary.innerHTML = `
+      <article class="summary-card">
+        <h3>Admin</h3>
+        <p class="muted-copy">${adminAccount.username}</p>
+      </article>
+      <article class="summary-card">
+        <h3>Comptes actifs</h3>
+        <p class="muted-copy">${teachers.length} compte(s)</p>
+      </article>
+      ${countsByRole.map((item) => `
+        <article class="summary-card">
+          <h3>${item.label}</h3>
+          <p class="muted-copy">${item.count} compte(s)</p>
+        </article>
+      `).join("")}
+    `;
+
+    teacherAccountsList.innerHTML = teachers.length ? teachers.map((teacher) => `
+      <article class="directory-row compact">
+        <div>
+          <strong>${teacher.username}</strong>
+          <p>${teacher.label}</p>
+        </div>
+        <div class="student-badges">
+          <button class="ghost-button teacher-edit" type="button" data-id="${teacher.id}">Modifier</button>
+          <button class="ghost-button teacher-delete" type="button" data-id="${teacher.id}">Supprimer</button>
+        </div>
+      </article>
+    `).join("") : `<article class="summary-card"><h3>Aucun compte</h3><p class="muted-copy">Ajoute un compte enseignant avec le formulaire ci-dessus.</p></article>`;
+
+    activityLogList.innerHTML = app.activityLog.length ? app.activityLog.slice(0, 30).map((entry) => `
+      <article class="directory-row compact">
+        <div>
+          <strong>${entry.action}</strong>
+          <p>${entry.actor} // ${formatRole(entry.role)} // ${formatLogTimestamp(entry.timestamp)}</p>
+          <p>${entry.target}${entry.detail ? ` // ${entry.detail}` : ""}</p>
+        </div>
+      </article>
+    `).join("") : `<article class="summary-card"><h3>Aucune activité</h3><p class="muted-copy">Le journal se remplira automatiquement dès les premières actions.</p></article>`;
+
+    teacherAccountsList.querySelectorAll(".teacher-edit").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const teacher = getAccountById(button.dataset.id);
+        if (!teacher) return;
+        const username = window.prompt("Nouvel identifiant du compte", teacher.username);
+        if (!username) return;
+        const password = window.prompt("Nouveau mot de passe du compte", teacher.password);
+        if (!password) return;
+        const role = window.prompt(`Nouveau rôle (${getTeacherRoleValues().join(", ")})`, teacher.role);
+        if (!role || !getTeacherRoleValues().includes(role.trim())) return;
+        updateAccount(teacher.id, {
+          username: username.trim(),
+          password: password.trim(),
+          role: role.trim(),
+          previousUsername: teacher.username
+        });
+        logAction("Compte modifié", username.trim(), `Rôle: ${getRoleLabel(role.trim())}`);
+        await persistCriticalAppData();
+        feedback.textContent = "Compte modifié et synchronisé.";
+        renderAdministration();
+      });
+    });
+
+    teacherAccountsList.querySelectorAll(".teacher-delete").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const removed = getAccountById(button.dataset.id);
+        removeTeacherAccount(button.dataset.id);
+        if (removed) logAction("Compte supprimé", removed.username, removed.label);
+        await persistCriticalAppData();
+        feedback.textContent = "Compte supprimé et synchronisé.";
+        renderAdministration();
       });
     });
   }

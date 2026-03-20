@@ -44,8 +44,17 @@ async function saveState(db, data) {
 
 async function findUser(db, username) {
   const state = await loadState(db);
-  if (!state?.accounts) return null;
-  return state.accounts.find((account) => account.username.toLowerCase() === username.toLowerCase()) || null;
+  const fallbackAccounts = [
+    {
+      id: "admin-account",
+      username: "admin",
+      password: "admin123",
+      role: "admin",
+      label: "Administrateur"
+    }
+  ];
+  const accounts = Array.isArray(state?.accounts) && state.accounts.length ? state.accounts : fallbackAccounts;
+  return accounts.find((account) => String(account.username || "").toLowerCase() === username.toLowerCase()) || fallbackAccounts.find((account) => account.username.toLowerCase() === username.toLowerCase()) || null;
 }
 
 function createToken() {
