@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CIEL // Comptes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="accounts">
+  <div class="noise"></div>
+  <div class="page-shell">
+    <header class="topbar panel">
+      <div>
+        <p class="eyebrow">Bac Pro CIEL // Skill Matrix</p>
+        <h1 class="topbar-title">Comptes</h1>
+      </div>
+      <nav class="nav-tabs">
+        <a class="nav-tab" href="index.html">Accueil</a>
+        <a class="nav-tab" href="dashboard.html">Dashboard</a>
+        <a class="nav-tab" href="classes.html">Classes</a>
+        <a class="nav-tab" href="evaluations.html">Évaluations</a>
+        <a class="nav-tab" href="pfmp.html">PFMP</a>
+        <a class="nav-tab active" href="accounts.html">Comptes</a>
+        <span id="session-role" class="badge accent"></span>
+        <button id="logout-button" class="ghost-button" type="button">Déconnexion</button>
+      </nav>
+    </header>
+
+    <main class="login-layout">
+      <section class="panel login-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Administration</p>
+            <h2>Compte administrateur</h2>
+          </div>
+        </div>
+        <form id="admin-account-form" class="stack-form">
+          <label class="field">
+            <span>Identifiant admin</span>
+            <input id="admin-username" type="text" required>
+          </label>
+          <label class="field">
+            <span>Mot de passe admin</span>
+            <input id="admin-password" type="password" required>
+          </label>
+          <button class="primary-button" type="submit">Enregistrer l'admin</button>
+        </form>
+      </section>
+
+      <section class="panel login-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Administration</p>
+            <h2>Ajouter un compte professeur</h2>
+          </div>
+        </div>
+        <form id="teacher-account-form" class="stack-form">
+          <label class="field">
+            <span>Identifiant professeur</span>
+            <input id="teacher-username" type="text" required>
+          </label>
+          <label class="field">
+            <span>Mot de passe professeur</span>
+            <input id="teacher-password" type="password" required>
+          </label>
+          <button class="primary-button" type="submit">Ajouter le professeur</button>
+          <p id="accounts-feedback" class="results-count"></p>
+        </form>
+      </section>
+
+      <section class="panel wide-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Administration</p>
+            <h2>Gestion des comptes</h2>
+          </div>
+        </div>
+        <div id="accounts-summary" class="class-cards"></div>
+        <div id="teacher-accounts-list" class="student-directory"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

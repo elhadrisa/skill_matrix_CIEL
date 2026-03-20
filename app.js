@@ -34,6 +34,10 @@ const defaultPfmpRecords = {
 };
 
 const defaultEvaluationActivities = [];
+const defaultAccounts = [
+  { id: "admin-account", username: "admin", password: "admin123", role: "admin", label: "Administrateur" },
+  { id: "teacher-account-1", username: "prof", password: "prof123", role: "professeur", label: "Professeur" }
+];
 
 const levelLabels = {
   absent: "Absent",
@@ -71,15 +75,16 @@ const PFMP_PERIODS = [
 ];
 
 const page = document.body.dataset.page;
-const USERS = {
-  admin: { username: "admin", password: "admin123", role: "admin", label: "Administrateur" },
-  prof: { username: "prof", password: "prof123", role: "professeur", label: "Professeur" }
-};
-const PROTECTED_PAGES = new Set(["dashboard", "classes", "evaluations", "pfmp"]);
+const PROTECTED_PAGES = new Set(["dashboard", "classes", "evaluations", "pfmp", "accounts"]);
+const ADMIN_ONLY_PAGES = new Set(["accounts"]);
 const currentSession = getSession();
 
 if (PROTECTED_PAGES.has(page) && !currentSession) {
   window.location.replace("login.html");
+}
+
+if (ADMIN_ONLY_PAGES.has(page) && currentSession && currentSession.role !== "admin") {
+  window.location.replace("dashboard.html");
 }
 
 if (page === "login" && currentSession) {
@@ -94,6 +99,7 @@ if (page === "dashboard") initDashboardPage();
 if (page === "classes") initClassesPage();
 if (page === "evaluations") initEvaluationsPage();
 if (page === "pfmp") initPfmpPage();
+if (page === "accounts") initAccountsPage();
 
 function loadAppData() {
   const raw = localStorage.getItem(STORAGE_KEY);
@@ -135,7 +141,22 @@ function hydrateAppData(data) {
     pfmpRecords[student.id] = hydratePfmpRecord(data.pfmpRecords?.[student.id] || defaultPfmpRecords[student.id] || {}, student, classes);
   });
   const evaluationActivities = (data.evaluationActivities || defaultEvaluationActivities).map((activity, index) => hydrateEvaluationActivity(activity, index));
-  return { classes, students, pfmpRecords, evaluationActivities };
+  const accounts = hydrateAccounts(data.accounts || defaultAccounts);
+  return { classes, students, pfmpRecords, evaluationActivities, accounts };
+}
+
+function hydrateAccounts(accounts) {
+  const hydrated = (accounts || defaultAccounts).map((account, index) => ({
+    id: account.id || `account-${index + 1}`,
+    username: account.username || `user${index + 1}`,
+    password: account.password || "changeme",
+    role: account.role || "professeur",
+    label: account.label || (account.role === "admin" ? "Administrateur" : "Professeur")
+  }));
+  if (!hydrated.some((account) => account.role === "admin")) {
+    hydrated.unshift(defaultAccounts[0]);
+  }
+  return hydrated;
 }
 
 function hydratePfmpRecord(record, student, classes = app?.classes || []) {
@@ -250,7 +271,7 @@ function initLoginPage() {
     event.preventDefault();
     const username = usernameInput.value.trim().toLowerCase();
     const password = passwordInput.value;
-    const user = USERS[username];
+    const user = app.accounts.find((account) => account.username.toLowerCase() === username);
     if (!user || user.password !== password) {
       feedback.textContent = "Identifiants invalides.";
       return;
@@ -258,6 +279,92 @@ function initLoginPage() {
     setSession({ username: user.username, role: user.role, label: user.label });
     window.location.href = "dashboard.html";
   });
+}
+
+function initAccountsPage() {
+  bindProtectedChrome();
+  const adminForm = document.querySelector("#admin-account-form");
+  const teacherForm = document.querySelector("#teacher-account-form");
+  const adminUsername = document.querySelector("#admin-username");
+  const adminPassword = document.querySelector("#admin-password");
+  const teacherUsername = document.querySelector("#teacher-username");
+  const teacherPassword = document.querySelector("#teacher-password");
+  const feedback = document.querySelector("#accounts-feedback");
+  const accountsSummary = document.querySelector("#accounts-summary");
+  const teacherAccountsList = document.querySelector("#teacher-accounts-list");
+
+  const adminAccount = getAccountByRole("admin");
+  adminUsername.value = adminAccount.username;
+  adminPassword.value = adminAccount.password;
+
+  adminForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!adminUsername.value.trim() || !adminPassword.value.trim()) return;
+    updateAccount("admin", adminUsername.value.trim(), adminPassword.value.trim());
+    feedback.textContent = "Compte administrateur mis à jour.";
+    renderTeachers();
+  });
+
+  teacherForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!teacherUsername.value.trim() || !teacherPassword.value.trim()) return;
+    addTeacherAccount(teacherUsername.value.trim(), teacherPassword.value.trim());
+    teacherForm.reset();
+    feedback.textContent = "Professeur ajouté.";
+    renderTeachers();
+  });
+
+  renderTeachers();
+
+  function renderTeachers() {
+    const teachers = getTeacherAccounts();
+    accountsSummary.innerHTML = `
+      <article class="summary-card">
+        <h3>Admin</h3>
+        <p class="muted-copy">${adminAccount.username}</p>
+      </article>
+      <article class="summary-card">
+        <h3>Professeurs</h3>
+        <p class="muted-copy">${teachers.length} compte(s) actif(s)</p>
+      </article>
+    `;
+    teacherAccountsList.innerHTML = teachers.length ? teachers.map((teacher) => `
+      <article class="directory-row compact">
+        <div>
+          <strong>${teacher.username}</strong>
+          <p>${teacher.label}</p>
+        </div>
+        <div class="student-badges">
+          <button class="ghost-button teacher-edit" type="button" data-id="${teacher.id}">Modifier</button>
+          <button class="ghost-button teacher-delete" type="button" data-id="${teacher.id}">Supprimer</button>
+        </div>
+      </article>
+    `).join("") : `<article class="summary-card"><h3>Aucun professeur</h3><p class="muted-copy">Ajoute un compte professeur avec le formulaire ci-dessus.</p></article>`;
+
+    teacherAccountsList.querySelectorAll(".teacher-edit").forEach((button) => {
+      button.addEventListener("click", () => {
+        const teacher = getAccountById(button.dataset.id);
+        if (!teacher) return;
+        const username = window.prompt("Nouvel identifiant du professeur", teacher.username);
+        if (!username) return;
+        const password = window.prompt("Nouveau mot de passe du professeur", teacher.password);
+        if (!password) return;
+        teacher.username = username.trim();
+        teacher.password = password.trim();
+        persistAppData();
+        feedback.textContent = "Professeur modifié.";
+        renderTeachers();
+      });
+    });
+
+    teacherAccountsList.querySelectorAll(".teacher-delete").forEach((button) => {
+      button.addEventListener("click", () => {
+        removeTeacherAccount(button.dataset.id);
+        feedback.textContent = "Professeur supprimé.";
+        renderTeachers();
+      });
+    });
+  }
 }
 
 function getSession() {
@@ -281,10 +388,21 @@ function clearSession() {
 function bindProtectedChrome() {
   const roleBadge = document.querySelector("#session-role");
   const logoutButton = document.querySelector("#logout-button");
+  const navs = [...document.querySelectorAll(".nav-tabs")];
   const session = getSession();
   if (roleBadge && session) {
     roleBadge.textContent = session.label;
   }
+  navs.forEach((nav) => {
+    const existing = nav.querySelector('a[href="accounts.html"]');
+    if (session?.role === "admin" && !existing) {
+      const link = document.createElement("a");
+      link.href = "accounts.html";
+      link.className = `nav-tab${page === "accounts" ? " active" : ""}`;
+      link.textContent = "Comptes";
+      nav.insertBefore(link, roleBadge || logoutButton || null);
+    }
+  });
   if (logoutButton) {
     logoutButton.addEventListener("click", () => {
       clearSession();
@@ -295,6 +413,42 @@ function bindProtectedChrome() {
 
 function isAdmin() {
   return getSession()?.role === "admin";
+}
+
+function getAccountByRole(role) {
+  return app.accounts.find((account) => account.role === role);
+}
+
+function getTeacherAccounts() {
+  return app.accounts.filter((account) => account.role === "professeur");
+}
+
+function getAccountById(accountId) {
+  return app.accounts.find((account) => account.id === accountId);
+}
+
+function updateAccount(role, username, password) {
+  const account = getAccountByRole(role);
+  if (!account) return;
+  account.username = username;
+  account.password = password;
+  persistAppData();
+}
+
+function addTeacherAccount(username, password) {
+  app.accounts.push({
+    id: slugify(`teacher-${username}-${Date.now()}`),
+    username,
+    password,
+    role: "professeur",
+    label: "Professeur"
+  });
+  persistAppData();
+}
+
+function removeTeacherAccount(accountId) {
+  app.accounts = app.accounts.filter((account) => !(account.role === "professeur" && account.id === accountId));
+  persistAppData();
 }
 
 function enforceAdminOnly(...elements) {

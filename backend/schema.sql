@@ -1,0 +1,13 @@
+CREATE TABLE IF NOT EXISTS app_state (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  data TEXT NOT NULL,
+  updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS sessions (
+  token TEXT PRIMARY KEY,
+  username TEXT NOT NULL,
+  role TEXT NOT NULL,
+  label TEXT NOT NULL,
+  expires_at INTEGER NOT NULL
+);

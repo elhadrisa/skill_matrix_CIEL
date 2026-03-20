@@ -1,0 +1,32 @@
+{
+  "classes": [
+    { "id": "term-ciel", "name": "Terminale CIEL", "year": "2025-2026", "note": "Groupe cyber & réseaux" },
+    { "id": "prem-ciel", "name": "Première CIEL", "year": "2025-2026", "note": "Groupe systèmes & code" }
+  ],
+  "students": [
+    {
+      "id": "lea-martin",
+      "name": "Léa Martin",
+      "classId": "term-ciel",
+      "skills": {
+        "c1": "acquis",
+        "c2": "partiellement_acquis",
+        "c3": "partiellement_acquis",
+        "c4": "partiellement_acquis",
+        "c5": "en_cours_acquisition",
+        "c6": "partiellement_acquis",
+        "c7": "en_cours_acquisition",
+        "c8": "partiellement_acquis",
+        "c9": "partiellement_acquis",
+        "c10": "en_cours_acquisition",
+        "c11": "partiellement_acquis"
+      }
+    }
+  ],
+  "pfmpRecords": {},
+  "evaluationActivities": [],
+  "accounts": [
+    { "id": "admin-account", "username": "admin", "password": "admin123", "role": "admin", "label": "Administrateur" },
+    { "id": "teacher-account-1", "username": "prof", "password": "prof123", "role": "professeur", "label": "Professeur" }
+  ]
+}
