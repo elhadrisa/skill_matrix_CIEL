@@ -4585,15 +4585,20 @@ function bindProtectedChrome() {
         if (other !== dropdown) other.removeAttribute("open");
       });
     });
-    dropdown.addEventListener("mouseleave", () => {
-      dropdown.removeAttribute("open");
-    });
   });
 
   document.addEventListener("click", (event) => {
     if (event.target.closest(".nav-dropdown")) return;
     document.querySelectorAll(".nav-dropdown").forEach((dropdown) => {
       dropdown.removeAttribute("open");
+    });
+  });
+
+  document.querySelectorAll(".nav-dropdown-link").forEach((link) => {
+    link.addEventListener("click", () => {
+      document.querySelectorAll(".nav-dropdown").forEach((dropdown) => {
+        dropdown.removeAttribute("open");
+      });
     });
   });
 
