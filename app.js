@@ -34,6 +34,7 @@ const defaultPfmpRecords = {
 };
 
 const defaultEvaluationActivities = [];
+const defaultPfmpBooklets = {};
 const defaultAccounts = [
   { id: "admin-account", username: "admin", password: "admin123", role: "admin", label: "Administrateur" },
   { id: "teacher-account-1", username: "prof", password: "prof123", role: "professeur", label: "Professeur" }
@@ -88,7 +89,7 @@ const PFMP_PERIODS = [
 ];
 
 const page = document.body.dataset.page;
-const PROTECTED_PAGES = new Set(["dashboard", "classes", "evaluations", "pfmp", "accounts", "bulletin", "remediation_pfmp", "remediation_competences"]);
+const PROTECTED_PAGES = new Set(["dashboard", "classes", "evaluations", "pfmp", "pfmp_livret", "accounts", "bulletin", "remediation_pfmp", "remediation_competences"]);
 const ADMIN_ONLY_PAGES = new Set(["accounts"]);
 const app = createEmptyApp();
 let persistTimeout = null;
@@ -96,7 +97,7 @@ let persistTimeout = null;
 initializeApp();
 
 function createEmptyApp() {
-  return hydrateAppData({ classes: defaultClasses, students: defaultStudents, pfmpRecords: defaultPfmpRecords, evaluationActivities: defaultEvaluationActivities, accounts: defaultAccounts, activityLog: defaultActivityLog });
+  return hydrateAppData({ classes: defaultClasses, students: defaultStudents, pfmpRecords: defaultPfmpRecords, pfmpBooklets: defaultPfmpBooklets, evaluationActivities: defaultEvaluationActivities, accounts: defaultAccounts, activityLog: defaultActivityLog });
 }
 
 async function initializeApp() {
@@ -141,6 +142,7 @@ async function initializeApp() {
       if (page === "classes") initClassesPageFinal();
       if (page === "evaluations") initEvaluationsPageFinal();
       if (page === "pfmp") initPfmpPageFinal();
+      if (page === "pfmp_livret") initPfmpLivretPageFinal();
       if (page === "accounts") initAccountsPage();
       if (page === "bulletin") initBulletinPage();
       if (page === "remediation_pfmp" || page === "remediation_competences") initRemediationPageFinal();
@@ -165,6 +167,7 @@ async function initializeApp() {
     if (page === "classes") initClassesPageFinal();
     if (page === "evaluations") initEvaluationsPageFinal();
     if (page === "pfmp") initPfmpPageFinal();
+    if (page === "pfmp_livret") initPfmpLivretPageFinal();
     if (page === "accounts") initAccountsPage();
     if (page === "bulletin") initBulletinPage();
     if (page === "remediation_pfmp" || page === "remediation_competences") initRemediationPageFinal();
@@ -256,13 +259,15 @@ function hydrateAppData(data) {
     notes: hydrateStudentNotes(student.notes || [])
   }));
   const pfmpRecords = {};
+  const pfmpBooklets = {};
   students.forEach((student) => {
     pfmpRecords[student.id] = hydratePfmpRecord(data.pfmpRecords?.[student.id] || defaultPfmpRecords[student.id] || {}, student, classes);
+    pfmpBooklets[student.id] = hydratePfmpBookletRecord(data.pfmpBooklets?.[student.id] || {});
   });
   const evaluationActivities = (data.evaluationActivities || defaultEvaluationActivities).map((activity, index) => hydrateEvaluationActivity(activity, index));
   const accounts = hydrateAccounts(data.accounts || defaultAccounts);
   const activityLog = hydrateActivityLog(data.activityLog || defaultActivityLog);
-  return { classes, students, pfmpRecords, evaluationActivities, accounts, activityLog };
+  return { classes, students, pfmpRecords, pfmpBooklets, evaluationActivities, accounts, activityLog };
 }
 
 function hydrateAccounts(accounts) {
@@ -365,6 +370,33 @@ function hydrateEvaluationActivity(activity, index) {
     comment: activity.comment || "",
     indicators,
     evaluations: activity.evaluations || {}
+  };
+}
+
+function createEmptyPfmpBookletEntry() {
+  return {
+    evaluatorName: "",
+    evaluatorRole: "",
+    companyFeedback: "",
+    generalComment: "",
+    skills: buildSkillState({})
+  };
+}
+
+function hydratePfmpBookletEntry(record) {
+  return {
+    evaluatorName: record.evaluatorName || "",
+    evaluatorRole: record.evaluatorRole || "",
+    companyFeedback: record.companyFeedback || "",
+    generalComment: record.generalComment || "",
+    skills: buildSkillState(record.skills || {})
+  };
+}
+
+function hydratePfmpBookletRecord(record) {
+  return {
+    terminale_1: hydratePfmpBookletEntry(record.terminale_1 || {}),
+    terminale_2: hydratePfmpBookletEntry(record.terminale_2 || {})
   };
 }
 
@@ -1509,6 +1541,108 @@ function initDashboardPageFinal() {
         </div>
       </article>
     `).join("") : `<article class="summary-card"><h3>Aucun résultat</h3><p class="muted-copy">Aucune correspondance pour cette recherche.</p></article>`;
+  }
+}
+
+function initPfmpLivretPageFinal() {
+  bindProtectedChrome();
+  const classSelect = document.querySelector("#booklet-class-select");
+  const studentSelect = document.querySelector("#booklet-student-select");
+  const periodSelect = document.querySelector("#booklet-period-select");
+  const evaluatorName = document.querySelector("#booklet-evaluator-name");
+  const evaluatorRole = document.querySelector("#booklet-evaluator-role");
+  const companyFeedback = document.querySelector("#booklet-company-feedback");
+  const generalComment = document.querySelector("#booklet-general-comment");
+  const summaryGrid = document.querySelector("#booklet-summary-grid");
+  const skillsEditor = document.querySelector("#booklet-skills-editor");
+  const saveButton = document.querySelector("#booklet-save-button");
+  const canEditPfmp = hasPermission("edit_pfmp");
+
+  populateClassSelect(classSelect);
+  const requestedClassId = getRequestedClassId();
+  if (requestedClassId) classSelect.value = requestedClassId;
+  periodSelect.innerHTML = PFMP_PERIODS.filter((period) => period.cycle === "Terminale").map((period) => `<option value="${period.id}">${period.label}</option>`).join("");
+  syncStudents();
+  renderBookletPage();
+
+  enforcePermission("edit_pfmp", classSelect, studentSelect, periodSelect, evaluatorName, evaluatorRole, companyFeedback, generalComment, saveButton);
+
+  classSelect.addEventListener("change", () => {
+    syncStudents();
+    renderBookletPage();
+  });
+  studentSelect.addEventListener("change", renderBookletPage);
+  periodSelect.addEventListener("change", renderBookletPage);
+  saveButton?.addEventListener("click", () => {
+    if (!canEditPfmp) return;
+    const student = getStudentById(studentSelect.value);
+    if (!student) return;
+    const entry = getPfmpBookletEntry(student.id, periodSelect.value);
+    entry.evaluatorName = evaluatorName.value.trim();
+    entry.evaluatorRole = evaluatorRole.value.trim();
+    entry.companyFeedback = companyFeedback.value.trim();
+    entry.generalComment = generalComment.value.trim();
+    logAction("Livret PFMP mis à jour", student.name, PFMP_PERIODS.find((period) => period.id === periodSelect.value)?.label || periodSelect.value);
+    persistAppData();
+    renderBookletPage();
+  });
+
+  function syncStudents() {
+    const classId = classSelect.value || app.classes[0]?.id || "";
+    const students = getStudentsByClass(classId);
+    studentSelect.innerHTML = students.map((student) => `<option value="${student.id}">${student.name}</option>`).join("");
+  }
+
+  function renderBookletPage() {
+    const classId = classSelect.value || app.classes[0]?.id || "";
+    const student = getStudentById(studentSelect.value) || getStudentsByClass(classId)[0];
+    if (!student) {
+      summaryGrid.innerHTML = `<article class="summary-card"><h3>Aucun élève</h3><p class="muted-copy">Ajoute un élève pour utiliser le livret.</p></article>`;
+      skillsEditor.innerHTML = "";
+      return;
+    }
+    const pfmpEntry = getPfmpPeriodEntry(student.id, periodSelect.value);
+    const bookletEntry = getPfmpBookletEntry(student.id, periodSelect.value);
+    evaluatorName.value = bookletEntry.evaluatorName || "";
+    evaluatorRole.value = bookletEntry.evaluatorRole || "";
+    companyFeedback.value = bookletEntry.companyFeedback || "";
+    generalComment.value = bookletEntry.generalComment || "";
+
+    summaryGrid.innerHTML = [
+      { label: "Élève", value: student.name, trace: getClassById(student.classId)?.name || "" },
+      { label: "Entreprise", value: pfmpEntry.companyName || "Non renseignée", trace: pfmpEntry.tutorName || "Tuteur non renseigné" },
+      { label: "Période", value: PFMP_PERIODS.find((period) => period.id === periodSelect.value)?.label || periodSelect.value, trace: pfmpEntry.visitDate || "Visite non planifiée" },
+      { label: "Prof référent", value: pfmpEntry.teacher || "Non renseigné", trace: `${getStudentProgress(student)}% progression globale` }
+    ].map(renderStatCard).join("");
+
+    skillsEditor.innerHTML = skillCatalog.map((skill) => `
+      <article class="skill-row">
+        <div class="skill-main">
+          <div class="skill-headline">
+            <span class="skill-code">${skill.code}</span>
+            <span class="skill-domain">${skill.domain}</span>
+          </div>
+          <h3 class="skill-title">${skill.title}</h3>
+          <p class="skill-description">${skill.description}</p>
+        </div>
+        <div class="skill-actions">
+          <label class="field compact-field">
+            <span>Niveau observé</span>
+            <select class="booklet-skill-select" data-skill-id="${skill.id}"${canEditPfmp ? "" : " disabled"}>
+              ${renderStatusOptions(bookletEntry.skills[skill.id])}
+            </select>
+          </label>
+        </div>
+      </article>
+    `).join("");
+
+    skillsEditor.querySelectorAll(".booklet-skill-select").forEach((select) => {
+      select.addEventListener("change", (event) => {
+        if (!canEditPfmp) return;
+        bookletEntry.skills[event.target.dataset.skillId] = event.target.value;
+        persistAppData();
+      });
+    });
   }
 }
 
@@ -4563,7 +4697,7 @@ function bindProtectedChrome() {
   navs.forEach((nav) => {
     upsertClassDropdown(nav, "dashboard.html", "Dashboard");
     upsertClassDropdown(nav, "evaluations.html", "Evaluations");
-    upsertClassDropdown(nav, "pfmp.html", "PFMP");
+    upsertPfmpDropdown(nav);
     upsertStaticDropdown(nav, "Remediations", [
       { href: "remediation-pfmp.html", label: "PFMP" },
       { href: "remediation-competences.html", label: "Competences" }
@@ -4629,6 +4763,16 @@ function upsertClassDropdown(nav, href, label) {
   upsertStaticDropdown(nav, label, classLinks, isActive, href);
 }
 
+function upsertPfmpDropdown(nav) {
+  nav.querySelector('a[href="pfmp.html"]')?.remove();
+  const links = app.classes.flatMap((classItem) => ([
+    { type: "label", label: getClassNavLabel(classItem) },
+    { href: `pfmp.html?class=${encodeURIComponent(classItem.id)}`, label: "Infos PFMP" },
+    { href: `pfmp-livret.html?class=${encodeURIComponent(classItem.id)}`, label: "Livret d'évaluation" }
+  ]));
+  upsertStaticDropdown(nav, "PFMP", links, page === "pfmp" || page === "pfmp_livret", "pfmp-menu");
+}
+
 function upsertStaticDropdown(nav, label, links, isActive, key = label) {
   let dropdown = nav.querySelector(`.nav-dropdown[data-key="${key}"]`);
   if (!dropdown) {
@@ -4641,7 +4785,9 @@ function upsertStaticDropdown(nav, label, links, isActive, key = label) {
   dropdown.innerHTML = `
     <summary class="nav-tab nav-dropdown-toggle">${label} ▾</summary>
     <div class="nav-dropdown-menu">
-      ${links.map((item) => `<a class="nav-dropdown-link" href="${item.href}">${item.label}</a>`).join("")}
+      ${links.map((item) => item.type === "label"
+        ? `<span class="nav-dropdown-group">${item.label}</span>`
+        : `<a class="nav-dropdown-link" href="${item.href}">${item.label}</a>`).join("")}
     </div>
   `;
 }
@@ -5434,6 +5580,17 @@ function getBlockAverages(students) {
 function getPfmpRecord(studentId) {
   if (!app.pfmpRecords[studentId]) app.pfmpRecords[studentId] = hydratePfmpRecord({}, getStudentById(studentId), app.classes);
   return app.pfmpRecords[studentId];
+}
+
+function getPfmpBookletRecord(studentId) {
+  if (!app.pfmpBooklets[studentId]) app.pfmpBooklets[studentId] = hydratePfmpBookletRecord({});
+  return app.pfmpBooklets[studentId];
+}
+
+function getPfmpBookletEntry(studentId, periodId) {
+  const record = getPfmpBookletRecord(studentId);
+  if (!record[periodId]) record[periodId] = createEmptyPfmpBookletEntry();
+  return record[periodId];
 }
 
 function getPfmpPeriodEntry(studentId, periodId) {

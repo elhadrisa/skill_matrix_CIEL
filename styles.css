@@ -234,6 +234,14 @@ button, input, select { font: inherit; }
   color: var(--cyan);
   background: rgba(89, 198, 255, 0.08);
 }
+.nav-dropdown-group {
+  display: block;
+  padding: 10px 12px 4px;
+  color: var(--cyan);
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
 .nav-tab.active, .meta-pill.accent, .badge.accent {
   color: var(--cyan);
   border-color: var(--line-strong);

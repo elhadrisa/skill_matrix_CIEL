@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CIEL // Livret PFMP</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="pfmp_livret">
+  <div class="noise"></div>
+  <div class="page-shell">
+    <header class="topbar panel">
+      <div>
+        <p class="eyebrow">Bac Pro CIEL // Skill Matrix</p>
+        <h1 class="topbar-title">Livret d'évaluation PFMP</h1>
+      </div>
+      <nav class="nav-tabs">
+        <a class="nav-tab" href="index.html">Accueil</a>
+        <a class="nav-tab" href="dashboard.html">Dashboard</a>
+        <a class="nav-tab" href="classes.html">Classes</a>
+        <a class="nav-tab" href="evaluations.html">Evaluations</a>
+        <a class="nav-tab" href="pfmp.html">PFMP</a>
+        <span id="session-role" class="badge accent"></span>
+        <button id="logout-button" class="ghost-button" type="button">Deconnexion</button>
+      </nav>
+    </header>
+
+    <main class="evaluation-layout">
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Livret Scope</p>
+            <h2>Choisir la classe, l'élève et la période</h2>
+          </div>
+        </div>
+        <div class="stack-form">
+          <label class="field">
+            <span>Classe</span>
+            <select id="booklet-class-select"></select>
+          </label>
+          <label class="field">
+            <span>Élève</span>
+            <select id="booklet-student-select"></select>
+          </label>
+          <label class="field">
+            <span>Période terminale</span>
+            <select id="booklet-period-select"></select>
+          </label>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Évaluateur</p>
+            <h2>Cadre du livret</h2>
+          </div>
+        </div>
+        <div class="stack-form">
+          <label class="field">
+            <span>Nom de l'évaluateur</span>
+            <input id="booklet-evaluator-name" type="text">
+          </label>
+          <label class="field">
+            <span>Fonction / rôle</span>
+            <input id="booklet-evaluator-role" type="text" placeholder="Tuteur, responsable technique, professeur...">
+          </label>
+          <label class="field">
+            <span>Retour entreprise</span>
+            <textarea id="booklet-company-feedback" rows="4" placeholder="Comportement, autonomie, posture professionnelle..."></textarea>
+          </label>
+          <label class="field">
+            <span>Appréciation générale</span>
+            <textarea id="booklet-general-comment" rows="4" placeholder="Bilan final de la PFMP..."></textarea>
+          </label>
+          <button id="booklet-save-button" class="primary-button" type="button">Enregistrer le livret</button>
+        </div>
+      </section>
+
+      <section class="panel wide-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Synthèse</p>
+            <h2>Repères de la PFMP</h2>
+          </div>
+        </div>
+        <div id="booklet-summary-grid" class="class-cards"></div>
+      </section>
+
+      <section class="panel wide-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Compétences</p>
+            <h2>Évaluation par compétence</h2>
+          </div>
+        </div>
+        <div id="booklet-skills-editor" class="skills-table"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
