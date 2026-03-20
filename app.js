@@ -88,7 +88,7 @@ const PFMP_PERIODS = [
 ];
 
 const page = document.body.dataset.page;
-const PROTECTED_PAGES = new Set(["dashboard", "classes", "evaluations", "pfmp", "accounts", "bulletin", "remediation"]);
+const PROTECTED_PAGES = new Set(["dashboard", "classes", "evaluations", "pfmp", "accounts", "bulletin", "remediation_pfmp", "remediation_competences"]);
 const ADMIN_ONLY_PAGES = new Set(["accounts"]);
 const app = createEmptyApp();
 let persistTimeout = null;
@@ -143,7 +143,7 @@ async function initializeApp() {
       if (page === "pfmp") initPfmpPageFinal();
       if (page === "accounts") initAccountsPage();
       if (page === "bulletin") initBulletinPage();
-      if (page === "remediation") initRemediationPageFinal();
+      if (page === "remediation_pfmp" || page === "remediation_competences") initRemediationPageFinal();
       return;
     }
 
@@ -167,7 +167,7 @@ async function initializeApp() {
     if (page === "pfmp") initPfmpPageFinal();
     if (page === "accounts") initAccountsPage();
     if (page === "bulletin") initBulletinPage();
-    if (page === "remediation") initRemediationPageFinal();
+    if (page === "remediation_pfmp" || page === "remediation_competences") initRemediationPageFinal();
   }
 }
 
@@ -1516,8 +1516,9 @@ function initRemediationPageFinal() {
   const severitySelect = document.querySelector("#remediation-severity-select");
   const teacherSelect = document.querySelector("#remediation-teacher-select");
   const summaryGrid = document.querySelector("#remediation-summary-grid");
-  const pfmpGrid = document.querySelector("#remediation-pfmp-grid");
-  const evaluationGrid = document.querySelector("#remediation-evaluation-grid");
+  const detailGrid = document.querySelector("#remediation-detail-grid");
+  const scopeTitle = document.querySelector("#remediation-scope-title");
+  const detailTitle = document.querySelector("#remediation-detail-title");
 
   populateClassSelect(classSelect);
   populateTeacherFilter(teacherSelect);
@@ -1533,12 +1534,14 @@ function initRemediationPageFinal() {
     const teacher = teacherSelect?.value || "all";
     const severity = severitySelect?.value || "all";
     const alerts = getClassAlerts(classId, teacher).filter((item) => severity === "all" || item.level === severity);
-    const pfmpItems = getPfmpRemediationItems(classId, teacher).filter((item) => severity === "all" || item.level === severity);
-    const evaluationItems = getEvaluationRemediationItems(classId, teacher).filter((item) => severity === "all" || item.level === severity);
+    const isPfmpPage = page === "remediation_pfmp";
+    const detailItems = (isPfmpPage ? getPfmpRemediationItems(classId, teacher) : getEvaluationRemediationItems(classId, teacher))
+      .filter((item) => severity === "all" || item.level === severity);
 
+    if (scopeTitle) scopeTitle.textContent = isPfmpPage ? "Vue remediation PFMP" : "Vue remediation competences";
+    if (detailTitle) detailTitle.textContent = isPfmpPage ? "Remediation PFMP" : "Remediation competences";
     summaryGrid.innerHTML = alerts.length ? alerts.map(renderRemediationCard).join("") : `<article class="summary-card"><h3>Aucune remédiation globale</h3><p class="muted-copy">Aucun signal bloquant pour ce filtre.</p></article>`;
-    pfmpGrid.innerHTML = pfmpItems.length ? pfmpItems.map(renderRemediationCard).join("") : `<article class="summary-card"><h3>Aucune remédiation PFMP</h3><p class="muted-copy">Les dossiers PFMP ne présentent pas d'action prioritaire.</p></article>`;
-    evaluationGrid.innerHTML = evaluationItems.length ? evaluationItems.map(renderRemediationCard).join("") : `<article class="summary-card"><h3>Aucune remédiation évaluation</h3><p class="muted-copy">Aucune relance pédagogique à traiter pour ce filtre.</p></article>`;
+    detailGrid.innerHTML = detailItems.length ? detailItems.map(renderRemediationCard).join("") : `<article class="summary-card"><h3>Aucune action</h3><p class="muted-copy">Aucune relance à traiter pour ce filtre.</p></article>`;
   }
 }
 
@@ -4546,16 +4549,21 @@ function bindProtectedChrome() {
     roleBadge.textContent = session.label;
   }
   navs.forEach((nav) => {
-    const remediationExisting = nav.querySelector('a[href="remediation.html"]');
-    if (!remediationExisting) {
-      const remediationLink = document.createElement("a");
-      remediationLink.href = "remediation.html";
-      remediationLink.className = `nav-tab${page === "remediation" ? " active" : ""}`;
-      remediationLink.textContent = "Remediation";
-      nav.insertBefore(remediationLink, roleBadge || logoutButton || null);
-    } else {
-      remediationExisting.className = `nav-tab${page === "remediation" ? " active" : ""}`;
+    nav.querySelector('a[href="remediation.html"]')?.remove();
+    let remediationDropdown = nav.querySelector(".nav-dropdown");
+    if (!remediationDropdown) {
+      remediationDropdown = document.createElement("div");
+      remediationDropdown.className = "nav-dropdown";
+      remediationDropdown.innerHTML = `
+        <button class="nav-tab nav-dropdown-toggle" type="button">Remediations</button>
+        <div class="nav-dropdown-menu">
+          <a class="nav-dropdown-link" href="remediation-pfmp.html">PFMP</a>
+          <a class="nav-dropdown-link" href="remediation-competences.html">Competences</a>
+        </div>
+      `;
+      nav.insertBefore(remediationDropdown, roleBadge || logoutButton || null);
     }
+    remediationDropdown.classList.toggle("active", page === "remediation_pfmp" || page === "remediation_competences");
     const existing = nav.querySelector('a[href="accounts.html"]');
     if (session?.role === "admin" && !existing) {
       const link = document.createElement("a");
