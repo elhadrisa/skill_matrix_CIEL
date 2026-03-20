@@ -137,10 +137,10 @@ async function initializeApp() {
         window.location.replace("dashboard.html");
         return;
       }
-      if (page === "dashboard") initDashboardPage();
+      if (page === "dashboard") initDashboardPageFinal();
       if (page === "classes") initClassesPageFinal();
-      if (page === "evaluations") initEvaluationsPage();
-      if (page === "pfmp") initPfmpPage();
+      if (page === "evaluations") initEvaluationsPageFinal();
+      if (page === "pfmp") initPfmpPageFinal();
       if (page === "accounts") initAccountsPage();
       if (page === "bulletin") initBulletinPage();
       return;
@@ -160,10 +160,10 @@ async function initializeApp() {
       return;
     }
 
-    if (page === "dashboard") initDashboardPage();
+    if (page === "dashboard") initDashboardPageFinal();
     if (page === "classes") initClassesPageFinal();
-    if (page === "evaluations") initEvaluationsPage();
-    if (page === "pfmp") initPfmpPage();
+    if (page === "evaluations") initEvaluationsPageFinal();
+    if (page === "pfmp") initPfmpPageFinal();
     if (page === "accounts") initAccountsPage();
     if (page === "bulletin") initBulletinPage();
   }
@@ -1092,6 +1092,586 @@ function initClassesPageFinal() {
         renderClassesPage();
       });
     });
+  }
+}
+
+function initDashboardPageFinal() {
+  bindProtectedChrome();
+  const statsGrid = document.querySelector("#stats-grid");
+  const statusChart = document.querySelector("#status-chart");
+  const blockChart = document.querySelector("#block-chart");
+  const pfmpChart = document.querySelector("#pfmp-chart");
+  const studentChart = document.querySelector("#student-chart");
+  const catalogGrid = document.querySelector("#catalog-grid");
+  const alertsGrid = document.querySelector("#alerts-grid");
+  const alertFilter = document.querySelector("#alert-filter");
+  const resetButton = document.querySelector("#reset-data");
+  const classSelect = document.querySelector("#dashboard-class-select");
+  const classMeta = document.querySelector("#dashboard-class-meta");
+  const heroSide = document.querySelector(".hero-side");
+  let searchInput = document.querySelector("#global-search-input");
+  let searchResults = document.querySelector("#global-search-results");
+
+  if (heroSide && !searchInput) {
+    const wrapper = document.createElement("div");
+    wrapper.className = "stack-form";
+    wrapper.innerHTML = `
+      <label class="field">
+        <span>Recherche globale</span>
+        <input id="global-search-input" type="text" placeholder="Élève, classe, entreprise, TP/TD...">
+      </label>
+      <div id="global-search-results" class="student-directory"></div>
+    `;
+    heroSide.appendChild(wrapper);
+    searchInput = wrapper.querySelector("#global-search-input");
+    searchResults = wrapper.querySelector("#global-search-results");
+  }
+
+  populateClassSelect(classSelect);
+  enforcePermission("reset_app", resetButton);
+  classSelect.addEventListener("change", renderDashboardPage);
+  alertFilter?.addEventListener("change", renderDashboardPage);
+  searchInput?.addEventListener("input", renderSearchResults);
+  resetButton.addEventListener("click", () => {
+    if (!hasPermission("reset_app")) return;
+    const initial = hydrateAppData({ classes: defaultClasses, students: defaultStudents, pfmpRecords: defaultPfmpRecords, evaluationActivities: defaultEvaluationActivities, accounts: app.accounts, activityLog: [] });
+    app.classes = initial.classes;
+    app.students = initial.students;
+    app.pfmpRecords = initial.pfmpRecords;
+    app.evaluationActivities = initial.evaluationActivities;
+    app.activityLog = initial.activityLog;
+    logAction("Réinitialisation", "Application", "Jeu de données par défaut restauré");
+    persistAppData();
+    populateClassSelect(classSelect);
+    renderDashboardPage();
+  });
+
+  renderDashboardPage();
+  renderSearchResults();
+
+  function renderDashboardPage() {
+    const classId = classSelect.value || app.classes[0]?.id || "";
+    const classItem = getClassById(classId);
+    const students = getStudentsByClass(classId);
+    const counts = getStatusCounts(students);
+    const progressAverage = students.length ? Math.round(students.reduce((sum, student) => sum + getStudentProgress(student), 0) / students.length) : 0;
+    const strongestBlock = [...getBlockAverages(students)].sort((a, b) => b.progress - a.progress)[0];
+    const pfmpSummary = getPfmpSummary(students);
+    const exportSkillsButton = document.querySelector("#export-skills-button");
+
+    classMeta.textContent = classItem ? `${classItem.name} // ${classItem.year} // ${students.length} élèves` : "Aucune classe";
+    statsGrid.innerHTML = [
+      { label: "Élèves", value: students.length, trace: "effectif de la classe" },
+      { label: "Progression moyenne", value: `${progressAverage}%`, trace: strongestBlock ? `bloc fort: ${strongestBlock.domain}` : "aucune donnée" },
+      { label: "PFMP renseignées", value: pfmpSummary.withCompany, trace: "entreprise saisie" },
+      { label: "Conventions complètes", value: pfmpSummary.fullConvention, trace: "entreprise + parents + lycée" }
+    ].map(renderStatCard).join("");
+
+    renderStatusChart(statusChart, counts);
+    renderBlockChart(blockChart, getBlockAverages(students));
+    renderPfmpChart(pfmpChart, pfmpSummary);
+    renderStudentChart(studentChart, students);
+
+    const alerts = getClassAlerts(classId).filter((alert) => !alertFilter || alertFilter.value === "all" || alert.level === alertFilter.value);
+    alertsGrid.innerHTML = alerts.length ? alerts.map((alert) => `
+      <article class="summary-card alert-card ${alert.level}">
+        <p class="alert-level">${alert.level}</p>
+        <h3>${alert.title}</h3>
+        <p class="muted-copy">${alert.detail}</p>
+      </article>
+    `).join("") : `<article class="summary-card"><h3>Aucune alerte</h3><p class="muted-copy">Aucune alerte pour ce filtre sur la classe sélectionnée.</p></article>`;
+
+    exportSkillsButton.onclick = () => exportSkillsWorkbook(classItem, students);
+    catalogGrid.innerHTML = skillCatalog.map((skill) => `
+      <article class="catalog-card">
+        <div class="skill-headline">
+          <span class="skill-code">${skill.code}</span>
+          <span class="skill-domain">${skill.domain}</span>
+        </div>
+        <h3>${skill.title}</h3>
+        <p>${skill.description}</p>
+      </article>
+    `).join("");
+  }
+
+  function renderSearchResults() {
+    if (!searchResults || !searchInput) return;
+    const term = searchInput.value.trim().toLowerCase();
+    if (!term) {
+      searchResults.innerHTML = "";
+      return;
+    }
+    const results = [];
+    app.students.forEach((student) => {
+      const className = getClassById(student.classId)?.name || "";
+      if (`${student.name} ${className}`.toLowerCase().includes(term)) {
+        results.push({ label: student.name, meta: `Élève // ${className}` });
+      }
+    });
+    app.classes.forEach((classItem) => {
+      if (`${classItem.name} ${classItem.year} ${classItem.note}`.toLowerCase().includes(term)) {
+        results.push({ label: classItem.name, meta: `Classe // ${classItem.year}` });
+      }
+    });
+    app.evaluationActivities.forEach((activity) => {
+      const skill = getSkillById(activity.skillId);
+      if (`${activity.title} ${activity.type} ${activity.date} ${skill?.title || ""}`.toLowerCase().includes(term)) {
+        results.push({ label: activity.title, meta: `${activity.type} // ${getClassById(activity.classId)?.name || ""}` });
+      }
+    });
+    app.students.forEach((student) => {
+      PFMP_PERIODS.forEach((period) => {
+        const entry = getPfmpPeriodEntry(student.id, period.id);
+        if (`${entry.companyName} ${entry.tutorName} ${entry.teacher}`.toLowerCase().includes(term) && (entry.companyName || entry.tutorName || entry.teacher)) {
+          results.push({ label: entry.companyName || student.name, meta: `PFMP // ${student.name} // ${period.label}` });
+        }
+      });
+    });
+
+    searchResults.innerHTML = results.length ? results.slice(0, 12).map((result) => `
+      <article class="directory-row compact">
+        <div>
+          <strong>${result.label}</strong>
+          <p>${result.meta}</p>
+        </div>
+      </article>
+    `).join("") : `<article class="summary-card"><h3>Aucun résultat</h3><p class="muted-copy">Aucune correspondance pour cette recherche.</p></article>`;
+  }
+}
+
+function initEvaluationsPageFinal() {
+  bindProtectedChrome();
+  const activityForm = document.querySelector("#activity-form");
+  const activityType = document.querySelector("#activity-type");
+  const activityTitle = document.querySelector("#activity-title");
+  const activityClass = document.querySelector("#activity-class");
+  const activitySkill = document.querySelector("#activity-skill");
+  const activityDate = document.querySelector("#activity-date");
+  const activityIndicators = document.querySelector("#activity-indicators");
+  const activityFeedback = document.querySelector("#activity-feedback");
+  const sessionClassSelect = document.querySelector("#session-class-select");
+  const activitySelect = document.querySelector("#activity-select");
+  const activitySearchInput = document.querySelector("#activity-search-input");
+  const activityEditButton = document.querySelector("#activity-edit-button");
+  const activityDeleteButton = document.querySelector("#activity-delete-button");
+  const activitySummary = document.querySelector("#activity-summary");
+  const activityMatrix = document.querySelector("#activity-matrix");
+  const activityReport = document.querySelector("#activity-report");
+  const activitySynthesis = document.querySelector("#activity-synthesis");
+  const evalClassSelect = document.querySelector("#eval-class-select");
+  const evalStudentSelect = document.querySelector("#eval-student-select");
+  const studentSkillsEditor = document.querySelector("#student-skills-editor");
+  const studentSheetMeta = document.querySelector("#student-sheet-meta");
+  const skillRowTemplate = document.querySelector("#skill-row-template");
+  const canEditEvaluations = hasPermission("edit_evaluations");
+  const canEditSkills = hasPermission("edit_skills");
+
+  populateClassSelect(activityClass);
+  populateSkillSelect(activitySkill);
+  populateClassSelect(sessionClassSelect);
+  populateClassSelect(evalClassSelect);
+  syncSessionActivities();
+  syncEvalStudents();
+
+  enforcePermission("edit_evaluations", activityType, activityTitle, activityClass, activitySkill, activityDate, activityIndicators, activityEditButton, activityDeleteButton);
+
+  activityForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!canEditEvaluations) return;
+    const indicators = activityIndicators.value.split("\n").map((line) => line.trim()).filter(Boolean).map((label, index) => ({ id: slugify(`${activityTitle.value}-${index}-${Date.now()}`), label }));
+    if (!activityTitle.value.trim() || !activityClass.value || !activitySkill.value || !indicators.length) {
+      activityFeedback.textContent = "Renseigne un titre, une classe, une compétence et au moins un indicateur.";
+      return;
+    }
+    app.evaluationActivities.push({
+      id: slugify(`${activityTitle.value}-${Date.now()}`),
+      title: activityTitle.value.trim(),
+      type: activityType.value,
+      classId: activityClass.value,
+      skillId: activitySkill.value,
+      date: activityDate.value,
+      indicators,
+      evaluations: {}
+    });
+    logAction("Séance créée", activityTitle.value.trim(), `${activityType.value} // ${getClassById(activityClass.value)?.name || ""}`);
+    persistAppData();
+    activityForm.reset();
+    activityFeedback.textContent = "Séance créée.";
+    sessionClassSelect.value = activityClass.value;
+    syncSessionActivities();
+    renderEvaluationPage();
+  });
+
+  sessionClassSelect.addEventListener("change", () => {
+    syncSessionActivities();
+    renderEvaluationPage();
+  });
+  activitySelect.addEventListener("change", renderEvaluationPage);
+  activitySearchInput?.addEventListener("input", () => {
+    syncSessionActivities();
+    renderEvaluationPage();
+  });
+  evalClassSelect.addEventListener("change", () => {
+    syncEvalStudents();
+    renderEvaluationPage();
+  });
+  evalStudentSelect.addEventListener("change", renderEvaluationPage);
+
+  activityEditButton?.addEventListener("click", () => {
+    const activity = getActivityById(activitySelect.value);
+    if (!activity || !canEditEvaluations) return;
+    const title = window.prompt("Nouveau titre de la séance", activity.title);
+    if (!title) return;
+    const date = window.prompt("Nouvelle date", activity.date || "");
+    const indicators = window.prompt("Indicateurs (séparés par |)", activity.indicators.map((item) => item.label).join(" | "));
+    if (!indicators) return;
+    activity.title = title.trim();
+    activity.date = date.trim();
+    activity.indicators = indicators.split("|").map((item, index) => ({ id: activity.indicators[index]?.id || slugify(`${title}-${index}-${Date.now()}`), label: item.trim() })).filter((item) => item.label);
+    logAction("Séance modifiée", activity.title, activity.type);
+    persistAppData();
+    syncSessionActivities(activity.id);
+    renderEvaluationPage();
+  });
+
+  activityDeleteButton?.addEventListener("click", () => {
+    const activity = getActivityById(activitySelect.value);
+    if (!activity || !canEditEvaluations) return;
+    if (!window.confirm(`Supprimer la séance "${activity.title}" ?`)) return;
+    app.evaluationActivities = app.evaluationActivities.filter((item) => item.id !== activity.id);
+    logAction("Séance supprimée", activity.title, activity.type);
+    persistAppData();
+    syncSessionActivities();
+    renderEvaluationPage();
+  });
+
+  renderEvaluationPage();
+
+  function syncSessionActivities(selectedId = "") {
+    const classId = sessionClassSelect.value || app.classes[0]?.id || "";
+    const search = activitySearchInput?.value.trim().toLowerCase() || "";
+    const activities = getActivitiesByClass(classId).filter((activity) => {
+      if (!search) return true;
+      const skill = getSkillById(activity.skillId);
+      return `${activity.title} ${activity.type} ${activity.date} ${skill?.title || ""}`.toLowerCase().includes(search);
+    });
+    activitySelect.innerHTML = activities.map((activity) => `<option value="${activity.id}">${activity.type} // ${activity.title}</option>`).join("");
+    if (selectedId && activities.some((activity) => activity.id === selectedId)) activitySelect.value = selectedId;
+  }
+
+  function syncEvalStudents() {
+    const classId = evalClassSelect.value || app.classes[0]?.id || "";
+    const students = getStudentsByClass(classId);
+    evalStudentSelect.innerHTML = students.map((student) => `<option value="${student.id}">${student.name}</option>`).join("");
+  }
+
+  function renderEvaluationPage() {
+    const classId = sessionClassSelect.value || app.classes[0]?.id || "";
+    const activities = getActivitiesByClass(classId);
+    const activity = getActivityById(activitySelect.value) || activities[0];
+    renderActivitySummary(activity, classId);
+    renderActivityMatrix(activity, classId);
+    renderActivityReport(activity, classId);
+    renderActivitySynthesis(classId);
+    renderStudentSheet();
+  }
+
+  function renderActivitySummary(activity, classId) {
+    const classItem = getClassById(classId);
+    if (!activity) {
+      activitySummary.innerHTML = `<article class="summary-card"><h3>Aucune séance</h3><p class="muted-copy">Crée un TP ou un TD pour commencer.</p></article>`;
+      return;
+    }
+    const skill = getSkillById(activity.skillId);
+    activitySummary.innerHTML = `
+      <article class="summary-card">
+        <h3>${activity.type} // ${activity.title}</h3>
+        <p class="muted-copy">${classItem?.name || ""} // ${skill?.code || ""} ${skill?.title || ""}</p>
+        <p class="muted-copy">${activity.date || "Date non renseignée"} // ${activity.indicators.length} indicateur(s)</p>
+      </article>
+    `;
+  }
+
+  function renderActivityMatrix(activity, classId) {
+    const students = getStudentsByClass(classId);
+    if (!activity) {
+      activityMatrix.innerHTML = "";
+      return;
+    }
+    activityMatrix.classList.add("activity-grid");
+    activityMatrix.innerHTML = `
+      <div class="matrix-header activity-header">
+        <strong>Élève</strong>
+        ${activity.indicators.map((indicator) => `<strong>${indicator.label}</strong>`).join("")}
+      </div>
+      ${students.map((student) => `
+        <div class="matrix-row activity-row">
+          <div><strong>${student.name}</strong><p class="muted-copy">${getStudentProgress(student)}% validé</p></div>
+          ${activity.indicators.map((indicator) => `
+            <label class="field">
+              <select data-activity-id="${activity.id}" data-student-id="${student.id}" data-indicator-id="${indicator.id}" class="activity-status-select"${canEditEvaluations ? "" : " disabled"}>
+                ${renderStatusOptions(getActivityIndicatorStatus(activity, student.id, indicator.id))}
+              </select>
+            </label>
+          `).join("")}
+        </div>
+      `).join("")}
+    `;
+    activityMatrix.querySelectorAll(".activity-status-select").forEach((select) => {
+      select.addEventListener("change", (event) => {
+        if (!canEditEvaluations) return;
+        const target = event.target;
+        setActivityIndicatorStatus(target.dataset.activityId, target.dataset.studentId, target.dataset.indicatorId, target.value);
+        persistAppData();
+        renderEvaluationPage();
+      });
+    });
+  }
+
+  function renderActivityReport(activity, classId) {
+    const students = getStudentsByClass(classId);
+    if (!activity) {
+      activityReport.innerHTML = "";
+      return;
+    }
+    const indicatorCards = activity.indicators.map((indicator) => `
+      <article class="summary-card">
+        <h3>${indicator.label}</h3>
+        <p class="muted-copy">Moyenne: ${getIndicatorAverage(activity, students, indicator.id)}%</p>
+        <p class="muted-copy">${renderIndicatorStatusBreakdown(activity, students, indicator.id)}</p>
+      </article>
+    `).join("");
+    activityReport.innerHTML = `
+      <article class="summary-card">
+        <h3>Bilan global</h3>
+        <p class="muted-copy">Moyenne de la séance: ${getActivityAverage(activity, students)}%</p>
+        <p class="muted-copy">${students.length} élève(s) évalué(s)</p>
+      </article>
+      ${indicatorCards}
+    `;
+  }
+
+  function renderActivitySynthesis(classId) {
+    const activities = getActivitiesByClass(classId);
+    const students = getStudentsByClass(classId);
+    activitySynthesis.innerHTML = activities.length ? activities.map((activity) => {
+      const skill = getSkillById(activity.skillId);
+      return `
+        <article class="directory-row compact">
+          <div>
+            <strong>${activity.type} // ${activity.title}</strong>
+            <p>${skill?.code || ""} ${skill?.title || ""}</p>
+            <p>${activity.date || "Date non renseignée"}</p>
+          </div>
+          <div class="student-badges">
+            <span class="badge">${activity.indicators.length} indicateurs</span>
+            <span class="badge">${getActivityAverage(activity, students)}% moyen</span>
+          </div>
+        </article>
+      `;
+    }).join("") : `<article class="summary-card"><h3>Aucune synthèse</h3><p class="muted-copy">Aucun TP/TD enregistré pour cette classe.</p></article>`;
+  }
+
+  function renderStudentSheet() {
+    const student = getStudentById(evalStudentSelect.value) || getStudentsByClass(evalClassSelect.value)[0];
+    if (!student) {
+      studentSkillsEditor.innerHTML = "";
+      studentSheetMeta.textContent = "Aucun élève disponible";
+      return;
+    }
+    studentSheetMeta.textContent = `${getClassById(student.classId)?.name || ""} // ${getStudentProgress(student)}% validé`;
+    studentSkillsEditor.innerHTML = "";
+    skillCatalog.forEach((skill) => {
+      const fragment = skillRowTemplate.content.cloneNode(true);
+      fragment.querySelector(".skill-code").textContent = skill.code;
+      fragment.querySelector(".skill-domain").textContent = skill.domain;
+      fragment.querySelector(".skill-title").textContent = skill.title;
+      fragment.querySelector(".skill-description").textContent = skill.description;
+      const select = fragment.querySelector(".skill-select");
+      select.value = student.skills[skill.id];
+      select.disabled = !canEditSkills;
+      select.addEventListener("change", (event) => {
+        if (!canEditSkills) return;
+        student.skills[skill.id] = event.target.value;
+        logAction("Compétence modifiée", student.name, `${skill.code} // ${levelLabels[event.target.value]}`);
+        persistAppData();
+        renderEvaluationPage();
+      });
+      studentSkillsEditor.appendChild(fragment);
+    });
+  }
+}
+
+function initPfmpPageFinal() {
+  bindProtectedChrome();
+  const classSelect = document.querySelector("#pfmp-class-select");
+  const studentSelect = document.querySelector("#pfmp-student-select");
+  const periodSelect = document.querySelector("#pfmp-period-select");
+  const summaryCards = document.querySelector("#pfmp-summary-cards");
+  const periodsOverview = document.querySelector("#pfmp-periods-overview");
+  const directory = document.querySelector("#pfmp-directory");
+  const exportPfmpButton = document.querySelector("#export-pfmp-button");
+  const form = document.querySelector("#pfmp-form");
+  const scopePanel = form?.closest(".evaluation-layout")?.querySelector(".panel");
+  let searchInput = document.querySelector("#pfmp-search-input");
+  let statusFilter = document.querySelector("#pfmp-status-filter");
+  const canEditPfmp = hasPermission("edit_pfmp");
+  const inputs = {
+    companyName: document.querySelector("#pfmp-company"),
+    comment: document.querySelector("#pfmp-comment"),
+    address: document.querySelector("#pfmp-address"),
+    tutorName: document.querySelector("#pfmp-tutor"),
+    tutorEmail: document.querySelector("#pfmp-email"),
+    tutorPhone: document.querySelector("#pfmp-phone"),
+    conventionSent: document.querySelector("#pfmp-sent"),
+    conventionSignedCompany: document.querySelector("#pfmp-signed-company"),
+    conventionSignedParents: document.querySelector("#pfmp-signed-parents"),
+    conventionSignedSchool: document.querySelector("#pfmp-signed-school"),
+    teacher: document.querySelector("#pfmp-teacher"),
+    visitDate: document.querySelector("#pfmp-visit"),
+    reportDate: document.querySelector("#pfmp-report"),
+    bookletDate: document.querySelector("#pfmp-booklet"),
+    attendanceDate: document.querySelector("#pfmp-attendance")
+  };
+
+  if (scopePanel && !searchInput) {
+    const stack = scopePanel.querySelector(".stack-form");
+    const extra = document.createElement("div");
+    extra.className = "mini-grid";
+    extra.innerHTML = `
+      <label class="field">
+        <span>Recherche élève / entreprise</span>
+        <input id="pfmp-search-input" type="text" placeholder="Nom, entreprise, tuteur...">
+      </label>
+      <label class="field">
+        <span>Filtre dossier</span>
+        <select id="pfmp-status-filter">
+          <option value="all">Tous</option>
+          <option value="missing-company">Sans entreprise</option>
+          <option value="incomplete-convention">Convention incomplète</option>
+          <option value="visit-missing">Visite à planifier</option>
+          <option value="complete-file">Dossier complet</option>
+        </select>
+      </label>
+    `;
+    stack.appendChild(extra);
+    searchInput = extra.querySelector("#pfmp-search-input");
+    statusFilter = extra.querySelector("#pfmp-status-filter");
+  }
+
+  populateClassSelect(classSelect);
+  periodSelect.innerHTML = PFMP_PERIODS.map((period) => `<option value="${period.id}">${period.label}</option>`).join("");
+  syncStudents();
+  renderPfmpPage();
+
+  enforcePermission("edit_pfmp", ...Object.values(inputs), form.querySelector('button[type="submit"]'));
+
+  classSelect.addEventListener("change", () => {
+    syncStudents();
+    renderPfmpPage();
+  });
+  studentSelect.addEventListener("change", renderPfmpPage);
+  periodSelect.addEventListener("change", renderPfmpPage);
+  searchInput?.addEventListener("input", renderPfmpPage);
+  statusFilter?.addEventListener("change", renderPfmpPage);
+  exportPfmpButton.addEventListener("click", () => {
+    const classItem = getClassById(classSelect.value || app.classes[0]?.id || "");
+    exportPfmpWorkbook(classItem, getStudentsByClass(classItem?.id || ""));
+  });
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!canEditPfmp) return;
+    const student = getStudentById(studentSelect.value);
+    if (!student) return;
+    const record = getPfmpRecord(student.id);
+    record.periods[periodSelect.value] = hydratePfmpEntry(Object.fromEntries(Object.entries(inputs).map(([key, input]) => [key, input.value.trim()])));
+    logAction("PFMP mise à jour", student.name, PFMP_PERIODS.find((period) => period.id === periodSelect.value)?.label || periodSelect.value);
+    persistAppData();
+    renderPfmpPage();
+  });
+
+  function syncStudents() {
+    const classId = classSelect.value || app.classes[0]?.id || "";
+    const search = searchInput?.value.trim().toLowerCase() || "";
+    const students = getStudentsByClass(classId).filter((student) => {
+      if (!search) return true;
+      const entriesText = PFMP_PERIODS.map((period) => {
+        const entry = getPfmpPeriodEntry(student.id, period.id);
+        return `${entry.companyName} ${entry.tutorName} ${entry.teacher}`;
+      }).join(" ");
+      return `${student.name} ${entriesText}`.toLowerCase().includes(search);
+    });
+    studentSelect.innerHTML = students.map((student) => `<option value="${student.id}">${student.name}</option>`).join("");
+  }
+
+  function renderPfmpPage() {
+    const classId = classSelect.value || app.classes[0]?.id || "";
+    const students = getStudentsByClass(classId);
+    const selectedStudent = getStudentById(studentSelect.value) || students[0];
+    const summary = getPfmpSummary(students);
+
+    summaryCards.innerHTML = [
+      { label: "PFMP renseignées", value: summary.withCompany, trace: "entreprise saisie" },
+      { label: "Conventions complètes", value: summary.fullConvention, trace: "3 signatures" },
+      { label: "Visites planifiées", value: summary.visitPlanned, trace: "date de visite saisie" },
+      { label: "Dossiers complets", value: summary.completeFile, trace: "rapport + livret + présence" }
+    ].map(renderStatCard).join("");
+
+    const selectedRecord = selectedStudent ? getPfmpPeriodEntry(selectedStudent.id, periodSelect.value) : createEmptyPfmpEntry();
+    Object.entries(inputs).forEach(([key, input]) => { input.value = selectedRecord[key] || ""; });
+
+    periodsOverview.innerHTML = PFMP_PERIODS.map((period) => {
+      const entry = selectedStudent ? getPfmpPeriodEntry(selectedStudent.id, period.id) : createEmptyPfmpEntry();
+      return `
+        <article class="period-card">
+          <strong>${period.label}</strong>
+          <p class="muted-copy">${entry.companyName || "Entreprise non renseignée"}</p>
+          <div class="pfmp-kpis">
+            <span class="badge">${getPfmpCompletion(entry)} champs</span>
+            <span class="badge">${entry.visitDate ? "Visite OK" : "Visite à planifier"}</span>
+          </div>
+        </article>
+      `;
+    }).join("");
+
+    const search = searchInput?.value.trim().toLowerCase() || "";
+    const filter = statusFilter?.value || "all";
+    directory.innerHTML = students.filter((student) => {
+      const text = `${student.name} ${PFMP_PERIODS.map((period) => {
+        const entry = getPfmpPeriodEntry(student.id, period.id);
+        return `${entry.companyName} ${entry.tutorName} ${entry.teacher}`;
+      }).join(" ")}`.toLowerCase();
+      if (search && !text.includes(search)) return false;
+      if (filter === "all") return true;
+      if (filter === "missing-company") return PFMP_PERIODS.some((period) => !getPfmpPeriodEntry(student.id, period.id).companyName);
+      if (filter === "incomplete-convention") return PFMP_PERIODS.some((period) => {
+        const entry = getPfmpPeriodEntry(student.id, period.id);
+        return entry.companyName && !hasFullConvention(entry);
+      });
+      if (filter === "visit-missing") return PFMP_PERIODS.some((period) => {
+        const entry = getPfmpPeriodEntry(student.id, period.id);
+        return entry.companyName && !entry.visitDate;
+      });
+      if (filter === "complete-file") return PFMP_PERIODS.some((period) => hasCompleteFile(getPfmpPeriodEntry(student.id, period.id)));
+      return true;
+    }).map((student) => {
+      const filledPeriods = PFMP_PERIODS.filter((period) => getPfmpPeriodEntry(student.id, period.id).companyName).length;
+      return `
+        <article class="directory-row compact">
+          <div>
+            <strong>${student.name}</strong>
+            <p>${filledPeriods}/6 PFMP renseignées</p>
+            <p>${PFMP_PERIODS.filter((period) => getPfmpPeriodEntry(student.id, period.id).visitDate).length} visites planifiées</p>
+          </div>
+          <div class="pfmp-kpis">
+            <span class="badge">${filledPeriods}/6 périodes</span>
+            <span class="badge">${PFMP_PERIODS.filter((period) => hasFullConvention(getPfmpPeriodEntry(student.id, period.id))).length}/6 conventions</span>
+            <span class="badge">${PFMP_PERIODS.filter((period) => hasCompleteFile(getPfmpPeriodEntry(student.id, period.id))).length}/6 dossiers</span>
+          </div>
+        </article>
+      `;
+    }).join("") || `<article class="summary-card"><h3>Aucun résultat</h3><p class="muted-copy">Aucun élève ne correspond à cette recherche ou à ce filtre.</p></article>`;
   }
 }
 
