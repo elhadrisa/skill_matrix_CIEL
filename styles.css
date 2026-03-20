@@ -290,6 +290,18 @@ button, input, select { font: inherit; }
   align-items: flex-start;
 }
 
+.directory-main {
+  display: grid;
+  gap: 6px;
+}
+
+.directory-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .pfmp-kpis {
   display: flex;
   flex-wrap: wrap;
