@@ -4590,23 +4590,6 @@ function bindProtectedChrome() {
     });
   }
 
-  document.querySelectorAll(".nav-dropdown-toggle").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      const dropdown = button.closest(".nav-dropdown");
-      document.querySelectorAll(".nav-dropdown.open").forEach((item) => {
-        if (item !== dropdown) item.classList.remove("open");
-      });
-      dropdown?.classList.toggle("open");
-    });
-  });
-
-  document.addEventListener("click", (event) => {
-    if (!event.target.closest(".nav-dropdown")) {
-      document.querySelectorAll(".nav-dropdown.open").forEach((item) => item.classList.remove("open"));
-    }
-  });
 }
 
 function upsertClassDropdown(nav, href, label) {
@@ -4624,14 +4607,14 @@ function upsertClassDropdown(nav, href, label) {
 function upsertStaticDropdown(nav, label, links, isActive, key = label) {
   let dropdown = nav.querySelector(`.nav-dropdown[data-key="${key}"]`);
   if (!dropdown) {
-    dropdown = document.createElement("div");
+    dropdown = document.createElement("details");
     dropdown.className = "nav-dropdown";
     dropdown.dataset.key = key;
     nav.insertBefore(dropdown, nav.querySelector("#session-role") || nav.querySelector("#logout-button") || null);
   }
   dropdown.classList.toggle("active", isActive);
   dropdown.innerHTML = `
-    <button class="nav-tab nav-dropdown-toggle" type="button">${label} ▾</button>
+    <summary class="nav-tab nav-dropdown-toggle">${label} ▾</summary>
     <div class="nav-dropdown-menu">
       ${links.map((item) => `<a class="nav-dropdown-link" href="${item.href}">${item.label}</a>`).join("")}
     </div>
