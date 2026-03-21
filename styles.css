@@ -136,14 +136,14 @@ button, input, select { font: inherit; }
 .topbar, .hero, .chart-panel, .wide-panel, .management-layout > .panel, .evaluation-layout > .panel, .dashboard-layout > .panel { padding: 34px 22px 22px; }
 .topbar {
   display: grid;
-  grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
+  grid-template-columns: 1fr;
   align-items: start;
-  gap: 20px;
+  gap: 18px;
   margin-bottom: 20px;
   overflow: visible;
 }
 .topbar.panel { overflow: visible; }
-.topbar > div { min-width: 0; }
+.topbar > div { min-width: 0; max-width: 1100px; }
 
 .topbar-title, .section-head h2, .hero-title, .skill-title {
   margin: 0;
@@ -190,7 +190,7 @@ body:not([data-page="home"]) .hero-side {
   flex-wrap: nowrap;
   gap: 6px;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: flex-start;
   min-width: 0;
   overflow: visible;
   scrollbar-width: none;
