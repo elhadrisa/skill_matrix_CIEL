@@ -635,6 +635,21 @@ body:not([data-page="home"]) .nav-tabs {
   box-shadow: 0 0 10px rgba(91, 198, 213, 0.08);
 }
 
+.exam-grid-panel {
+  margin-top: 18px;
+  padding: 18px 20px;
+  border-radius: 20px;
+  background: rgba(6, 17, 27, 0.52);
+  border: 1px solid rgba(98,245,212,0.14);
+}
+
+.exam-grid-panel small {
+  display: block;
+  margin-top: 10px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
 .progress-track { fill: rgba(255,255,255,0.04); }
 .muted-text { fill: var(--muted); font-size: 12px; }
 .main-text { fill: var(--text); font-size: 13px; }

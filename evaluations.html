@@ -175,6 +175,48 @@
             <select id="eval-student-select"></select>
           </label>
         </div>
+        <div class="panel exam-grid-panel">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Maison Des Examens</p>
+              <h3>Préremplir la grille nationale</h3>
+            </div>
+            <p id="exam-grid-feedback" class="results-count"></p>
+          </div>
+          <div class="mini-grid">
+            <label class="field">
+              <span>Fichier national .xlsx</span>
+              <input id="exam-grid-file" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+            </label>
+            <label class="field">
+              <span>Numéro candidat</span>
+              <input id="exam-grid-candidate-number" type="text" placeholder="Ex. 25400123">
+            </label>
+          </div>
+          <div class="mini-grid">
+            <label class="field">
+              <span>Académie</span>
+              <input id="exam-grid-academy" type="text" placeholder="Ex. Créteil">
+            </label>
+            <label class="field">
+              <span>Établissement</span>
+              <input id="exam-grid-school" type="text" placeholder="Ex. Lycée ...">
+            </label>
+          </div>
+          <div class="mini-grid">
+            <label class="field">
+              <span>Date</span>
+              <input id="exam-grid-date" type="date">
+            </label>
+            <div class="field">
+              <span>Export automatique</span>
+              <div class="student-badges">
+                <button id="exam-grid-export" class="primary-button" type="button">Télécharger la grille complétée</button>
+              </div>
+            </div>
+          </div>
+          <small>Charge le fichier officiel de la grille nationale : CIEL Matrix renseignera les informations candidat et cochera automatiquement les compétences E2, E31 et E32.</small>
+        </div>
         <div id="student-skills-editor" class="skills-table"></div>
       </section>
     </main>
@@ -206,6 +248,7 @@
     </template>
   </div>
 
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

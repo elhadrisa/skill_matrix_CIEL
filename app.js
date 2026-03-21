@@ -8636,3 +8636,169 @@ function initAccountsPage() {
     }, 0);
   }
 })();
+
+;(function () {
+  const EXAM_GRID_STORAGE_KEY = "ciel-exam-grid-settings";
+  const EXAM_SHEET_MAP = {
+    "Bac Pro CIEL Grille E2_": { skillRows: { c3: 19, c7: 32, c11: 50 }, fields: { academy: "C7", school: "C8", lastName: "C9", firstName: "C10", candidateNumber: "C11", date: "C12" } },
+    "BAC PRO CIEL Grille E31": { skillRows: { c6: 19, c9: 31, c10: 47 }, fields: { academy: "C7", school: "C8", lastName: "C9", firstName: "C10", candidateNumber: "C11", date: "C12" } },
+    "BAC PRO CIEL Grille E32": { skillRows: { c1: 19, c4: 31, c8: 47 }, fields: { academy: "C7", school: "C8", lastName: "C9", firstName: "C10", candidateNumber: "C11", date: "C12" } },
+    "FICHE RECAPITULATIVE": { fields: { academy: "C21", school: "C22", lastName: "C23", firstName: "C24", candidateNumber: "C25", date: "C26" } }
+  };
+  const STATUS_TO_EXAM_COLUMN = {
+    non_acquis: "C",
+    en_cours_acquisition: "D",
+    partiellement_acquis: "E",
+    acquis: "F"
+  };
+
+  function splitStudentIdentity(student) {
+    const parts = String(student?.name || "").trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return { firstName: "", lastName: "" };
+    if (parts.length === 1) return { firstName: parts[0], lastName: "" };
+    return {
+      firstName: parts[0],
+      lastName: parts.slice(1).join(" ")
+    };
+  }
+
+  function getExamGridSettings() {
+    try {
+      const raw = localStorage.getItem(EXAM_GRID_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function saveExamGridSettings(settings) {
+    localStorage.setItem(EXAM_GRID_STORAGE_KEY, JSON.stringify(settings));
+  }
+
+  function setSheetCell(sheet, cellRef, value) {
+    sheet[cellRef] = value === undefined || value === null || value === ""
+      ? { t: "z", v: "" }
+      : (typeof value === "number"
+        ? { t: "n", v: value }
+        : { t: "s", v: String(value) });
+    if (!sheet["!ref"]) {
+      sheet["!ref"] = `${cellRef}:${cellRef}`;
+    }
+  }
+
+  function clearExamLevelCells(sheet, row) {
+    ["C", "D", "E", "F"].forEach((column) => {
+      setSheetCell(sheet, `${column}${row}`, "");
+    });
+  }
+
+  function fillExamSkillRow(sheet, row, status) {
+    clearExamLevelCells(sheet, row);
+    const column = STATUS_TO_EXAM_COLUMN[status];
+    if (!column) return;
+    setSheetCell(sheet, `${column}${row}`, "X");
+  }
+
+  function fillExamIdentityCells(workbook, student, settings) {
+    const { firstName, lastName } = splitStudentIdentity(student);
+    const safeDate = settings.date || new Date().toISOString().slice(0, 10);
+    Object.entries(EXAM_SHEET_MAP).forEach(([sheetName, config]) => {
+      const sheet = workbook.Sheets[sheetName];
+      if (!sheet || !config.fields) return;
+      setSheetCell(sheet, config.fields.academy, settings.academy || "");
+      setSheetCell(sheet, config.fields.school, settings.school || "");
+      setSheetCell(sheet, config.fields.lastName, lastName);
+      setSheetCell(sheet, config.fields.firstName, firstName);
+      setSheetCell(sheet, config.fields.candidateNumber, settings.candidateNumber || "");
+      setSheetCell(sheet, config.fields.date, safeDate);
+    });
+  }
+
+  function fillExamSkillCells(workbook, student) {
+    Object.entries(EXAM_SHEET_MAP).forEach(([sheetName, config]) => {
+      const sheet = workbook.Sheets[sheetName];
+      if (!sheet || !config.skillRows) return;
+      Object.entries(config.skillRows).forEach(([skillId, row]) => {
+        fillExamSkillRow(sheet, row, student.skills?.[skillId]);
+      });
+    });
+  }
+
+  function buildExamGridFilename(student) {
+    const safeName = slugify(student?.name || "eleve").replace(/-/g, "_");
+    return `grille_nationale_${safeName}.xlsx`;
+  }
+
+  function bindExamGridExporter() {
+    if (document.body?.dataset?.page !== "evaluations" || typeof XLSX === "undefined") return;
+    const fileInput = document.querySelector("#exam-grid-file");
+    const candidateNumberInput = document.querySelector("#exam-grid-candidate-number");
+    const academyInput = document.querySelector("#exam-grid-academy");
+    const schoolInput = document.querySelector("#exam-grid-school");
+    const dateInput = document.querySelector("#exam-grid-date");
+    const exportButton = document.querySelector("#exam-grid-export");
+    const feedback = document.querySelector("#exam-grid-feedback");
+    const classSelect = document.querySelector("#eval-class-select");
+    const studentSelect = document.querySelector("#eval-student-select");
+    if (!fileInput || !candidateNumberInput || !academyInput || !schoolInput || !dateInput || !exportButton || !classSelect || !studentSelect) return;
+
+    const stored = getExamGridSettings();
+    candidateNumberInput.value = stored.candidateNumber || "";
+    academyInput.value = stored.academy || "";
+    schoolInput.value = stored.school || "";
+    dateInput.value = stored.date || new Date().toISOString().slice(0, 10);
+
+    [candidateNumberInput, academyInput, schoolInput, dateInput].forEach((input) => {
+      if (input.dataset.examBound) return;
+      input.dataset.examBound = "true";
+      input.addEventListener("change", () => {
+        saveExamGridSettings({
+          candidateNumber: candidateNumberInput.value.trim(),
+          academy: academyInput.value.trim(),
+          school: schoolInput.value.trim(),
+          date: dateInput.value
+        });
+      });
+    });
+
+    if (exportButton.dataset.examBound) return;
+    exportButton.dataset.examBound = "true";
+    exportButton.addEventListener("click", async () => {
+      const classId = classSelect.value || app.classes[0]?.id || "";
+      const student = getStudentById(studentSelect.value) || getStudentsByClass(classId)[0];
+      if (!student) {
+        feedback.textContent = "Aucun élève sélectionné.";
+        return;
+      }
+      const file = fileInput.files?.[0];
+      if (!file) {
+        feedback.textContent = "Charge d'abord le fichier national .xlsx.";
+        return;
+      }
+
+      try {
+        const settings = {
+          candidateNumber: candidateNumberInput.value.trim(),
+          academy: academyInput.value.trim(),
+          school: schoolInput.value.trim(),
+          date: dateInput.value || new Date().toISOString().slice(0, 10)
+        };
+        saveExamGridSettings(settings);
+        const data = await file.arrayBuffer();
+        const workbook = XLSX.read(data, { type: "array" });
+        fillExamIdentityCells(workbook, student, settings);
+        fillExamSkillCells(workbook, student);
+        XLSX.writeFile(workbook, buildExamGridFilename(student));
+        feedback.textContent = "Grille nationale complétée et téléchargée.";
+      } catch (error) {
+        feedback.textContent = "Le fichier n'a pas pu être traité. Vérifie que tu charges bien la grille officielle .xlsx.";
+      }
+    });
+  }
+
+  const originalInitEvaluationsPageFinalForExamGrid = initEvaluationsPageFinal;
+  initEvaluationsPageFinal = function() {
+    originalInitEvaluationsPageFinalForExamGrid();
+    window.setTimeout(bindExamGridExporter, 0);
+  };
+})();

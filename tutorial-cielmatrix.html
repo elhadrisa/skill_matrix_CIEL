@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tutoriel CIEL Matrix</title>
+  <style>
+    :root {
+      --bg: #07111b;
+      --panel: #0d1b2a;
+      --text: #eafdf8;
+      --muted: #5f7f7a;
+      --line: #1e6c69;
+      --accent: #62f5d4;
+      --accent-2: #59c6ff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--text);
+      background: linear-gradient(180deg, #07111b 0%, #0a1420 100%);
+    }
+    .page {
+      width: min(980px, calc(100% - 40px));
+      margin: 24px auto 40px;
+      padding: 32px;
+      border: 1px solid rgba(98,245,212,0.2);
+      border-radius: 24px;
+      background: rgba(13, 27, 42, 0.95);
+      box-shadow: 0 24px 80px rgba(0,0,0,0.35);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      margin-bottom: 24px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid rgba(98,245,212,0.18);
+    }
+    .brand img {
+      width: 180px;
+      height: auto;
+    }
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.22em;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    h1, h2, h3 {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+    }
+    h1 {
+      font-size: 38px;
+      line-height: 1.1;
+      margin-bottom: 10px;
+    }
+    h2 {
+      margin-top: 34px;
+      font-size: 24px;
+      color: var(--accent);
+      border-top: 1px solid rgba(98,245,212,0.14);
+      padding-top: 24px;
+    }
+    h3 {
+      margin: 18px 0 10px;
+      font-size: 18px;
+      color: var(--accent-2);
+    }
+    p, li {
+      color: var(--text);
+      line-height: 1.7;
+      font-size: 15px;
+    }
+    .muted {
+      color: #a8c7c2;
+    }
+    ul, ol {
+      margin: 10px 0 0 22px;
+      padding: 0;
+    }
+    .panel {
+      margin-top: 18px;
+      padding: 18px 20px;
+      border-radius: 18px;
+      background: rgba(5, 16, 26, 0.64);
+      border: 1px solid rgba(98,245,212,0.12);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+    .tag {
+      display: inline-block;
+      margin: 4px 8px 0 0;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(98,245,212,0.18);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .path {
+      display: inline-block;
+      margin-top: 6px;
+      padding: 7px 10px;
+      border-radius: 12px;
+      background: rgba(89,198,255,0.08);
+      border: 1px solid rgba(89,198,255,0.15);
+      color: #dff9ff;
+      font-family: Consolas, monospace;
+      font-size: 13px;
+    }
+    .footer {
+      margin-top: 36px;
+      padding-top: 18px;
+      border-top: 1px solid rgba(98,245,212,0.14);
+      color: #9eb8b4;
+      font-size: 13px;
+    }
+    @media (max-width: 760px) {
+      .page { width: calc(100% - 20px); padding: 18px; }
+      .grid { grid-template-columns: 1fr; }
+      .brand { flex-direction: column; align-items: flex-start; }
+      h1 { font-size: 30px; }
+    }
+    @media print {
+      body {
+        background: #ffffff;
+        color: #111111;
+      }
+      .page {
+        width: 100%;
+        margin: 0;
+        box-shadow: none;
+        background: #ffffff;
+        border: none;
+        color: #111111;
+      }
+      p, li, .muted, .footer, h1, h2, h3 {
+        color: #111111 !important;
+      }
+      .panel {
+        background: #f7f7f7;
+        border-color: #d9d9d9;
+      }
+      .tag, .path {
+        color: #111111;
+        border-color: #c8c8c8;
+        background: #f2f2f2;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="brand">
+      <img src="ciel-matrix-logo.svg" alt="CIEL Matrix">
+      <div>
+        <p class="eyebrow">Guide utilisateur</p>
+        <h1>Tutoriel complet CIEL Matrix</h1>
+        <p class="muted">Application en ligne : <strong>https://cielmatrix.fr</strong></p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <p><strong>CIEL Matrix</strong> est une application de pilotage pédagogique dédiée au Bac Pro CIEL. Elle permet de gérer les classes, les élèves, les compétences, les séances, les PFMP, les remédiations, les exports et les synthèses annuelles sur les 3 années du parcours.</p>
+      <div>
+        <span class="tag">2nde</span>
+        <span class="tag">1ère</span>
+        <span class="tag">Terminale</span>
+        <span class="tag">Compétences</span>
+        <span class="tag">PFMP</span>
+        <span class="tag">Exports</span>
+      </div>
+    </div>
+
+    <h2>1. Se connecter</h2>
+    <div class="panel">
+      <p>Ouvre le site à l’adresse <strong>https://cielmatrix.fr</strong>. La page de connexion permet de saisir un identifiant et un mot de passe. Selon le rôle attribué, l’utilisateur accède à des droits différents :</p>
+      <ul>
+        <li><strong>Administrateur</strong> : gestion des comptes, structure, classes, élèves, exports complets.</li>
+        <li><strong>Prof principal</strong> : gestion pédagogique avancée.</li>
+        <li><strong>Professeur</strong> : saisie des compétences, évaluations, PFMP.</li>
+        <li><strong>Lecture seule</strong> : consultation sans modification.</li>
+      </ul>
+    </div>
+
+    <h2>2. Comprendre la navigation</h2>
+    <div class="grid">
+      <div class="panel">
+        <h3>Topbar</h3>
+        <p>La barre du haut donne accès à tous les modules : <strong>Classes</strong>, <strong>Dashboard</strong>, <strong>Evaluations</strong>, <strong>PFMP</strong>, <strong>Bulletin</strong>, <strong>Référentiel</strong>, <strong>Remédiations</strong> et <strong>Comptes</strong> pour l’administrateur.</p>
+      </div>
+      <div class="panel">
+        <h3>Menus déroulants</h3>
+        <p>Les menus <strong>Dashboard</strong>, <strong>Evaluations</strong>, <strong>PFMP</strong> et <strong>Bulletin</strong> sont classés par classe. Cela permet d’ouvrir directement la bonne vue sans charger une page trop lourde.</p>
+      </div>
+    </div>
+
+    <h2>3. Gérer les classes et les élèves</h2>
+    <div class="panel">
+      <p>Le module <strong>Classes</strong> sert à créer les classes et à ajouter les élèves.</p>
+      <ol>
+        <li>Créer une classe avec son nom, son année et sa note de contexte.</li>
+        <li>Ajouter les élèves un par un.</li>
+        <li>Importer des élèves en masse par fichier CSV.</li>
+        <li>Modifier ou supprimer une classe ou un élève.</li>
+      </ol>
+      <p class="path">Exemple de classes : 2CIEL, 1CIEL, TCIEL</p>
+    </div>
+
+    <h2>4. Suivre les compétences</h2>
+    <div class="panel">
+      <p>Les compétences du référentiel sont suivies élève par élève avec les niveaux suivants :</p>
+      <ul>
+        <li>Absent</li>
+        <li>Non évalué</li>
+        <li>Non acquis</li>
+        <li>En cours d’acquisition</li>
+        <li>Partiellement acquis</li>
+        <li>Acquis</li>
+      </ul>
+      <p>Les domaines métiers utilisés dans l’application sont :</p>
+      <div>
+        <span class="tag">Réseau Informatique</span>
+        <span class="tag">Cybersécurité</span>
+        <span class="tag">Electronique</span>
+      </div>
+    </div>
+
+    <h2>5. Créer et évaluer une séance</h2>
+    <div class="grid">
+      <div class="panel">
+        <h3>Création de séance</h3>
+        <p>Dans <strong>Evaluations</strong>, choisis la classe puis <strong>Création de séance</strong>. Tu peux définir :</p>
+        <ul>
+          <li>type de séance : TP ou TD</li>
+          <li>titre</li>
+          <li>date de début et date de fin</li>
+          <li>plusieurs compétences associées</li>
+          <li>plusieurs indicateurs</li>
+          <li>banque d’indicateurs par domaine</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3>Evaluation de séance</h3>
+        <p>Dans <strong>Evaluation séance</strong>, sélectionne la séance créée puis évalue chaque élève indicateur par indicateur. Les résultats remontent ensuite dans les bilans et les synthèses.</p>
+      </div>
+    </div>
+
+    <h2>6. Utiliser le dashboard</h2>
+    <div class="panel">
+      <p>Le module <strong>Dashboard</strong> est organisé par classe avec trois vues principales :</p>
+      <ul>
+        <li><strong>Pilotage compétences</strong> : progression, répartition, synthèse.</li>
+        <li><strong>Pilotage PFMP</strong> : conventions, visites, dossiers complets.</li>
+        <li><strong>Calendrier pédagogique</strong> : affichage des séances et des échéances.</li>
+      </ul>
+      <p>Le calendrier prend en compte les dates de début et de fin des séances. Un clic sur une date permet de préparer une création de séance.</p>
+    </div>
+
+    <h2>7. Gérer les PFMP</h2>
+    <div class="grid">
+      <div class="panel">
+        <h3>Infos PFMP</h3>
+        <p>Le module PFMP permet de suivre, pour chaque élève et chaque période :</p>
+        <ul>
+          <li>entreprise</li>
+          <li>tuteur</li>
+          <li>conventions</li>
+          <li>date de visite</li>
+          <li>rapport, livret, présence</li>
+          <li>compétences observées</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3>Livret d’évaluation</h3>
+        <p>Le livret PFMP est séparé des informations administratives. Il sert à l’évaluation PFMP selon ton fonctionnement réel d’établissement.</p>
+      </div>
+    </div>
+
+    <h2>8. Utiliser les remédiations</h2>
+    <div class="panel">
+      <p>Le module <strong>Remédiations</strong> distingue :</p>
+      <ul>
+        <li><strong>Remédiations PFMP</strong></li>
+        <li><strong>Remédiations compétences</strong></li>
+      </ul>
+      <p>Les alertes peuvent être filtrées, exportées en PDF et utilisées pour créer directement une séance de remédiation.</p>
+    </div>
+
+    <h2>9. Référentiel, cartographie et bibliothèque</h2>
+    <div class="grid">
+      <div class="panel">
+        <h3>Couverture du référentiel</h3>
+        <p>Cette vue montre si les compétences sont suffisamment travaillées selon la classe et le domaine.</p>
+      </div>
+      <div class="panel">
+        <h3>Cartographie</h3>
+        <p>La cartographie relie les compétences aux séances et aux PFMP. Une heatmap permet de visualiser la couverture.</p>
+      </div>
+      <div class="panel">
+        <h3>Bibliothèque de séances</h3>
+        <p>La bibliothèque stocke des modèles de séances réutilisables, classés par domaine, niveau et compétences.</p>
+      </div>
+      <div class="panel">
+        <h3>Duplication</h3>
+        <p>Un modèle peut être dupliqué vers une classe, avec une période et des dates, pour accélérer la création des TP/TD.</p>
+      </div>
+    </div>
+
+    <h2>10. Exports et bilans</h2>
+    <div class="panel">
+      <p>L’application permet d’exporter :</p>
+      <ul>
+        <li>les bilans de compétences par classe</li>
+        <li>les PFMP par classe</li>
+        <li>les bilans élève par année</li>
+        <li>les synthèses sur les 3 ans</li>
+        <li>les PDF de séance, remédiation, PFMP et bulletin</li>
+      </ul>
+      <p>Les exports disponibles suivent maintenant les 3 niveaux :</p>
+      <div>
+        <span class="tag">2nde</span>
+        <span class="tag">1ère</span>
+        <span class="tag">Terminale</span>
+        <span class="tag">Synthèse 3 ans</span>
+      </div>
+    </div>
+
+    <h2>11. Gestion des comptes</h2>
+    <div class="panel">
+      <p>Le module <strong>Comptes</strong> est réservé à l’administrateur. Il permet :</p>
+      <ul>
+        <li>d’ajouter des comptes</li>
+        <li>de modifier les identifiants et mots de passe</li>
+        <li>de choisir le rôle</li>
+        <li>de supprimer des comptes</li>
+        <li>d’exporter ou restaurer une sauvegarde</li>
+      </ul>
+    </div>
+
+    <h2>12. Bonnes pratiques d’utilisation</h2>
+    <div class="panel">
+      <ul>
+        <li>Créer les classes avant d’importer les élèves.</li>
+        <li>Saisir les séances régulièrement pour éviter les bilans incomplets.</li>
+        <li>Mettre à jour les PFMP au fil de l’eau.</li>
+        <li>Utiliser les remédiations pour préparer les prochaines séances.</li>
+        <li>Faire des exports réguliers pour conserver un historique externe.</li>
+      </ul>
+    </div>
+
+    <div class="footer">
+      Tutoriel généré pour <strong>CIEL Matrix</strong> • Site : <strong>https://cielmatrix.fr</strong> • Version d’usage établissement
+    </div>
+  </div>
+</body>
+</html>

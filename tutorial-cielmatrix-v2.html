@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guide institutionnel CIEL Matrix</title>
+  <style>
+    :root {
+      --ink: #10222b;
+      --muted: #58707a;
+      --line: #d9e7ea;
+      --accent: #0c7c78;
+      --accent-soft: #eaf7f6;
+      --accent-2: #0d5485;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      color: var(--ink);
+      background: #eef4f6;
+    }
+    .document {
+      width: min(1120px, calc(100% - 40px));
+      margin: 24px auto 40px;
+      background: #ffffff;
+      border: 1px solid #dfe8eb;
+      box-shadow: 0 20px 60px rgba(9, 32, 41, 0.08);
+    }
+    .cover {
+      padding: 42px 48px 34px;
+      background: linear-gradient(135deg, #0e1d27 0%, #102331 55%, #12303d 100%);
+      color: #f7fffd;
+    }
+    .cover-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      align-items: flex-start;
+    }
+    .cover img {
+      width: 220px;
+      height: auto;
+    }
+    .eyebrow {
+      margin: 0 0 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.24em;
+      font-size: 12px;
+      font-weight: 700;
+      color: #8cf1e3;
+    }
+    h1 {
+      margin: 0 0 12px;
+      font-size: 42px;
+      line-height: 1.05;
+    }
+    .subtitle {
+      max-width: 700px;
+      margin: 0;
+      color: #d4ece8;
+      line-height: 1.7;
+      font-size: 16px;
+    }
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 22px;
+    }
+    .pill {
+      padding: 7px 11px;
+      border-radius: 999px;
+      border: 1px solid rgba(140,241,227,0.22);
+      color: #dffbf5;
+      background: rgba(255,255,255,0.05);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .content {
+      padding: 30px 48px 40px;
+    }
+    .toc {
+      padding: 18px 22px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: #f7fbfc;
+    }
+    .toc h2, section h2 {
+      margin: 0 0 14px;
+      color: var(--accent);
+      font-size: 24px;
+    }
+    .toc ol {
+      margin: 0;
+      padding-left: 20px;
+      line-height: 1.9;
+    }
+    section {
+      margin-top: 34px;
+      padding-top: 28px;
+      border-top: 1px solid var(--line);
+    }
+    h3 {
+      margin: 18px 0 10px;
+      color: var(--accent-2);
+      font-size: 18px;
+    }
+    p, li {
+      line-height: 1.72;
+      font-size: 15px;
+      color: var(--ink);
+    }
+    ul, ol {
+      margin: 10px 0 0 20px;
+      padding: 0;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+    .card {
+      padding: 18px 20px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: #fbfdfd;
+    }
+    .path {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 8px 12px;
+      border-radius: 12px;
+      background: var(--accent-soft);
+      border: 1px solid #cfe7e5;
+      color: var(--accent);
+      font-family: Consolas, monospace;
+      font-size: 13px;
+    }
+    .note {
+      margin-top: 14px;
+      padding: 14px 16px;
+      border-left: 4px solid var(--accent);
+      background: #f2faf9;
+      color: #24434f;
+    }
+    figure {
+      margin: 18px 0 0;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: #f8fbfc;
+    }
+    figure img {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 12px;
+      border: 1px solid #dbe7ea;
+    }
+    figcaption {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .footer {
+      margin-top: 36px;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 13px;
+    }
+    @media (max-width: 860px) {
+      .document { width: calc(100% - 20px); }
+      .cover, .content { padding: 20px; }
+      .cover-top, .grid { grid-template-columns: 1fr; display: grid; }
+    }
+    @media print {
+      body { background: #ffffff; }
+      .document {
+        width: 100%;
+        margin: 0;
+        border: none;
+        box-shadow: none;
+      }
+      .cover {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      figure, .card, .toc, .path, .note {
+        break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <article class="document">
+    <header class="cover">
+      <div class="cover-top">
+        <div>
+          <p class="eyebrow">Guide institutionnel utilisateur</p>
+          <h1>CIEL Matrix</h1>
+          <p class="subtitle">Mode d’emploi complet de la plateforme de pilotage pédagogique du Bac Pro CIEL. Ce guide a été conçu pour permettre à un utilisateur de prendre en main l’application, de l’utiliser au quotidien et d’exploiter toutes ses fonctions clés sans assistance technique.</p>
+          <div class="meta">
+            <span class="pill">Site : cielmatrix.fr</span>
+            <span class="pill">Classes : 2nde / 1ère / Terminale</span>
+            <span class="pill">Compétences / PFMP / Exports</span>
+            <span class="pill">Version 2 institutionnelle</span>
+          </div>
+        </div>
+        <img src="ciel-matrix-logo.svg" alt="CIEL Matrix">
+      </div>
+    </header>
+
+    <main class="content">
+      <section class="toc">
+        <h2>Sommaire</h2>
+        <ol>
+          <li>Présentation générale</li>
+          <li>Connexion et rôles</li>
+          <li>Navigation générale</li>
+          <li>Gestion des classes et des élèves</li>
+          <li>Gestion des évaluations et des séances</li>
+          <li>Pilotage via le dashboard</li>
+          <li>Gestion des PFMP et du livret</li>
+          <li>Bulletins, exports annuels et synthèses 3 ans</li>
+          <li>Référentiel, cartographie, bibliothèque</li>
+          <li>Remédiations et exploitation pédagogique</li>
+          <li>Gestion des comptes</li>
+          <li>Bonnes pratiques</li>
+        </ol>
+      </section>
+
+      <section>
+        <h2>1. Présentation générale</h2>
+        <p><strong>CIEL Matrix</strong> est une application métier dédiée au Bac Pro CIEL. Elle permet de structurer le suivi pédagogique sur l’ensemble du cycle, de la <strong>2nde</strong> à la <strong>Terminale</strong>, en articulant compétences, séances, PFMP, bilans, exports et remédiations.</p>
+        <div class="grid">
+          <div class="card">
+            <h3>Domaines gérés</h3>
+            <ul>
+              <li>Réseau Informatique</li>
+              <li>Cybersécurité</li>
+              <li>Electronique</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Public visé</h3>
+            <ul>
+              <li>Administrateur</li>
+              <li>Prof principal</li>
+              <li>Professeur</li>
+              <li>Lecture seule</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>2. Connexion et rôles</h2>
+        <p>La page de connexion permet d’accéder à l’application avec un identifiant et un mot de passe. Les droits dépendent du rôle attribué au compte.</p>
+        <figure>
+          <img src="capture-login.png" alt="Capture de la page de connexion CIEL Matrix">
+          <figcaption>La page de connexion de CIEL Matrix. L’utilisateur saisit son identifiant et son mot de passe pour accéder à l’espace pédagogique correspondant à son rôle.</figcaption>
+        </figure>
+        <div class="card">
+          <h3>Rôles</h3>
+          <ul>
+            <li><strong>Administrateur</strong> : structure, comptes, classes, exports et administration générale.</li>
+            <li><strong>Prof principal</strong> : pilotage pédagogique renforcé.</li>
+            <li><strong>Professeur</strong> : gestion des séances, compétences, PFMP.</li>
+            <li><strong>Lecture seule</strong> : consultation.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section>
+        <h2>3. Navigation générale</h2>
+        <p>La topbar donne accès aux grands modules de l’application. Les menus déroulants par classe permettent de charger directement la bonne vue selon le niveau ou le besoin pédagogique.</p>
+        <figure>
+          <img src="capture-home.png" alt="Capture de la page d'accueil CIEL Matrix">
+          <figcaption>La page d’accueil publique de CIEL Matrix. Elle présente l’identité de l’outil, ses usages et l’entrée vers la connexion.</figcaption>
+        </figure>
+        <div class="note">
+          Les menus principaux sont organisés pour éviter les écrans trop lourds : Dashboard, Evaluations, PFMP et Bulletin sont répartis par classe et par vue métier.
+        </div>
+      </section>
+
+      <section>
+        <h2>4. Gestion des classes et des élèves</h2>
+        <div class="grid">
+          <div class="card">
+            <h3>Créer une classe</h3>
+            <p>Le module <strong>Classes</strong> permet de créer les classes de 2nde, 1ère et Terminale, avec leur année scolaire et une note de contexte.</p>
+          </div>
+          <div class="card">
+            <h3>Ajouter des élèves</h3>
+            <p>Les élèves peuvent être ajoutés manuellement ou importés en masse via un fichier CSV.</p>
+          </div>
+          <div class="card">
+            <h3>Modifier et supprimer</h3>
+            <p>Chaque élève peut être modifié ou supprimé directement depuis la liste. Les classes peuvent également être modifiées.</p>
+          </div>
+          <div class="card">
+            <h3>Conseil</h3>
+            <p>Créer la structure des classes avant d’importer les élèves permet d’éviter les incohérences de rattachement.</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>5. Gestion des évaluations et des séances</h2>
+        <p>Le module <strong>Evaluations</strong> est structuré en trois usages : <strong>Création de séance</strong>, <strong>Evaluation séance</strong> et <strong>Compétences élèves</strong>.</p>
+        <div class="grid">
+          <div class="card">
+            <h3>Création de séance</h3>
+            <ul>
+              <li>choix de la classe</li>
+              <li>TP ou TD</li>
+              <li>titre</li>
+              <li>date de début et de fin</li>
+              <li>plusieurs compétences</li>
+              <li>indicateurs</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Evaluation de séance</h3>
+            <p>Chaque séance peut être évaluée élève par élève, indicateur par indicateur, avec les niveaux pédagogiques définis dans l’application.</p>
+          </div>
+          <div class="card">
+            <h3>Niveaux utilisés</h3>
+            <ul>
+              <li>Absent</li>
+              <li>Non évalué</li>
+              <li>Non acquis</li>
+              <li>En cours d’acquisition</li>
+              <li>Partiellement acquis</li>
+              <li>Acquis</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Banques d’indicateurs</h3>
+            <p>Les banques sont filtrées par domaine : Réseau Informatique, Cybersécurité, Electronique.</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>6. Pilotage via le dashboard</h2>
+        <p>Le dashboard est organisé par classe et par vue :</p>
+        <ul>
+          <li><strong>Pilotage compétences</strong></li>
+          <li><strong>Pilotage PFMP</strong></li>
+          <li><strong>Calendrier pédagogique</strong></li>
+        </ul>
+        <p>Cette organisation permet de lire rapidement les indicateurs sans charger un écran unique trop dense.</p>
+        <div class="note">
+          Le calendrier pédagogique exploite les dates de début et de fin des séances. Il devient ainsi un véritable support de planification.
+        </div>
+      </section>
+
+      <section>
+        <h2>7. Gestion des PFMP et du livret</h2>
+        <div class="grid">
+          <div class="card">
+            <h3>Infos PFMP</h3>
+            <p>Pour chaque élève et chaque période, on peut suivre l’entreprise, le tuteur, les conventions, la visite, le rapport, le livret, la présence et les compétences observées.</p>
+          </div>
+          <div class="card">
+            <h3>Livret d’évaluation</h3>
+            <p>Le livret PFMP est séparé du suivi administratif afin de respecter un fonctionnement de terrain plus proche des usages d’établissement.</p>
+          </div>
+        </div>
+        <p>Les PFMP sont gérées sur tout le parcours :</p>
+        <ul>
+          <li>2nde : PFMP 1 et PFMP 2</li>
+          <li>1ère : PFMP 1 et PFMP 2</li>
+          <li>Terminale : PFMP 1 et PFMP 2</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>8. Bulletins, exports annuels et synthèses 3 ans</h2>
+        <p>Le module <strong>Bulletin</strong> permet d’obtenir des synthèses par élève. Les exports sont désormais disponibles pour :</p>
+        <ul>
+          <li>Compétences 2nde</li>
+          <li>Compétences 1ère</li>
+          <li>Compétences Terminale</li>
+          <li>Synthèse compétences 3 ans</li>
+          <li>PFMP 2nde</li>
+          <li>PFMP 1ère</li>
+          <li>PFMP Terminale</li>
+          <li>Synthèse PFMP 3 ans</li>
+        </ul>
+        <div class="path">Objectif : disposer d’un suivi annuel et d’une lecture de cycle complète.</div>
+      </section>
+
+      <section>
+        <h2>9. Référentiel, cartographie et bibliothèque</h2>
+        <div class="grid">
+          <div class="card">
+            <h3>Couverture du référentiel</h3>
+            <p>Permet de mesurer la couverture des compétences par classe et par domaine.</p>
+          </div>
+          <div class="card">
+            <h3>Cartographie</h3>
+            <p>Relie compétence, séances et PFMP. Une heatmap visuelle aide à identifier les manques et les zones fortement exploitées.</p>
+          </div>
+          <div class="card">
+            <h3>Bibliothèque de séances</h3>
+            <p>Stocke des modèles réutilisables par niveau, domaine et compétences.</p>
+          </div>
+          <div class="card">
+            <h3>Duplication</h3>
+            <p>Une séance modèle peut être réinjectée vers une classe et une période précise pour gagner du temps.</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>10. Remédiations et exploitation pédagogique</h2>
+        <p>Le module <strong>Remédiations</strong> est séparé entre :</p>
+        <ul>
+          <li>Remédiations PFMP</li>
+          <li>Remédiations compétences</li>
+        </ul>
+        <p>Il permet de détecter les zones faibles, de filtrer par élève, d’exporter les remédiations et de créer une séance de remédiation directement depuis une alerte.</p>
+      </section>
+
+      <section>
+        <h2>11. Gestion des comptes</h2>
+        <p>Le module <strong>Comptes</strong> est réservé à l’administrateur. Il permet :</p>
+        <ul>
+          <li>l’ajout de comptes</li>
+          <li>la modification des mots de passe et identifiants</li>
+          <li>le choix du rôle</li>
+          <li>la suppression de comptes</li>
+          <li>l’export et la restauration d’une sauvegarde</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>12. Bonnes pratiques d’utilisation</h2>
+        <div class="grid">
+          <div class="card">
+            <h3>Organisation</h3>
+            <p>Créer les classes puis importer les élèves. Structurer l’année avant de saisir les séances.</p>
+          </div>
+          <div class="card">
+            <h3>Saisie régulière</h3>
+            <p>Mettre à jour les compétences, les séances et les PFMP au fil de l’eau pour garantir la qualité des bilans.</p>
+          </div>
+          <div class="card">
+            <h3>Exports</h3>
+            <p>Réaliser des exports annuels et de synthèse à intervalles réguliers pour conserver une trace externe.</p>
+          </div>
+          <div class="card">
+            <h3>Remédiation</h3>
+            <p>Utiliser les alertes pour préparer les prochaines séances et cibler les besoins réels des élèves.</p>
+          </div>
+        </div>
+      </section>
+
+      <div class="footer">
+        Guide institutionnel V2 - CIEL Matrix - https://cielmatrix.fr
+      </div>
+    </main>
+  </article>
+</body>
+</html>
