@@ -601,6 +601,21 @@ body:not([data-page="home"]) .nav-tabs {
   font-family: "Orbitron", sans-serif;
 }
 
+.mapping-heat-strip {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 6px;
+  margin: 10px 0 14px;
+}
+
+.mapping-heat-dot {
+  display: block;
+  height: 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 0 10px rgba(91, 198, 213, 0.08);
+}
+
 .progress-track { fill: rgba(255,255,255,0.04); }
 .muted-text { fill: var(--muted); font-size: 12px; }
 .main-text { fill: var(--text); font-size: 13px; }

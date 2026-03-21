@@ -7894,3 +7894,150 @@ function initAccountsPage() {
     }, 0);
   }
 })();
+
+;(function () {
+  initMappingPageFinal = function() {
+    bindProtectedChrome();
+    const classSelect = document.querySelector('#mapping-class-select');
+    const domainSelect = document.querySelector('#mapping-domain-select');
+    const meta = document.querySelector('#mapping-meta');
+    const grid = document.querySelector('#mapping-grid');
+    if (!classSelect || !domainSelect || !grid) return;
+
+    populateClassSelect(classSelect);
+    domainSelect.innerHTML = [`<option value="all">Tous les domaines</option>`, ...referentialDomains.map((domain) => `<option value="${domain}">${domain}</option>`)].join('');
+    const requestedClassId = getRequestedClassId();
+    if (requestedClassId) classSelect.value = requestedClassId;
+    classSelect.addEventListener('change', renderMapping);
+    domainSelect.addEventListener('change', renderMapping);
+    renderMapping();
+
+    function renderMapping() {
+      const classId = classSelect.value || app.classes[0]?.id || '';
+      const classItem = getClassById(classId);
+      const selectedDomain = domainSelect.value || 'all';
+      const cards = skillCatalog
+        .filter((skill) => selectedDomain === 'all' || getSkillDomain(skill) === selectedDomain)
+        .map((skill) => {
+          const relatedActivities = getActivitiesByClass(classId).filter((activity) => getActivitySkillIds(activity).includes(skill.id));
+          const pfmpHits = getStudentsByClass(classId).flatMap((student) => getPfmpObservationLabels(student.id, skill.id));
+          const coverageValue = Math.min((relatedActivities.length + pfmpHits.length) / 8, 1);
+          return { skill, relatedActivities, pfmpHits, coverageValue };
+        });
+      meta.textContent = `${classItem?.name || ''} // ${selectedDomain === 'all' ? 'tous les domaines' : selectedDomain}`;
+      grid.innerHTML = cards.map(({ skill, relatedActivities, pfmpHits, coverageValue }) => {
+        const heatCells = Array.from({ length: 8 }, (_, index) => {
+          const active = index < Math.round(coverageValue * 8);
+          return `<span class="mapping-heat-dot" style="background:${active ? getHeatmapColor((index + 1) / 8) : 'rgba(255,255,255,0.08)'}"></span>`;
+        }).join('');
+        return `
+          <article class="catalog-card">
+            <div class="skill-headline">
+              <span class="skill-code">${skill.code}</span>
+              <span class="skill-domain">${getSkillDomain(skill)}</span>
+            </div>
+            <h3>${skill.title}</h3>
+            <p>${relatedActivities.length} seance(s) // ${pfmpHits.length} observation(s) PFMP</p>
+            <div class="heatmap-row">
+              <div class="heatmap-cell">
+                <span>Seances</span>
+                <strong style="background:${getHeatmapColor(Math.min(relatedActivities.length / 4, 1))}">${relatedActivities.length}</strong>
+              </div>
+              <div class="heatmap-cell">
+                <span>PFMP</span>
+                <strong style="background:${getHeatmapColor(Math.min(pfmpHits.length / 6, 1))}">${pfmpHits.length}</strong>
+              </div>
+              <div class="heatmap-cell">
+                <span>Couverture</span>
+                <strong style="background:${getHeatmapColor(coverageValue)}">${relatedActivities.length + pfmpHits.length}</strong>
+              </div>
+            </div>
+            <div class="mapping-heat-strip">${heatCells}</div>
+            <p class="muted-copy">${relatedActivities.length ? relatedActivities.map((activity) => `${activity.type} ${activity.title}`).join(' | ') : 'Aucune seance reliee.'}</p>
+            <p class="muted-copy">${pfmpHits.length ? pfmpHits.join(' | ') : 'Aucune observation PFMP.'}</p>
+            <div class="student-badges">
+              <a class="ghost-button button-link" href="evaluations.html?view=session&class=${encodeURIComponent(classId)}">Voir les seances</a>
+              <a class="ghost-button button-link" href="pfmp.html?class=${encodeURIComponent(classId)}">Voir les PFMP</a>
+              <a class="ghost-button button-link" href="evaluations.html?view=create&class=${encodeURIComponent(classId)}&skill=${encodeURIComponent(skill.id)}">Creer une seance</a>
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+  };
+
+  buildPfmpStudentPdfHtml = function(student) {
+    const classItem = getClassById(student.classId);
+    const periodsHtml = PFMP_PERIODS.map((period) => {
+      const entry = getPfmpPeriodEntry(student.id, period.id);
+      const observed = (entry.observedSkillIds || []).map((skillId) => getSkillById(skillId)?.code).filter(Boolean).join(' | ');
+      return `
+        <div class="card">
+          <h2>${escapeHtml(period.label)}</h2>
+          <p><strong>Entreprise :</strong> ${escapeHtml(entry.companyName || 'Non renseignee')}</p>
+          <p><strong>Tuteur :</strong> ${escapeHtml(entry.tutorName || '-')}</p>
+          <p><strong>Professeur referent :</strong> ${escapeHtml(entry.teacher || '-')}</p>
+          <p><strong>Visite :</strong> ${escapeHtml(entry.visitDate || 'A planifier')}</p>
+          <p><strong>Convention :</strong> ${hasFullConvention(entry) ? 'Complete' : 'Incomplete'}</p>
+          <p><strong>Dossier final :</strong> ${hasCompleteFile(entry) ? 'Complet' : 'Incomplet'}</p>
+          <p><strong>Competences observees :</strong> ${escapeHtml(observed || 'Aucune')}</p>
+          <p><strong>Commentaire :</strong> ${escapeHtml(entry.comment || '-')}</p>
+        </div>
+      `;
+    }).join('');
+    return buildPrintShell(`Suivi PFMP - ${student.name}`, `${classItem?.name || ''}`, periodsHtml);
+  };
+
+  buildPfmpClassPdfHtml = function(classId) {
+    const classItem = getClassById(classId);
+    const students = getStudentsByClass(classId);
+    const rows = students.map((student) => {
+      const filled = PFMP_PERIODS.filter((period) => getPfmpPeriodEntry(student.id, period.id).companyName).length;
+      const conventions = PFMP_PERIODS.filter((period) => hasFullConvention(getPfmpPeriodEntry(student.id, period.id))).length;
+      const visits = PFMP_PERIODS.filter((period) => getPfmpPeriodEntry(student.id, period.id).visitDate).length;
+      const files = PFMP_PERIODS.filter((period) => hasCompleteFile(getPfmpPeriodEntry(student.id, period.id))).length;
+      const observed = PFMP_PERIODS.reduce((sum, period) => sum + ((getPfmpPeriodEntry(student.id, period.id).observedSkillIds || []).length), 0);
+      return `
+        <tr>
+          <td>${escapeHtml(student.name)}</td>
+          <td>${filled}/6</td>
+          <td>${conventions}/6</td>
+          <td>${visits}/6</td>
+          <td>${files}/6</td>
+          <td>${observed}</td>
+        </tr>
+      `;
+    }).join('');
+    return buildPrintShell(
+      `Synthese PFMP - ${classItem?.name || ''}`,
+      `${students.length} eleve(s)`,
+      `
+        <table>
+          <thead>
+            <tr>
+              <th>Eleve</th>
+              <th>Periodes renseignees</th>
+              <th>Conventions completes</th>
+              <th>Visites planifiees</th>
+              <th>Dossiers complets</th>
+              <th>Competences observees</th>
+            </tr>
+          </thead>
+          <tbody>${rows || '<tr><td colspan="6">Aucun eleve.</td></tr>'}</tbody>
+        </table>
+      `
+    );
+  };
+
+  renderRemediationCard = function(item) {
+    return `
+      <article class="summary-card alert-card ${item.level}">
+        <p class="alert-level">${item.level}</p>
+        <h3>${item.title}</h3>
+        <p class="muted-copy">${item.detail}</p>
+        <p class="muted-copy">${item.action || ''}</p>
+        ${item.actionHref ? `<div class="student-badges"><a class="ghost-button button-link" href="${item.actionHref}">${item.actionLabel || 'Ouvrir'}</a></div>` : ''}
+      </article>
+    `;
+  };
+})();
