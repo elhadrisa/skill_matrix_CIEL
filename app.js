@@ -6103,6 +6103,7 @@ function bindProtectedChrome() {
     roleBadge.textContent = session.label;
   }
   navs.forEach((nav) => {
+    upsertNavLink(nav, "bulletin.html", "Bulletin", page === "bulletin");
     upsertDashboardDropdown(nav);
     upsertEvaluationsDropdown(nav);
     upsertPfmpDropdown(nav);
@@ -6115,6 +6116,10 @@ function bindProtectedChrome() {
       { href: "remediation-pfmp.html", label: "PFMP" },
       { href: "remediation-competences.html", label: "Competences" }
     ], page === "remediation_pfmp" || page === "remediation_competences");
+    const bulletinLink = nav.querySelector('a[href="bulletin.html"]');
+    if (bulletinLink) {
+      nav.insertBefore(bulletinLink, nav.querySelector('.nav-dropdown[data-key="referential-menu"]') || roleBadge || logoutButton || null);
+    }
     const existing = nav.querySelector('a[href="accounts.html"]');
     if (session?.role === "admin" && !existing) {
       const link = document.createElement("a");
