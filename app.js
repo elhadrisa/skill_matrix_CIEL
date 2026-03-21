@@ -9938,3 +9938,172 @@ function initCertificationPageFinal() {
     window.setTimeout(bindExamGridExporter, 0);
   };
 })();
+
+;(function () {
+  function getEvidenceEntriesSafe(studentId) {
+    return (app.evidencePortfolio || [])
+      .filter((entry) => entry.studentId === studentId)
+      .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+  }
+
+  function buildEvidenceHtmlSafe(studentId) {
+    const entries = getEvidenceEntriesSafe(studentId);
+    if (!entries.length) {
+      return `<article class="period-card"><strong>Aucune preuve</strong><p class="muted-copy">Aucune preuve liÃ©e Ã  cet Ã©lÃ¨ve pour le moment.</p></article>`;
+    }
+    return entries.map((entry) => {
+      const skill = getSkillById(entry.skillId);
+      return `
+        <article class="period-card">
+          <strong>${escapeHtml(entry.title || "Preuve")}</strong>
+          <p class="muted-copy">${escapeHtml(skill?.code || entry.skillId || "-")} // ${escapeHtml(skill?.title || "CompÃ©tence")} // ${escapeHtml(entry.type || "-")}</p>
+          <p class="muted-copy">${escapeHtml(entry.date || "-")} // ${escapeHtml(entry.note || "Sans commentaire")}</p>
+          ${entry.url ? `<p class="muted-copy">${escapeHtml(entry.url)}</p>` : ""}
+        </article>
+      `;
+    }).join("");
+  }
+
+  function getCoherenceItemsSafe(classId) {
+    const students = getStudentsByClass(classId);
+    const activities = getActivitiesByClass(classId);
+    return skillCatalog.map((skill) => {
+      const activityHits = activities.filter((activity) => getActivitySkillIds(activity).includes(skill.id)).length;
+      const pfmpHits = students.filter((student) => getPfmpObservationLabels(student.id, skill.id).length > 0).length;
+      const acquiredCount = students.filter((student) => student.skills?.[skill.id] === "acquis").length;
+      const weakValidation = acquiredCount > 0 && activityHits + pfmpHits <= 1;
+      const neverWorked = activityHits === 0 && pfmpHits === 0;
+      return { skill, activityHits, pfmpHits, neverWorked, weakValidation };
+    }).filter((item) => item.neverWorked || item.weakValidation);
+  }
+
+  const originalInitCoveragePageFinalPremium = initCoveragePageFinal;
+  initCoveragePageFinal = function () {
+    originalInitCoveragePageFinalPremium();
+    window.setTimeout(() => {
+      if (document.body?.dataset?.page !== "coverage") return;
+      const classSelect = document.querySelector("#coverage-class-select");
+      const target = document.querySelector("#coverage-coherence");
+      if (!classSelect || !target) return;
+      const render = () => {
+        const classId = classSelect.value || app.classes[0]?.id || "";
+        const items = getCoherenceItemsSafe(classId);
+        target.innerHTML = items.length ? items.map((item) => `
+          <article class="directory-row compact">
+            <div>
+              <strong>${item.skill.code} // ${item.skill.title}</strong>
+              <p>${escapeHtml(getSkillDomain(item.skill))} // ${item.activityHits} sÃ©ance(s) // ${item.pfmpHits} observation(s) PFMP</p>
+              <p>${item.neverWorked ? "Jamais travaillÃ©e." : "Validation fragile : trop peu de traces pour une compÃ©tence acquise."}</p>
+            </div>
+          </article>
+        `).join("") : `<article class="summary-card"><h3>CohÃ©rence satisfaisante</h3><p class="muted-copy">Aucune alerte de cohÃ©rence dÃ©tectÃ©e pour cette classe.</p></article>`;
+      };
+      render();
+      if (!classSelect.dataset.coverageCoherenceBound) {
+        classSelect.dataset.coverageCoherenceBound = "true";
+        classSelect.addEventListener("change", render);
+      }
+    }, 0);
+  };
+
+  const originalBuildBulletinMarkupPremium = buildBulletinMarkup;
+  buildBulletinMarkup = function (student, classItem, studentActivities, pfmpSummary, blockAverages) {
+    const base = originalBuildBulletinMarkupPremium(student, classItem, studentActivities, pfmpSummary, blockAverages);
+    return `${base}
+      <div class="bulletin-grid">
+        <section class="summary-card">
+          <h3>Portefeuille de preuves</h3>
+          <div class="bulletin-pfmp">
+            ${buildEvidenceHtmlSafe(student.id)}
+          </div>
+        </section>
+      </div>`;
+  };
+
+  const originalBuildPrintableBulletinHTMLPremium = buildPrintableBulletinHTML;
+  buildPrintableBulletinHTML = function (student, classItem, studentActivities, pfmpSummary, blockAverages) {
+    const base = originalBuildPrintableBulletinHTMLPremium(student, classItem, studentActivities, pfmpSummary, blockAverages);
+    const insert = `
+      <div class="grid">
+        <section class="card">
+          <h2>Portefeuille de preuves</h2>
+          ${getEvidenceEntriesSafe(student.id).length ? getEvidenceEntriesSafe(student.id).map((entry) => {
+            const skill = getSkillById(entry.skillId);
+            return `<div class="row"><div><strong>${escapeHtml(entry.title || "Preuve")}</strong><br><span class="meta">${escapeHtml(skill?.code || entry.skillId || "-")} ${escapeHtml(skill?.title || "")} // ${escapeHtml(entry.type || "-")} // ${escapeHtml(entry.date || "-")}</span></div><div>${escapeHtml(entry.note || "-")}</div></div>`;
+          }).join("") : `<p>Aucune preuve.</p>`}
+        </section>
+      </div>`;
+    return base.replace("</body>", `${insert}</body>`);
+  };
+
+  const originalInitCandidatePageFinalPremium = initCandidatePageFinal;
+  initCandidatePageFinal = function () {
+    originalInitCandidatePageFinalPremium();
+    window.setTimeout(() => {
+      if (document.body?.dataset?.page !== "candidate") return;
+      const classSelect = document.querySelector("#candidate-class-select");
+      const studentSelect = document.querySelector("#candidate-student-select");
+      const overview = document.querySelector("#candidate-overview");
+      const batchButton = document.querySelector("#candidate-export-class-pack");
+      if (!classSelect || !studentSelect || !overview || !batchButton) return;
+
+      let evidencePanel = document.querySelector("#candidate-evidence-panel");
+      if (!evidencePanel) {
+        evidencePanel = document.createElement("section");
+        evidencePanel.id = "candidate-evidence-panel";
+        evidencePanel.className = "panel";
+        evidencePanel.innerHTML = `
+          <div class="hero-side-head">
+            <div>
+              <h2>Preuves liÃ©es au candidat</h2>
+              <p class="results-count">Documents, productions et observations associÃ©s aux compÃ©tences.</p>
+            </div>
+          </div>
+          <div id="candidate-evidence-list" class="class-cards"></div>
+        `;
+        overview.closest(".panel")?.insertAdjacentElement("afterend", evidencePanel);
+      }
+      const evidenceList = document.querySelector("#candidate-evidence-list");
+
+      const renderEvidence = () => {
+        const student = getStudentById(studentSelect.value);
+        if (!evidenceList || !student) return;
+        evidenceList.innerHTML = buildEvidenceHtmlSafe(student.id);
+      };
+      renderEvidence();
+
+      if (!studentSelect.dataset.candidateEvidenceBound) {
+        studentSelect.dataset.candidateEvidenceBound = "true";
+        studentSelect.addEventListener("change", renderEvidence);
+      }
+      if (!classSelect.dataset.candidateEvidenceBound) {
+        classSelect.dataset.candidateEvidenceBound = "true";
+        classSelect.addEventListener("change", () => window.setTimeout(renderEvidence, 0));
+      }
+
+      if (!batchButton.dataset.candidateBatchBound) {
+        batchButton.dataset.candidateBatchBound = "true";
+        batchButton.addEventListener("click", () => {
+          const currentStudentId = studentSelect.value;
+          const studentIds = getStudentsByClass(classSelect.value || app.classes[0]?.id || "").map((student) => student.id);
+          const exportGridButton = document.querySelector("#candidate-export-grid");
+          const exportClassPdfButton = document.querySelector("#candidate-export-class-pdf");
+          exportClassPdfButton?.click();
+          studentIds.forEach((studentId, index) => {
+            window.setTimeout(() => {
+              studentSelect.value = studentId;
+              studentSelect.dispatchEvent(new Event("change"));
+              exportGridButton?.click();
+              if (index === studentIds.length - 1) {
+                window.setTimeout(() => {
+                  studentSelect.value = currentStudentId;
+                  studentSelect.dispatchEvent(new Event("change"));
+                }, 300);
+              }
+            }, 350 * index);
+          });
+        });
+      }
+    }, 0);
+  };
+})();
