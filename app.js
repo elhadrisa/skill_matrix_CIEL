@@ -120,6 +120,7 @@ async function initializeApp() {
       window.location.replace("dashboard.html");
       return;
     }
+    replaceAppState(loadLocalFallbackData());
     initLoginPage();
     return;
   }
@@ -2747,7 +2748,9 @@ function initLoginPage() {
       // Fall through to local rescue mode below.
     }
 
-    const fallbackUser = app.accounts.find((account) => String(account.username || "").toLowerCase() === username);
+    const localData = loadLocalFallbackData();
+    replaceAppState(localData);
+    const fallbackUser = localData.accounts.find((account) => String(account.username || "").toLowerCase() === username);
     if (fallbackUser && fallbackUser.password === password) {
       setSession({ username: fallbackUser.username, role: fallbackUser.role, label: fallbackUser.label });
       replaceAppState(loadLocalFallbackData());
