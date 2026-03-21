@@ -495,7 +495,18 @@ body:not([data-page="home"]) .nav-tabs {
 .bulletin-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
 .bulletin-skills { display: grid; gap: 12px; }
 .bulletin-skill-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 14px 16px; border-radius: 14px; border: 1px solid var(--line); background: rgba(5,15,24,0.84); }
-.bulletin-pill { display: inline-flex; align-items: center; min-height: 34px; padding: 0 12px; border-radius: 999px; font-weight: 700; }
+.bulletin-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  min-width: 150px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-weight: 700;
+  white-space: nowrap;
+  text-align: center;
+}
 .bulletin-pfmp, .bulletin-activities { display: grid; gap: 12px; }
 .print-only { display: none; }
 
@@ -596,6 +607,8 @@ body:not([data-page="home"]) .nav-tabs {
 .skill-actions {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
+  min-width: 150px;
 }
 
 .calendar-event {
