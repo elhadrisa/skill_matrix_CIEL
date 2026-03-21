@@ -8167,3 +8167,114 @@ function initAccountsPage() {
     return base.replace('</article>', `${suggestionHtml}</article>`);
   };
 })();
+
+;(function () {
+  initRemediationPageFinal = function() {
+    bindProtectedChrome();
+    const classSelect = document.querySelector('#remediation-class-select');
+    const studentSelect = document.querySelector('#remediation-student-select');
+    const severitySelect = document.querySelector('#remediation-severity-select');
+    const teacherSelect = document.querySelector('#remediation-teacher-select');
+    const exportButton = document.querySelector('#remediation-export-pdf');
+    const summaryGrid = document.querySelector('#remediation-summary-grid');
+    const detailGrid = document.querySelector('#remediation-detail-grid');
+    const scopeTitle = document.querySelector('#remediation-scope-title');
+    const detailTitle = document.querySelector('#remediation-detail-title');
+    if (!classSelect || !studentSelect || !summaryGrid || !detailGrid) return;
+
+    populateClassSelect(classSelect);
+    populateTeacherFilter(teacherSelect);
+    const requestedClassId = getRequestedClassId();
+    if (requestedClassId) classSelect.value = requestedClassId;
+    classSelect.addEventListener('change', () => {
+      syncStudents();
+      renderRemediationPage();
+    });
+    studentSelect.addEventListener('change', renderRemediationPage);
+    severitySelect?.addEventListener('change', renderRemediationPage);
+    teacherSelect?.addEventListener('change', renderRemediationPage);
+    exportButton?.addEventListener('click', exportRemediationPdf);
+    syncStudents();
+    renderRemediationPage();
+
+    function syncStudents() {
+      const classId = classSelect.value || app.classes[0]?.id || '';
+      const students = getStudentsByClass(classId);
+      studentSelect.innerHTML = ['<option value="all">Tous les eleves</option>', ...students.map((student) => `<option value="${student.id}">${student.name}</option>`)].join('');
+    }
+
+    function filterByStudent(items, studentId) {
+      if (!studentId || studentId === 'all') return items;
+      const student = getStudentById(studentId);
+      if (!student) return items;
+      const needle = student.name;
+      return items.filter((item) => String(item.title || '').includes(needle) || String(item.detail || '').includes(needle));
+    }
+
+    function enrichItem(item, classId, isPfmpPage) {
+      if (item.actionHref) return item;
+      if (isPfmpPage) {
+        return { ...item, actionHref: `pfmp.html?class=${encodeURIComponent(classId)}`, actionLabel: 'Ouvrir PFMP' };
+      }
+      const matchedSkill = skillCatalog.find((skill) => item.title.startsWith(`${skill.code} //`));
+      if (matchedSkill) {
+        const domain = encodeURIComponent(getSkillDomain(matchedSkill));
+        return {
+          ...item,
+          actionHref: `evaluations.html?view=create&class=${encodeURIComponent(classId)}&skill=${encodeURIComponent(matchedSkill.id)}&domain=${domain}`,
+          actionLabel: 'Creer une seance de remediation'
+        };
+      }
+      return { ...item, actionHref: `evaluations.html?view=session&class=${encodeURIComponent(classId)}`, actionLabel: 'Ouvrir les evaluations' };
+    }
+
+    function renderRemediationPage() {
+      const classId = classSelect.value || app.classes[0]?.id || '';
+      const teacher = teacherSelect?.value || 'all';
+      const severity = severitySelect?.value || 'all';
+      const studentId = studentSelect?.value || 'all';
+      const alerts = filterByStudent(getClassAlerts(classId, teacher), studentId).filter((item) => severity === 'all' || item.level === severity);
+      const isPfmpPage = page === 'remediation_pfmp';
+      const detailSource = isPfmpPage ? getPfmpRemediationItems(classId, teacher) : getEvaluationRemediationItems(classId, teacher);
+      const detailItems = filterByStudent(detailSource, studentId)
+        .filter((item) => severity === 'all' || item.level === severity)
+        .map((item) => enrichItem(item, classId, isPfmpPage));
+      if (scopeTitle) scopeTitle.textContent = isPfmpPage ? 'Vue remediation PFMP' : 'Vue remediation competences';
+      if (detailTitle) detailTitle.textContent = isPfmpPage ? 'Remediation PFMP' : 'Remediation competences';
+      summaryGrid.innerHTML = alerts.length ? alerts.map(renderRemediationCard).join('') : `<article class="summary-card"><h3>Aucune remediation globale</h3><p class="muted-copy">Aucun signal bloquant pour ce filtre.</p></article>`;
+      detailGrid.innerHTML = detailItems.length ? detailItems.map(renderRemediationCard).join('') : `<article class="summary-card"><h3>Aucune action</h3><p class="muted-copy">Aucune relance a traiter pour ce filtre.</p></article>`;
+    }
+
+    function exportRemediationPdf() {
+      const classId = classSelect.value || app.classes[0]?.id || '';
+      const classItem = getClassById(classId);
+      const teacher = teacherSelect?.value || 'all';
+      const severity = severitySelect?.value || 'all';
+      const studentId = studentSelect?.value || 'all';
+      const isPfmpPage = page === 'remediation_pfmp';
+      const detailSource = isPfmpPage ? getPfmpRemediationItems(classId, teacher) : getEvaluationRemediationItems(classId, teacher);
+      const detailItems = filterByStudent(detailSource, studentId)
+        .filter((item) => severity === 'all' || item.level === severity)
+        .map((item) => enrichItem(item, classId, isPfmpPage));
+      const rows = detailItems.map((item) => `<tr><td>${escapeHtml(item.level)}</td><td>${escapeHtml(item.title)}</td><td>${escapeHtml(item.detail)}</td><td>${escapeHtml(item.action || '')}</td></tr>`).join('');
+      const html = buildPrintShell(
+        `Remediation - ${classItem?.name || ''}`,
+        `${isPfmpPage ? 'PFMP' : 'Competences'} // ${severity === 'all' ? 'Toutes les gravites' : severity}`,
+        `<table><thead><tr><th>Niveau</th><th>Titre</th><th>Detail</th><th>Action</th></tr></thead><tbody>${rows || '<tr><td colspan="4">Aucune action.</td></tr>'}</tbody></table>`
+      );
+      printHtmlDocument(`Remediation ${classItem?.name || ''}`, html);
+    }
+  };
+
+  if (document.body?.dataset?.page === 'evaluations') {
+    window.setTimeout(() => {
+      const params = new URLSearchParams(window.location.search);
+      const requestedDomain = params.get('domain');
+      const domainSelect = document.querySelector('#indicator-bank-domain');
+      if (requestedDomain && domainSelect) {
+        domainSelect.value = requestedDomain;
+        domainSelect.dispatchEvent(new Event('change'));
+      }
+    }, 0);
+  }
+})();
