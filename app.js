@@ -8706,6 +8706,109 @@ function initAccountsPage() {
 })();
 
 (() => {
+  function enhanceActivityMatrixReadabilitySafe() {
+    if (document.body?.dataset?.page !== "evaluations") return;
+    const matrix = document.querySelector("#activity-matrix");
+    if (!matrix) return;
+
+    const header = matrix.querySelector(".matrix-header.activity-header");
+    const rows = [...matrix.querySelectorAll(".matrix-row.activity-row")];
+    if (!header || !rows.length) return;
+
+    const headerCells = [...header.children];
+    if (headerCells.length <= 1) return;
+    const indicatorLabels = headerCells.slice(1).map((cell, index) => ({
+      index: index + 1,
+      label: String(cell.textContent || "").trim()
+    }));
+
+    let legend = document.querySelector("#activity-indicator-legend");
+    if (!legend) {
+      legend = document.createElement("div");
+      legend.id = "activity-indicator-legend";
+      legend.className = "activity-indicator-legend";
+      matrix.insertAdjacentElement("beforebegin", legend);
+    }
+
+    legend.innerHTML = `
+      <article class="summary-card activity-indicator-legend-card">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Indicateurs</p>
+            <h3>Repères de la séance</h3>
+          </div>
+        </div>
+        <div class="activity-indicator-legend-grid">
+          ${indicatorLabels.map((item) => `
+            <div class="activity-indicator-legend-item" title="${escapeHtml(item.label)}">
+              <span class="activity-indicator-chip">I${item.index}</span>
+              <span>${escapeHtml(item.label)}</span>
+            </div>
+          `).join("")}
+        </div>
+      </article>
+    `;
+
+    header.classList.add("activity-header-compact");
+    headerCells[0].innerHTML = `<span class="activity-student-head">Élève</span>`;
+    headerCells.slice(1).forEach((cell, index) => {
+      const label = indicatorLabels[index];
+      cell.classList.add("activity-indicator-head-cell");
+      cell.innerHTML = `
+        <div class="activity-indicator-head-compact" title="${escapeHtml(label.label)}">
+          <span class="activity-indicator-chip">I${label.index}</span>
+        </div>
+      `;
+    });
+
+    rows.forEach((row) => {
+      const cells = [...row.children];
+      cells.slice(1).forEach((cell, index) => {
+        if (cell.dataset.compactBound === "true") return;
+        cell.dataset.compactBound = "true";
+        const select = cell.querySelector("select");
+        if (!select) return;
+        const label = indicatorLabels[index];
+        cell.classList.add("activity-indicator-cell");
+        const hint = document.createElement("small");
+        hint.className = "activity-indicator-cell-label";
+        hint.textContent = `I${label.index}`;
+        hint.title = label.label;
+        cell.prepend(hint);
+        select.title = label.label;
+        select.setAttribute("aria-label", `Indicateur ${label.index} : ${label.label}`);
+      });
+    });
+  }
+
+  const originalInitEvaluationsPageReadableSafe = initEvaluationsPageFinal;
+  initEvaluationsPageFinal = function () {
+    originalInitEvaluationsPageReadableSafe();
+    window.setTimeout(enhanceActivityMatrixReadabilitySafe, 0);
+    window.setTimeout(enhanceActivityMatrixReadabilitySafe, 120);
+  };
+
+  function bindMatrixReadabilityObserverSafe() {
+    if (document.body?.dataset?.page !== "evaluations") return;
+    const matrix = document.querySelector("#activity-matrix");
+    if (!matrix || matrix.dataset.readabilityObserverBound === "true") return;
+    matrix.dataset.readabilityObserverBound = "true";
+    const observer = new MutationObserver(() => window.setTimeout(enhanceActivityMatrixReadabilitySafe, 0));
+    observer.observe(matrix, { childList: true, subtree: true });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => {
+      bindMatrixReadabilityObserverSafe();
+      window.setTimeout(enhanceActivityMatrixReadabilitySafe, 0);
+    }, { once: true });
+  } else {
+    bindMatrixReadabilityObserverSafe();
+    window.setTimeout(enhanceActivityMatrixReadabilitySafe, 0);
+  }
+})();
+
+(() => {
   function renderInlineIndicatorPreviewUltimateSafe(activity) {
     const list = document.querySelector("#activity-indicator-list");
     if (!list) return;
