@@ -489,6 +489,7 @@ function hydrateAppData(data) {
     classId: classes.some((classItem) => classItem.id === student.classId) ? student.classId : fallbackClassId,
     portfolioKey: student.portfolioKey || slugify(student.name || `eleve-${index + 1}`),
     skills: buildSkillState(student.skills || {}),
+    skillGrades: hydrateSkillGrades(student.skillGrades || {}),
     attendance: hydrateAttendanceEntries(student.attendance || []),
     notes: hydrateStudentNotes(student.notes || [])
   }));
@@ -639,7 +640,8 @@ function createEmptyPfmpEntry() {
 function hydrateEvaluationActivity(activity, index) {
   const indicators = Array.isArray(activity.indicators) ? activity.indicators.map((indicator, indicatorIndex) => ({
     id: indicator.id || `indicator-${index + 1}-${indicatorIndex + 1}`,
-    label: indicator.label || `Indicateur ${indicatorIndex + 1}`
+    label: indicator.label || `Indicateur ${indicatorIndex + 1}`,
+    skillId: indicator.skillId && getSkillById(indicator.skillId) ? indicator.skillId : ""
   })) : [];
   const skillIds = Array.isArray(activity.skillIds) && activity.skillIds.length
     ? activity.skillIds.filter((skillId) => getSkillById(skillId))
@@ -714,6 +716,27 @@ function migrateLegacyStudents(students) {
 
 function buildSkillState(skills) {
   return Object.fromEntries(skillCatalog.map((skill) => [skill.id, normalizeStatus(skills[skill.id])]));
+}
+
+function hydrateSkillGrades(grades) {
+  return Object.fromEntries(skillCatalog.map((skill) => [skill.id, normalizeGrade(grades?.[skill.id])]));
+}
+
+function normalizeGrade(value) {
+  if (value === "" || value === null || value === undefined) return "";
+  const numeric = Number.parseFloat(String(value).replace(",", "."));
+  if (!Number.isFinite(numeric)) return "";
+  const clamped = Math.min(20, Math.max(0, numeric));
+  return Math.round(clamped * 2) / 2;
+}
+
+function mapGradeToStatus(grade) {
+  const numeric = normalizeGrade(grade);
+  if (numeric === "") return "non_evalue";
+  if (numeric < 5) return "non_acquis";
+  if (numeric < 10) return "en_cours_acquisition";
+  if (numeric < 14) return "partiellement_acquis";
+  return "acquis";
 }
 
 function normalizeStatus(value) {
@@ -2919,6 +2942,11 @@ function initEvaluationsPageFinal() {
   const activityDateStart = document.querySelector("#activity-date-start");
   const activityDateEnd = document.querySelector("#activity-date-end");
   const activityIndicators = document.querySelector("#activity-indicators");
+  const activityIndicatorSkill = document.querySelector("#activity-indicator-skill");
+  const activityIndicatorLabel = document.querySelector("#activity-indicator-label");
+  const activityIndicatorAddButton = document.querySelector("#activity-indicator-add");
+  const activityIndicatorClearButton = document.querySelector("#activity-indicator-clear");
+  const activityIndicatorList = document.querySelector("#activity-indicator-list");
   const indicatorBankDomain = document.querySelector("#indicator-bank-domain");
   const indicatorBankSelect = document.querySelector("#indicator-bank-select");
   const indicatorBankLoadButton = document.querySelector("#indicator-bank-load");
@@ -2940,10 +2968,13 @@ function initEvaluationsPageFinal() {
   const studentSkillsEditor = document.querySelector("#student-skills-editor");
   const studentSheetMeta = document.querySelector("#student-sheet-meta");
   const skillRowTemplate = document.querySelector("#skill-row-template");
+  const activitySubmitButton = document.querySelector("#activity-submit-button");
+  const activityCancelEditButton = document.querySelector("#activity-cancel-edit");
   const canEditEvaluations = hasPermission("edit_evaluations");
   const canEditSkills = hasPermission("edit_skills");
   const currentView = getRequestedEvaluationsView();
   let exportBar = document.querySelector("#activity-export-bar");
+  let activityIndicatorDraft = [];
 
   if (!exportBar && activityReport) {
     exportBar = document.createElement("div");
@@ -2967,6 +2998,8 @@ function initEvaluationsPageFinal() {
   populateIndicatorBankSelect(indicatorBankSelect, [], indicatorBankDomain?.value || "all");
   populateClassSelect(sessionClassSelect);
   populateClassSelect(evalClassSelect);
+  syncIndicatorSkillOptions();
+  renderIndicatorDraft();
   const requestedClassId = getRequestedClassId();
   const requestedTemplateId = getRequestedTemplateId();
   const requestedDates = getRequestedActivityDates();
@@ -2996,6 +3029,94 @@ function initEvaluationsPageFinal() {
     }
   }
 
+  function getIndicatorDisplayLabel(indicator) {
+    const linkedSkill = indicator?.skillId ? getSkillById(indicator.skillId) : null;
+    return linkedSkill ? `${linkedSkill.code} // ${indicator.label}` : indicator.label;
+  }
+
+  function buildIndicatorsFromTextarea() {
+    return activityIndicators.value
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((label, index) => ({ id: slugify(`${activityTitle.value || "indicator"}-${index}-${Date.now()}`), label, skillId: "" }));
+  }
+
+  function syncIndicatorSkillOptions() {
+    if (!activityIndicatorSkill) return;
+    const selectedSkills = getSelectedValues(activitySkill).map((skillId) => getSkillById(skillId)).filter(Boolean);
+    activityIndicatorSkill.innerHTML = `<option value="">Toutes les competences</option>${selectedSkills.map((skill) => `<option value="${skill.id}">${skill.code} // ${skill.title}</option>`).join("")}`;
+  }
+
+  function syncIndicatorTextareaFromDraft() {
+    if (!activityIndicators) return;
+    activityIndicators.value = activityIndicatorDraft.map((indicator) => indicator.label).join("\n");
+  }
+
+  function renderIndicatorDraft() {
+    if (!activityIndicatorList) return;
+    if (!activityIndicatorDraft.length) {
+      activityIndicatorList.innerHTML = `<article class="directory-row"><div><strong>Aucun indicateur structuré</strong><p>Ajoute un indicateur lié à une compétence ou utilise la saisie rapide.</p></div></article>`;
+      return;
+    }
+    activityIndicatorList.innerHTML = activityIndicatorDraft.map((indicator) => `
+      <article class="directory-row compact">
+        <div>
+          <strong>${escapeHtml(indicator.label)}</strong>
+          <p>${escapeHtml(indicator.skillId ? getActivitySkillLabel({ skillIds: [indicator.skillId], skillId: indicator.skillId }) : "Toutes les competences de la seance")}</p>
+        </div>
+        <div class="student-badges">
+          <button class="ghost-button activity-indicator-remove" type="button" data-id="${indicator.id}">Retirer</button>
+        </div>
+      </article>
+    `).join("");
+    activityIndicatorList.querySelectorAll(".activity-indicator-remove").forEach((button) => {
+      button.addEventListener("click", () => {
+        activityIndicatorDraft = activityIndicatorDraft.filter((indicator) => indicator.id !== button.dataset.id);
+        syncIndicatorTextareaFromDraft();
+        renderIndicatorDraft();
+      });
+    });
+  }
+
+  function resetActivityEditor() {
+    activityForm.reset();
+    clearMultiSelect(activitySkill);
+    activityIndicatorDraft = [];
+    syncIndicatorSkillOptions();
+    syncIndicatorTextareaFromDraft();
+    renderIndicatorDraft();
+    populateIndicatorBankSelect(indicatorBankSelect);
+    if (activitySubmitButton) activitySubmitButton.textContent = "Créer la séance";
+    if (activityCancelEditButton) activityCancelEditButton.hidden = true;
+    delete activityForm.dataset.editingId;
+  }
+
+  function loadActivityIntoEditor(activity) {
+    if (!activity) return;
+    activityForm.dataset.editingId = activity.id;
+    activityType.value = activity.type || "TP";
+    activityTitle.value = activity.title || "";
+    activityClass.value = activity.classId || "";
+    activityDateStart.value = activity.startDate || activity.date || "";
+    activityDateEnd.value = activity.endDate || activity.startDate || activity.date || "";
+    activityComment.value = activity.comment || "";
+    setMultiSelectValues(activitySkill, getActivitySkillIds(activity));
+    activityIndicatorDraft = (activity.indicators || []).map((indicator, index) => ({
+      id: indicator.id || slugify(`${activity.id}-${index}`),
+      label: indicator.label,
+      skillId: indicator.skillId || ""
+    }));
+    syncIndicatorSkillOptions();
+    syncIndicatorTextareaFromDraft();
+    renderIndicatorDraft();
+    populateIndicatorBankSelect(indicatorBankSelect, getActivitySkillIds(activity), indicatorBankDomain?.value || "all");
+    if (activitySubmitButton) activitySubmitButton.textContent = "Enregistrer les modifications";
+    if (activityCancelEditButton) activityCancelEditButton.hidden = false;
+    applyEvaluationsView("create");
+    activityFeedback.textContent = `Edition de la seance : ${activity.title}`;
+  }
+
   enforcePermission("edit_evaluations", activityType, activityTitle, activityClass, activitySkill, activityDateStart, activityDateEnd, activityIndicators, activityComment, activityEditButton, activityDeleteButton);
   enforcePermission("edit_evaluations", indicatorBankDomain, indicatorBankSelect, indicatorBankLoadButton, indicatorBankSaveButton, activityDuplicateButton);
 
@@ -3003,7 +3124,11 @@ function initEvaluationsPageFinal() {
     event.preventDefault();
     if (!canEditEvaluations) return;
     const selectedSkillIds = getSelectedValues(activitySkill);
-    const indicators = activityIndicators.value.split("\n").map((line) => line.trim()).filter(Boolean).map((label, index) => ({ id: slugify(`${activityTitle.value}-${index}-${Date.now()}`), label }));
+    const indicators = (activityIndicatorDraft.length ? activityIndicatorDraft : buildIndicatorsFromTextarea()).map((indicator, index) => ({
+      id: indicator.id || slugify(`${activityTitle.value}-${index}-${Date.now()}`),
+      label: indicator.label,
+      skillId: indicator.skillId || ""
+    }));
     if (!activityTitle.value.trim() || !activityClass.value || !selectedSkillIds.length || !indicators.length) {
       activityFeedback.textContent = "Renseigne un titre, une classe, une compétence et au moins un indicateur.";
       return;
@@ -7967,6 +8092,289 @@ function initAccountsPage() {
       }
     }, 0);
   }
+})();
+
+;(function () {
+  function buildStructuredIndicatorsFromTextareaSafe(title, textarea) {
+    return String(textarea?.value || "")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((label, index) => ({
+        id: slugify(`${title || "indicator"}-${index}-${Date.now()}`),
+        label,
+        skillId: ""
+      }));
+  }
+
+  function enhanceEvaluationsWorkflowSafe() {
+    if (document.body?.dataset?.page !== "evaluations") return;
+    const activityForm = document.querySelector("#activity-form");
+    const activityType = document.querySelector("#activity-type");
+    const activityTitle = document.querySelector("#activity-title");
+    const activityClass = document.querySelector("#activity-class");
+    const activitySkill = document.querySelector("#activity-skill");
+    const activityDateStart = document.querySelector("#activity-date-start");
+    const activityDateEnd = document.querySelector("#activity-date-end");
+    const activityIndicators = document.querySelector("#activity-indicators");
+    const activityComment = document.querySelector("#activity-comment");
+    const activityFeedback = document.querySelector("#activity-feedback");
+    const sessionClassSelect = document.querySelector("#session-class-select");
+    const evalStudentSelect = document.querySelector("#eval-student-select");
+    const activityIndicatorSkill = document.querySelector("#activity-indicator-skill");
+    const activityIndicatorLabel = document.querySelector("#activity-indicator-label");
+    const activityIndicatorAddButton = document.querySelector("#activity-indicator-add");
+    const activityIndicatorClearButton = document.querySelector("#activity-indicator-clear");
+    const activityIndicatorList = document.querySelector("#activity-indicator-list");
+    const indicatorBankLoadButton = document.querySelector("#indicator-bank-load");
+    const activityEditButton = document.querySelector("#activity-edit-button");
+    const activitySelect = document.querySelector("#activity-select");
+    const activitySubmitButton = document.querySelector("#activity-submit-button");
+    const activityCancelEditButton = document.querySelector("#activity-cancel-edit");
+    const studentSkillsEditor = document.querySelector("#student-skills-editor");
+    if (!activityForm || !activityType || !activityTitle || !activityClass || !activitySkill || !activityDateStart || !activityDateEnd || !activityIndicators || !activityComment || !activityFeedback || !sessionClassSelect || !evalStudentSelect || !activityIndicatorSkill || !activityIndicatorLabel || !activityIndicatorAddButton || !activityIndicatorClearButton || !activityIndicatorList || !activityEditButton || !activitySelect || !activitySubmitButton || !activityCancelEditButton || !studentSkillsEditor) return;
+
+    let indicatorDraft = [];
+
+    function getSelectedSkillIds() {
+      return getSelectedValues(activitySkill);
+    }
+
+    function syncIndicatorSkillOptionsSafe() {
+      const selected = getSelectedSkillIds().map((id) => getSkillById(id)).filter(Boolean);
+      activityIndicatorSkill.innerHTML = `<option value="">Toutes les competences</option>${selected.map((skill) => `<option value="${skill.id}">${skill.code} // ${skill.title}</option>`).join("")}`;
+    }
+
+    function syncTextareaFromDraftSafe() {
+      activityIndicators.value = indicatorDraft.map((indicator) => indicator.label).join("\n");
+    }
+
+    function renderIndicatorDraftSafe() {
+      if (!indicatorDraft.length) {
+        activityIndicatorList.innerHTML = `<article class="directory-row"><div><strong>Aucun indicateur structure</strong><p>Ajoute des indicateurs lies a une competence ou utilise la saisie rapide.</p></div></article>`;
+        return;
+      }
+      activityIndicatorList.innerHTML = indicatorDraft.map((indicator) => `
+        <article class="directory-row compact">
+          <div>
+            <strong>${escapeHtml(indicator.label)}</strong>
+            <p>${escapeHtml(indicator.skillId ? getActivitySkillLabel({ skillIds: [indicator.skillId], skillId: indicator.skillId }) : "Toutes les competences de la seance")}</p>
+          </div>
+          <div class="student-badges">
+            <button class="ghost-button indicator-draft-delete" type="button" data-id="${indicator.id}">Retirer</button>
+          </div>
+        </article>
+      `).join("");
+      activityIndicatorList.querySelectorAll(".indicator-draft-delete").forEach((button) => {
+        button.addEventListener("click", () => {
+          indicatorDraft = indicatorDraft.filter((item) => item.id !== button.dataset.id);
+          syncTextareaFromDraftSafe();
+          renderIndicatorDraftSafe();
+        });
+      });
+    }
+
+    function resetActivityEditorSafe() {
+      activityForm.reset();
+      clearMultiSelect(activitySkill);
+      indicatorDraft = [];
+      syncIndicatorSkillOptionsSafe();
+      syncTextareaFromDraftSafe();
+      renderIndicatorDraftSafe();
+      if (activitySubmitButton) activitySubmitButton.textContent = "Créer la séance";
+      if (activityCancelEditButton) activityCancelEditButton.hidden = true;
+      delete activityForm.dataset.editingId;
+    }
+
+    function loadActivityForEditSafe(activity) {
+      if (!activity) return;
+      activityForm.dataset.editingId = activity.id;
+      activityType.value = activity.type || "TP";
+      activityTitle.value = activity.title || "";
+      activityClass.value = activity.classId || "";
+      activityDateStart.value = activity.startDate || activity.date || "";
+      activityDateEnd.value = activity.endDate || activity.startDate || activity.date || "";
+      activityComment.value = activity.comment || "";
+      setMultiSelectValues(activitySkill, getActivitySkillIds(activity));
+      indicatorDraft = (activity.indicators || []).map((indicator, index) => ({
+        id: indicator.id || slugify(`${activity.id}-indicator-${index}`),
+        label: indicator.label,
+        skillId: indicator.skillId || ""
+      }));
+      syncIndicatorSkillOptionsSafe();
+      syncTextareaFromDraftSafe();
+      renderIndicatorDraftSafe();
+      if (activitySubmitButton) activitySubmitButton.textContent = "Enregistrer les modifications";
+      if (activityCancelEditButton) activityCancelEditButton.hidden = false;
+      if (typeof applyEvaluationsView === "function") applyEvaluationsView("create");
+      activityFeedback.textContent = `Edition de la seance : ${activity.title}`;
+    }
+
+    function handleStructuredSubmitSafe(event) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      if (!hasPermission("edit_evaluations")) return;
+      const selectedSkillIds = getSelectedSkillIds();
+      const indicators = (indicatorDraft.length ? indicatorDraft : buildStructuredIndicatorsFromTextareaSafe(activityTitle.value.trim(), activityIndicators)).map((indicator, index) => ({
+        id: indicator.id || slugify(`${activityTitle.value.trim()}-${index}-${Date.now()}`),
+        label: indicator.label,
+        skillId: indicator.skillId || ""
+      }));
+      if (!activityTitle.value.trim() || !activityClass.value || !selectedSkillIds.length || !indicators.length) {
+        activityFeedback.textContent = "Renseigne un titre, une classe, au moins une competence et au moins un indicateur.";
+        return;
+      }
+      const editingId = activityForm.dataset.editingId;
+      if (editingId) {
+        const activity = getActivityById(editingId);
+        if (!activity) {
+          activityFeedback.textContent = "Seance introuvable.";
+          return;
+        }
+        activity.title = activityTitle.value.trim();
+        activity.type = activityType.value;
+        activity.classId = activityClass.value;
+        activity.skillIds = selectedSkillIds;
+        activity.skillId = selectedSkillIds[0];
+        activity.date = activityDateStart.value;
+        activity.startDate = activityDateStart.value;
+        activity.endDate = activityDateEnd.value || activityDateStart.value;
+        activity.comment = activityComment.value.trim();
+        activity.indicators = indicators;
+        logAction("Séance modifiée", activity.title, `${activity.type} // ${getClassById(activity.classId)?.name || ""}`);
+        activityFeedback.textContent = "Séance mise à jour.";
+      } else {
+        app.evaluationActivities.push({
+          id: slugify(`${activityTitle.value.trim()}-${Date.now()}`),
+          title: activityTitle.value.trim(),
+          type: activityType.value,
+          classId: activityClass.value,
+          skillId: selectedSkillIds[0],
+          skillIds: selectedSkillIds,
+          date: activityDateStart.value,
+          startDate: activityDateStart.value,
+          endDate: activityDateEnd.value || activityDateStart.value,
+          comment: activityComment.value.trim(),
+          indicators,
+          evaluations: {}
+        });
+        logAction("Séance créée", activityTitle.value.trim(), `${activityType.value} // ${getClassById(activityClass.value)?.name || ""}`);
+        activityFeedback.textContent = "Séance créée.";
+      }
+      persistAppData();
+      sessionClassSelect.value = activityClass.value;
+      resetActivityEditorSafe();
+      sessionClassSelect.dispatchEvent(new Event("change"));
+      evalStudentSelect.dispatchEvent(new Event("change"));
+    }
+
+    function enhanceStudentSkillRowsSafe() {
+      const classId = document.querySelector("#eval-class-select")?.value || app.classes[0]?.id || "";
+      const student = getStudentById(evalStudentSelect.value) || getStudentsByClass(classId)[0];
+      if (!student) return;
+      student.skillGrades = hydrateSkillGrades(student.skillGrades || {});
+      const rows = studentSkillsEditor.querySelectorAll(".skill-row");
+      rows.forEach((row, index) => {
+        const skill = skillCatalog[index];
+        if (!skill) return;
+        const select = row.querySelector(".skill-select");
+        const input = row.querySelector(".skill-grade-input");
+        const hint = row.querySelector(".skill-grade-hint");
+        if (!select || !input || !hint) return;
+        input.value = student.skillGrades?.[skill.id] ?? "";
+        hint.textContent = input.value === "" ? "Vide = non évalué" : `Auto : ${levelLabels[mapGradeToStatus(input.value)] || "Non évalué"}`;
+        if (!input.dataset.gradeBound) {
+          input.dataset.gradeBound = "true";
+          input.addEventListener("change", () => {
+            const normalized = normalizeGrade(input.value);
+            student.skillGrades[skill.id] = normalized;
+            const autoStatus = mapGradeToStatus(normalized);
+            student.skills[skill.id] = autoStatus;
+            hint.textContent = normalized === "" ? "Vide = non évalué" : `Auto : ${levelLabels[autoStatus] || autoStatus}`;
+            logAction("Compétence notée", student.name, `${skill.code} // ${normalized === "" ? "non évalué" : `${normalized}/20`} // ${levelLabels[autoStatus] || autoStatus}`);
+            persistAppData();
+            select.value = autoStatus;
+            evalStudentSelect.dispatchEvent(new Event("change"));
+          });
+        }
+      });
+    }
+
+    syncIndicatorSkillOptionsSafe();
+    renderIndicatorDraftSafe();
+
+    if (!activitySkill.dataset.structuredBound) {
+      activitySkill.dataset.structuredBound = "true";
+      activitySkill.addEventListener("change", syncIndicatorSkillOptionsSafe);
+    }
+    if (!activityIndicatorAddButton.dataset.structuredBound) {
+      activityIndicatorAddButton.dataset.structuredBound = "true";
+      activityIndicatorAddButton.addEventListener("click", () => {
+        if (!activityIndicatorLabel.value.trim()) {
+          activityFeedback.textContent = "Saisis un indicateur avant de l'ajouter.";
+          return;
+        }
+        indicatorDraft.push({
+          id: slugify(`indicator-${activityIndicatorLabel.value}-${Date.now()}`),
+          label: activityIndicatorLabel.value.trim(),
+          skillId: activityIndicatorSkill.value || ""
+        });
+        activityIndicatorLabel.value = "";
+        syncTextareaFromDraftSafe();
+        renderIndicatorDraftSafe();
+      });
+    }
+    if (!activityIndicatorClearButton.dataset.structuredBound) {
+      activityIndicatorClearButton.dataset.structuredBound = "true";
+      activityIndicatorClearButton.addEventListener("click", () => {
+        indicatorDraft = [];
+        syncTextareaFromDraftSafe();
+        renderIndicatorDraftSafe();
+      });
+    }
+    if (!activityCancelEditButton.dataset.structuredBound) {
+      activityCancelEditButton.dataset.structuredBound = "true";
+      activityCancelEditButton.addEventListener("click", () => {
+        resetActivityEditorSafe();
+        activityFeedback.textContent = "Edition annulee.";
+      });
+    }
+    if (!indicatorBankLoadButton.dataset.structuredBound) {
+      indicatorBankLoadButton.dataset.structuredBound = "true";
+      indicatorBankLoadButton.addEventListener("click", () => {
+        window.setTimeout(() => {
+          indicatorDraft = buildStructuredIndicatorsFromTextareaSafe(activityTitle.value.trim(), activityIndicators);
+          renderIndicatorDraftSafe();
+        }, 0);
+      });
+    }
+    if (!activityEditButton.dataset.structuredBound) {
+      activityEditButton.dataset.structuredBound = "true";
+      activityEditButton.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        const activity = getActivityById(activitySelect.value);
+        if (!activity || !hasPermission("edit_evaluations")) return;
+        loadActivityForEditSafe(activity);
+      }, true);
+    }
+    if (!activityForm.dataset.structuredBound) {
+      activityForm.dataset.structuredBound = "true";
+      activityForm.addEventListener("submit", handleStructuredSubmitSafe, true);
+    }
+    if (!evalStudentSelect.dataset.gradeEnhanceBound) {
+      evalStudentSelect.dataset.gradeEnhanceBound = "true";
+      evalStudentSelect.addEventListener("change", () => window.setTimeout(enhanceStudentSkillRowsSafe, 0));
+      document.querySelector("#eval-class-select")?.addEventListener("change", () => window.setTimeout(enhanceStudentSkillRowsSafe, 0));
+    }
+    window.setTimeout(enhanceStudentSkillRowsSafe, 0);
+  }
+
+  const originalInitEvaluationsPageStructuredSafe = initEvaluationsPageFinal;
+  initEvaluationsPageFinal = function () {
+    originalInitEvaluationsPageStructuredSafe();
+    window.setTimeout(enhanceEvaluationsWorkflowSafe, 0);
+  };
 })();
 
 (() => {

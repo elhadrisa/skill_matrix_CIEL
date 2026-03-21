@@ -58,6 +58,29 @@
             <select id="activity-skill" multiple size="6"></select>
             <small>Utilise `Ctrl` ou `Cmd` pour choisir plusieurs compétences.</small>
           </label>
+          <section class="panel exam-grid-panel">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">Indicateurs</p>
+                <h3>Entrer les indicateurs par compÃ©tence</h3>
+              </div>
+            </div>
+            <div class="mini-grid">
+              <label class="field">
+                <span>CompÃ©tence cible</span>
+                <select id="activity-indicator-skill"></select>
+              </label>
+              <label class="field">
+                <span>Nouvel indicateur</span>
+                <input id="activity-indicator-label" type="text" placeholder="Ex. Configurer le VLAN avec adressage correct">
+              </label>
+            </div>
+            <div class="student-badges">
+              <button id="activity-indicator-add" class="ghost-button" type="button">Ajouter l'indicateur</button>
+              <button id="activity-indicator-clear" class="ghost-button" type="button">Vider la liste</button>
+            </div>
+            <div id="activity-indicator-list" class="student-directory"></div>
+          </section>
           <div class="mini-grid">
             <label class="field">
               <span>Date de début</span>
@@ -71,6 +94,7 @@
           <label class="field">
             <span>Indicateurs d'évaluation</span>
             <textarea id="activity-indicators" rows="5" placeholder="Un indicateur par ligne"></textarea>
+            <small>Saisie rapide facultative. La liste ci-dessus reste prioritaire.</small>
           </label>
           <div class="mini-grid">
             <label class="field">
@@ -93,7 +117,10 @@
             <span>Commentaire enseignant</span>
             <textarea id="activity-comment" rows="4" placeholder="Consignes, remarques, synthèse de la séance..."></textarea>
           </label>
-          <button class="primary-button" type="submit">Créer la séance</button>
+          <div class="student-badges">
+            <button id="activity-submit-button" class="primary-button" type="submit">Créer la séance</button>
+            <button id="activity-cancel-edit" class="ghost-button" type="button" hidden>Annuler l'édition</button>
+          </div>
           <p id="activity-feedback" class="results-count"></p>
         </form>
       </section>
@@ -294,6 +321,11 @@
               <option value="partiellement_acquis">Partiellement acquis</option>
               <option value="acquis">Acquis</option>
             </select>
+          </label>
+          <label class="field compact-field skill-grade-field">
+            <span>Note /20</span>
+            <input class="skill-grade-input" type="number" min="0" max="20" step="0.5" placeholder="Ex. 12.5">
+            <small class="skill-grade-hint">Vide = non évalue</small>
           </label>
         </div>
       </article>
