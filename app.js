@@ -8516,7 +8516,8 @@ function initAccountsPage() {
     const studentSelect = document.querySelector("#bulletin-student-select");
     const classSelect = document.querySelector("#bulletin-class-select");
     const journeyPanel = document.querySelector("#bulletin-journey-panel");
-    if (!studentSelect || !classSelect || !journeyPanel) return;
+    const layout = document.querySelector(".dashboard-layout");
+    if (!studentSelect || !classSelect || !journeyPanel || !layout) return;
 
     let panel = document.querySelector("#bulletin-premium-analytics");
     if (!panel) {
@@ -8543,7 +8544,9 @@ function initAccountsPage() {
           </article>
         </div>
       `;
-      journeyPanel.insertAdjacentElement("afterend", panel);
+      layout.appendChild(panel);
+    } else if (panel.parentElement !== layout) {
+      layout.appendChild(panel);
     }
 
     const render = () => {
@@ -11621,7 +11624,8 @@ function initCertificationPageFinal() {
     const sheet = document.querySelector("#bulletin-sheet");
     const studentSelect = document.querySelector("#bulletin-student-select");
     const classSelect = document.querySelector("#bulletin-class-select");
-    if (!sheet || !studentSelect || !classSelect) return;
+    const layout = document.querySelector(".dashboard-layout");
+    if (!sheet || !studentSelect || !classSelect || !layout) return;
 
     let panel = document.querySelector("#bulletin-journey-panel");
     if (!panel) {
@@ -11637,7 +11641,9 @@ function initCertificationPageFinal() {
         </div>
         <div id="bulletin-journey-content" class="journey-timeline"></div>
       `;
-      sheet.parentElement?.insertAdjacentElement("afterend", panel);
+      layout.appendChild(panel);
+    } else if (panel.parentElement !== layout) {
+      layout.appendChild(panel);
     }
     const content = document.querySelector("#bulletin-journey-content");
     const render = () => {
