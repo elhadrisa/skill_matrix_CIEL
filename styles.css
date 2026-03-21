@@ -146,7 +146,7 @@ button, input, select { font: inherit; }
 .topbar.panel { overflow: visible; }
 .topbar > div {
   min-width: 0;
-  max-width: 1160px;
+  max-width: 1320px;
   width: 100%;
   margin: 0 auto;
 }
@@ -194,16 +194,15 @@ body:not([data-page="home"]) .hero-side {
 .nav-tabs {
   display: flex;
   flex-wrap: nowrap;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
   justify-content: center;
   min-width: 0;
-  overflow-x: auto;
-  overflow-y: visible;
+  overflow: visible;
   scrollbar-width: none;
   -ms-overflow-style: none;
   width: 100%;
-  max-width: 1160px;
+  max-width: 1320px;
   margin: 0 auto;
   padding: 4px 0 6px;
 }
@@ -231,8 +230,8 @@ body:not([data-page="home"]) .nav-tabs {
 .nav-tab, .tag, .counter-pill, .meta-pill, .skill-code, .skill-domain, .badge {
   display: inline-flex;
   align-items: center;
-  min-height: 38px;
-  padding: 0 12px;
+  min-height: 36px;
+  padding: 0 10px;
   border-radius: 999px;
   border: 1px solid var(--line);
   background: rgba(8,24,34,0.88);
@@ -241,9 +240,9 @@ body:not([data-page="home"]) .nav-tabs {
   white-space: nowrap;
   flex: 0 0 auto;
 }
-.nav-tab, .nav-dropdown-toggle, .nav-dropdown-link { font-size: 0.85rem; letter-spacing: 0.012em; }
+.nav-tab, .nav-dropdown-toggle, .nav-dropdown-link { font-size: 0.81rem; letter-spacing: 0.01em; }
 .nav-dropdown { position: relative; flex: 0 0 auto; }
-.nav-dropdown-toggle { min-height: 38px; list-style: none; cursor: pointer; }
+.nav-dropdown-toggle { min-height: 36px; list-style: none; cursor: pointer; }
 .nav-dropdown-toggle::-webkit-details-marker { display: none; }
 .nav-dropdown.active .nav-dropdown-toggle,
 .nav-dropdown[open] .nav-dropdown-toggle,

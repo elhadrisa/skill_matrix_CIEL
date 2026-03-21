@@ -5350,6 +5350,8 @@ function initBulletinPage() {
   }
 
   populateClassSelect(classSelect);
+  const requestedClassId = getRequestedClassId();
+  if (requestedClassId) classSelect.value = requestedClassId;
   syncStudents();
   renderBulletin();
 
@@ -6103,7 +6105,7 @@ function bindProtectedChrome() {
     roleBadge.textContent = session.label;
   }
   navs.forEach((nav) => {
-    upsertNavLink(nav, "bulletin.html", "Bulletin", page === "bulletin");
+    upsertBulletinDropdown(nav);
     upsertDashboardDropdown(nav);
     upsertEvaluationsDropdown(nav);
     upsertPfmpDropdown(nav);
@@ -6116,9 +6118,9 @@ function bindProtectedChrome() {
       { href: "remediation-pfmp.html", label: "PFMP" },
       { href: "remediation-competences.html", label: "Competences" }
     ], page === "remediation_pfmp" || page === "remediation_competences");
-    const bulletinLink = nav.querySelector('a[href="bulletin.html"]');
-    if (bulletinLink) {
-      nav.insertBefore(bulletinLink, nav.querySelector('.nav-dropdown[data-key="referential-menu"]') || roleBadge || logoutButton || null);
+    const bulletinDropdown = nav.querySelector('.nav-dropdown[data-key="bulletin-menu"]');
+    if (bulletinDropdown) {
+      nav.insertBefore(bulletinDropdown, nav.querySelector('.nav-dropdown[data-key="referential-menu"]') || roleBadge || logoutButton || null);
     }
     const existing = nav.querySelector('a[href="accounts.html"]');
     if (session?.role === "admin" && !existing) {
@@ -6190,6 +6192,15 @@ function upsertDashboardDropdown(nav) {
     { href: `dashboard.html?class=${encodeURIComponent(classItem.id)}&view=calendar`, label: "Calendrier pedagogique" }
   ]));
   upsertStaticDropdown(nav, "Dashboard", links, page === "dashboard", "dashboard-menu");
+}
+
+function upsertBulletinDropdown(nav) {
+  nav.querySelector('a[href="bulletin.html"]')?.remove();
+  const links = app.classes.map((classItem) => ({
+    href: `bulletin.html?class=${encodeURIComponent(classItem.id)}`,
+    label: getClassNavLabel(classItem)
+  }));
+  upsertStaticDropdown(nav, "Bulletin", links, page === "bulletin", "bulletin-menu");
 }
 
 function upsertEvaluationsDropdown(nav) {
