@@ -1535,6 +1535,398 @@ function initAccountsPage() {
   }
 }
 
+function upsertNavLink(nav, href, label, active) {
+  const link = document.createElement("a");
+  link.href = href;
+  link.className = `nav-tab${active ? " active" : ""}`;
+  link.textContent = label;
+  nav.appendChild(link);
+  return link;
+}
+
+function upsertStaticDropdown(nav, label, links, isActive, key = label) {
+  const dropdown = document.createElement("details");
+  dropdown.className = `nav-dropdown${isActive ? " active" : ""}`;
+  dropdown.dataset.key = key;
+  dropdown.innerHTML = `
+    <summary class="nav-tab nav-dropdown-toggle">${label} ▾</summary>
+    <div class="nav-dropdown-menu">
+      ${links.map((item) => item.type === "label"
+        ? `<span class="nav-dropdown-group">${item.label}</span>`
+        : `<a class="nav-dropdown-link" href="${item.href}">${item.label}</a>`).join("")}
+    </div>
+  `;
+  nav.appendChild(dropdown);
+  return dropdown;
+}
+
+function upsertDashboardDropdown(nav) {
+  const links = sortClassesByLevel(app.classes).flatMap((classItem) => ([
+    { type: "label", label: getClassNavLabel(classItem) },
+    { href: `dashboard.html?class=${encodeURIComponent(classItem.id)}&view=skills`, label: "Pilotage competences" },
+    { href: `dashboard.html?class=${encodeURIComponent(classItem.id)}&view=pfmp`, label: "Pilotage PFMP" },
+    { href: `dashboard.html?class=${encodeURIComponent(classItem.id)}&view=calendar`, label: "Calendrier pedagogique" }
+  ]));
+  return upsertStaticDropdown(nav, "Dashboard", links, page === "dashboard", "dashboard-menu");
+}
+
+function upsertEvaluationsDropdown(nav) {
+  const links = sortClassesByLevel(app.classes).flatMap((classItem) => ([
+    { type: "label", label: getClassNavLabel(classItem) },
+    { href: `evaluations.html?class=${encodeURIComponent(classItem.id)}&view=create`, label: "Creation de seance" },
+    { href: `evaluations.html?class=${encodeURIComponent(classItem.id)}&view=session`, label: "Evaluation seance" },
+    { href: `evaluations.html?class=${encodeURIComponent(classItem.id)}&view=skills`, label: "Competences eleves" }
+  ]));
+  return upsertStaticDropdown(nav, "Evaluations", links, page === "evaluations", "evaluations-menu");
+}
+
+function upsertPfmpDropdown(nav) {
+  const links = sortClassesByLevel(app.classes).flatMap((classItem) => ([
+    { type: "label", label: getClassNavLabel(classItem) },
+    { href: `pfmp.html?class=${encodeURIComponent(classItem.id)}`, label: "Infos PFMP" },
+    { href: `pfmp-livret.html?class=${encodeURIComponent(classItem.id)}`, label: "Livret d'evaluation" }
+  ]));
+  return upsertStaticDropdown(nav, "PFMP", links, page === "pfmp" || page === "pfmp_livret", "pfmp-menu");
+}
+
+function bindProtectedChrome() {
+  const navs = [...document.querySelectorAll(".nav-tabs")];
+  const session = getSession();
+
+  navs.forEach((nav) => {
+    nav.innerHTML = "";
+    upsertNavLink(nav, "index.html", "Accueil", page === "home");
+    upsertNavLink(nav, "classes.html", "Classes", page === "classes");
+    upsertDashboardDropdown(nav);
+    upsertEvaluationsDropdown(nav);
+    upsertPfmpDropdown(nav);
+    upsertStaticDropdown(nav, "Referentiel", [
+      { href: "coverage.html", label: "Couverture" },
+      { href: "mapping.html", label: "Cartographie" },
+      { href: "library.html", label: "Bibliotheque de seances" }
+    ], page === "coverage" || page === "mapping" || page === "library", "referential-menu");
+    upsertStaticDropdown(nav, "Remediations", [
+      { href: "remediation-pfmp.html", label: "PFMP" },
+      { href: "remediation-competences.html", label: "Competences" }
+    ], page === "remediation_pfmp" || page === "remediation_competences", "remediation-menu");
+    if (session?.role === "admin") {
+      upsertNavLink(nav, "accounts.html", "Comptes", page === "accounts");
+    }
+    const roleBadge = document.createElement("span");
+    roleBadge.id = "session-role";
+    roleBadge.className = "badge accent";
+    roleBadge.textContent = session?.label || "";
+    nav.appendChild(roleBadge);
+
+    const logoutButton = document.createElement("button");
+    logoutButton.id = "logout-button";
+    logoutButton.className = "ghost-button";
+    logoutButton.type = "button";
+    logoutButton.textContent = "Deconnexion";
+    logoutButton.addEventListener("click", async () => {
+      try {
+        await fetch("/api/logout", {
+          method: "POST",
+          credentials: "include"
+        });
+      } catch {}
+      clearSession();
+      window.location.replace("login.html");
+    });
+    nav.appendChild(logoutButton);
+  });
+
+  document.querySelectorAll(".nav-dropdown").forEach((dropdown) => {
+    dropdown.addEventListener("toggle", () => {
+      if (!dropdown.open) return;
+      document.querySelectorAll(".nav-dropdown").forEach((other) => {
+        if (other !== dropdown) other.removeAttribute("open");
+      });
+    });
+  });
+
+  document.addEventListener("click", (event) => {
+    if (event.target.closest(".nav-dropdown")) return;
+    document.querySelectorAll(".nav-dropdown").forEach((dropdown) => {
+      dropdown.removeAttribute("open");
+    });
+  });
+
+  document.querySelectorAll(".nav-dropdown-link").forEach((link) => {
+    link.addEventListener("click", () => {
+      document.querySelectorAll(".nav-dropdown").forEach((dropdown) => {
+        dropdown.removeAttribute("open");
+      });
+    });
+  });
+}
+
+function initLoginPage() {
+  const form = document.querySelector("#login-form");
+  const usernameInput = document.querySelector("#login-username");
+  const passwordInput = document.querySelector("#login-password");
+  const feedback = document.querySelector("#login-feedback");
+  if (!form || !usernameInput || !passwordInput || !feedback) return;
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const username = usernameInput.value.trim().toLowerCase();
+    const password = passwordInput.value;
+    if (!username || !password) {
+      feedback.textContent = "Renseigne un identifiant et un mot de passe.";
+      return;
+    }
+
+    feedback.textContent = "Connexion en cours...";
+    const localData = loadLocalFallbackData();
+
+    try {
+      const response = await fetch("/api/login", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
+      const payload = await response.json().catch(() => null);
+      if (response.ok && payload?.session) {
+        setSession(payload.session);
+        replaceAppState(payload.data || localData);
+        window.location.replace("dashboard.html");
+        return;
+      }
+    } catch {}
+
+    const accounts = hydrateAccounts(localData.accounts || app.accounts || defaultAccounts);
+    const fallbackUser = accounts.find((account) => String(account.username || "").toLowerCase() === username);
+    if (fallbackUser && fallbackUser.password === password) {
+      setSession({
+        username: fallbackUser.username,
+        role: fallbackUser.role,
+        label: fallbackUser.label || getRoleLabel(fallbackUser.role)
+      });
+      replaceAppState(localData);
+      window.location.replace("dashboard.html");
+      return;
+    }
+
+    if (username === "admin" && password === "admin123") {
+      setSession({ username: "admin", role: "admin", label: "Administrateur" });
+      replaceAppState(localData);
+      window.location.replace("dashboard.html");
+      return;
+    }
+
+    feedback.textContent = "Identifiants invalides ou backend indisponible.";
+  });
+}
+
+function updateAccount(accountId, fields) {
+  const account = getAccountById(accountId);
+  if (!account) return null;
+  const previousUsername = fields.previousUsername || account.username;
+  account.username = fields.username;
+  account.password = fields.password;
+  account.role = fields.role || account.role;
+  account.label = getRoleLabel(account.role);
+  const session = getSession();
+  if (session?.username === previousUsername) {
+    setSession({ username: account.username, role: account.role, label: account.label });
+  }
+  persistAppData();
+  return account;
+}
+
+function addTeacherAccount(username, password, role = "professeur") {
+  const normalizedUsername = username.trim();
+  const existing = app.accounts.find((account) => String(account.username || "").toLowerCase() === normalizedUsername.toLowerCase());
+  if (existing) {
+    existing.password = password;
+    existing.role = role;
+    existing.label = getRoleLabel(role);
+    persistAppData();
+    return existing;
+  }
+  const account = {
+    id: slugify(`account-${normalizedUsername}-${Date.now()}`),
+    username: normalizedUsername,
+    password,
+    role,
+    label: getRoleLabel(role)
+  };
+  app.accounts.push(account);
+  persistAppData();
+  return account;
+}
+
+function removeTeacherAccount(accountId) {
+  const account = getAccountById(accountId);
+  if (!account || account.role === "admin") return;
+  app.accounts = app.accounts.filter((item) => item.id !== accountId);
+  persistAppData();
+}
+
+function initAccountsPageFinal() {
+  bindProtectedChrome();
+  const adminForm = document.querySelector("#admin-account-form");
+  const teacherForm = document.querySelector("#teacher-account-form");
+  const adminUsername = document.querySelector("#admin-username");
+  const adminPassword = document.querySelector("#admin-password");
+  const teacherUsername = document.querySelector("#teacher-username");
+  const teacherPassword = document.querySelector("#teacher-password");
+  const teacherRole = document.querySelector("#teacher-role");
+  const feedback = document.querySelector("#accounts-feedback");
+  const accountsSummary = document.querySelector("#accounts-summary");
+  const teacherAccountsList = document.querySelector("#teacher-accounts-list");
+  const activityLogList = document.querySelector("#activity-log-list");
+  const exportJsonButton = document.querySelector("#export-json-button");
+  const restoreJsonInput = document.querySelector("#restore-json-input");
+  const restoreJsonButton = document.querySelector("#restore-json-button");
+  const restoreFeedback = document.querySelector("#restore-feedback");
+  if (!adminForm || !teacherForm || !teacherRole) return;
+
+  teacherRole.innerHTML = roleCatalog.map((role) => `<option value="${role.value}">${role.label}</option>`).join("");
+  teacherRole.value = "professeur";
+
+  const adminAccount = getAccountByRole("admin") || defaultAccounts[0];
+  adminUsername.value = adminAccount.username;
+  adminPassword.value = adminAccount.password;
+
+  exportJsonButton?.addEventListener("click", () => {
+    downloadTextFile(`ciel-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(app, null, 2), "application/json");
+    restoreFeedback.textContent = "Sauvegarde telechargee.";
+  });
+
+  restoreJsonButton?.addEventListener("click", async () => {
+    const file = restoreJsonInput?.files?.[0];
+    if (!file) {
+      restoreFeedback.textContent = "Selectionne d'abord une sauvegarde.";
+      return;
+    }
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      replaceAppState(parsed);
+      await persistCriticalAppData();
+      restoreFeedback.textContent = "Sauvegarde restauree.";
+      renderAdministration();
+      bindProtectedChrome();
+    } catch {
+      restoreFeedback.textContent = "Le fichier choisi n'est pas valide.";
+    }
+  });
+
+  adminForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!adminUsername.value.trim() || !adminPassword.value.trim()) return;
+    updateAccount(adminAccount.id, {
+      username: adminUsername.value.trim(),
+      password: adminPassword.value.trim(),
+      role: "admin",
+      previousUsername: adminAccount.username
+    });
+    logAction("Compte admin mis a jour", adminUsername.value.trim(), "Identifiant ou mot de passe modifie");
+    await persistCriticalAppData();
+    feedback.textContent = "Compte administrateur mis a jour.";
+    bindProtectedChrome();
+    renderAdministration();
+  });
+
+  teacherForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!teacherUsername.value.trim() || !teacherPassword.value.trim()) return;
+    const account = addTeacherAccount(teacherUsername.value.trim(), teacherPassword.value.trim(), teacherRole.value);
+    logAction("Compte cree", account.username, `Role: ${getRoleLabel(account.role)}`);
+    await persistCriticalAppData();
+    teacherForm.reset();
+    teacherRole.value = "professeur";
+    feedback.textContent = "Compte ajoute.";
+    renderAdministration();
+  });
+
+  renderAdministration();
+
+  function renderAdministration() {
+    const managedAccounts = app.accounts.slice();
+    const countsByRole = roleCatalog.map((role) => ({
+      label: role.label,
+      count: managedAccounts.filter((account) => account.role === role.value).length
+    }));
+
+    accountsSummary.innerHTML = `
+      <article class="summary-card">
+        <h3>Comptes actifs</h3>
+        <p class="muted-copy">${managedAccounts.length} compte(s)</p>
+      </article>
+      ${countsByRole.map((item) => `
+        <article class="summary-card">
+          <h3>${item.label}</h3>
+          <p class="muted-copy">${item.count} compte(s)</p>
+        </article>
+      `).join("")}
+    `;
+
+    teacherAccountsList.innerHTML = managedAccounts.length ? managedAccounts.map((account) => `
+      <article class="directory-row compact">
+        <div>
+          <strong>${account.username}</strong>
+          <p>${account.label}</p>
+        </div>
+        <div class="student-badges">
+          <button class="ghost-button teacher-edit" type="button" data-id="${account.id}">Modifier</button>
+          ${account.role === "admin" ? "" : `<button class="ghost-button teacher-delete" type="button" data-id="${account.id}">Supprimer</button>`}
+        </div>
+      </article>
+    `).join("") : `<article class="summary-card"><h3>Aucun compte</h3><p class="muted-copy">Ajoute un compte avec le formulaire ci-dessus.</p></article>`;
+
+    activityLogList.innerHTML = app.activityLog.length ? app.activityLog.slice(0, 30).map((entry) => `
+      <article class="directory-row compact">
+        <div>
+          <strong>${entry.action}</strong>
+          <p>${entry.actor} // ${formatRole(entry.role)} // ${formatLogTimestamp(entry.timestamp)}</p>
+          <p>${entry.target}${entry.detail ? ` // ${entry.detail}` : ""}</p>
+        </div>
+      </article>
+    `).join("") : `<article class="summary-card"><h3>Aucune activite</h3><p class="muted-copy">Le journal se remplira au fur et a mesure.</p></article>`;
+
+    teacherAccountsList.querySelectorAll(".teacher-edit").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const account = getAccountById(button.dataset.id);
+        if (!account) return;
+        const username = window.prompt("Nouvel identifiant du compte", account.username);
+        if (!username) return;
+        const password = window.prompt("Nouveau mot de passe du compte", account.password);
+        if (!password) return;
+        const role = window.prompt(`Nouveau role (${getTeacherRoleValues().join(", ")})`, account.role);
+        if (!role || !getTeacherRoleValues().includes(role.trim())) return;
+        updateAccount(account.id, {
+          username: username.trim(),
+          password: password.trim(),
+          role: role.trim(),
+          previousUsername: account.username
+        });
+        logAction("Compte modifie", username.trim(), `Role: ${getRoleLabel(role.trim())}`);
+        await persistCriticalAppData();
+        feedback.textContent = "Compte modifie.";
+        bindProtectedChrome();
+        renderAdministration();
+      });
+    });
+
+    teacherAccountsList.querySelectorAll(".teacher-delete").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const account = getAccountById(button.dataset.id);
+        if (!account) return;
+        if (!window.confirm(`Supprimer le compte "${account.username}" ?`)) return;
+        removeTeacherAccount(button.dataset.id);
+        logAction("Compte supprime", account.username, account.label);
+        await persistCriticalAppData();
+        feedback.textContent = "Compte supprime.";
+        renderAdministration();
+      });
+    });
+  }
+}
+
 function initClassesPageFinal() {
   bindProtectedChrome();
   const classForm = document.querySelector("#class-form");
