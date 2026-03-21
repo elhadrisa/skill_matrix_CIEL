@@ -159,7 +159,7 @@ const PFMP_PERIODS = [
 ];
 
 const page = document.body.dataset.page;
-const PROTECTED_PAGES = new Set(["dashboard", "classes", "evaluations", "pfmp", "pfmp_livret", "accounts", "bulletin", "candidate", "certification", "remediation_pfmp", "remediation_competences", "coverage", "mapping", "library"]);
+const PROTECTED_PAGES = new Set(["dashboard", "classes", "evaluations", "pfmp", "pfmp_livret", "accounts", "bulletin", "candidate", "certification", "remediation_pfmp", "remediation_competences", "coverage", "mapping", "library", "reports"]);
 const ADMIN_ONLY_PAGES = new Set(["accounts"]);
 const app = createEmptyApp();
 let persistTimeout = null;
@@ -6160,8 +6160,9 @@ function bindProtectedChrome() {
     upsertStaticDropdown(nav, "Referentiel", [
       { href: "coverage.html", label: "Couverture" },
       { href: "mapping.html", label: "Cartographie" },
-      { href: "library.html", label: "Bibliotheque de seances" }
-    ], page === "coverage" || page === "mapping" || page === "library", "referential-menu");
+      { href: "library.html", label: "Bibliotheque de seances" },
+      { href: "reports.html", label: "Rapports premium" }
+    ], page === "coverage" || page === "mapping" || page === "library" || page === "reports", "referential-menu");
     upsertStaticDropdown(nav, "Remediations", [
       { href: "remediation-pfmp.html", label: "PFMP" },
       { href: "remediation-competences.html", label: "Competences" }
@@ -10251,4 +10252,581 @@ function initCertificationPageFinal() {
       }
     }, 0);
   };
+})();
+
+;(function () {
+  const EXAM_DISPATCH_STORAGE_KEY = "ciel-exam-dispatch-v2";
+  const EXAM_GROUPS_SAFE = [
+    { exam: "E2", skillIds: ["c3", "c7", "c11"] },
+    { exam: "E31", skillIds: ["c6", "c9", "c10"] },
+    { exam: "E32", skillIds: ["c1", "c4", "c8"] }
+  ];
+
+  function safeParseLocalJson(key, fallback) {
+    try {
+      return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback));
+    } catch {
+      return fallback;
+    }
+  }
+
+  function loadExamDispatchState() {
+    return safeParseLocalJson(EXAM_DISPATCH_STORAGE_KEY, {});
+  }
+
+  function saveExamDispatchState(state) {
+    localStorage.setItem(EXAM_DISPATCH_STORAGE_KEY, JSON.stringify(state || {}));
+  }
+
+  function getStudentDispatchState(studentId) {
+    const store = loadExamDispatchState();
+    return store[studentId] || { finalized: false, sent: false, checkedAt: "", note: "" };
+  }
+
+  function setStudentDispatchState(studentId, patch) {
+    const store = loadExamDispatchState();
+    store[studentId] = {
+      ...getStudentDispatchState(studentId),
+      ...patch
+    };
+    saveExamDispatchState(store);
+    return store[studentId];
+  }
+
+  function computeExamPreviewSafe(student) {
+    return EXAM_GROUPS_SAFE.map((item) => {
+      const lines = item.skillIds.map((skillId) => {
+        const skill = getSkillById(skillId);
+        const status = student?.skills?.[skillId] || "non_evalue";
+        return {
+          code: skill?.code || skillId.toUpperCase(),
+          title: skill?.title || skillId,
+          status,
+          label: levelLabels[status] || status
+        };
+      });
+      const ready = lines.every((line) => ["partiellement_acquis", "acquis"].includes(line.status));
+      const incomplete = lines.some((line) => ["absent", "non_evalue", "non_acquis"].includes(line.status));
+      const score = lines.reduce((sum, line) => sum + (levelScores[line.status] || 0), 0) / (lines.length || 1);
+      return {
+        exam: item.exam,
+        status: ready ? "Pret" : (incomplete ? "Incomplet" : "A verifier"),
+        note: Math.round(score * 20 * 10) / 10
+      };
+    });
+  }
+
+  function computeOverallExamSafe(student) {
+    const preview = computeExamPreviewSafe(student);
+    const ready = preview.filter((item) => item.status === "Pret").length;
+    const incomplete = preview.some((item) => item.status === "Incomplet");
+    return {
+      preview,
+      label: ready === preview.length ? "Pret a envoyer" : (incomplete ? "Incomplet" : "A verifier"),
+      readyCount: ready,
+      note: preview.length ? Math.round(preview.reduce((sum, item) => sum + item.note, 0) / preview.length * 10) / 10 : 0
+    };
+  }
+
+  function getExamStatusClassSafe(label) {
+    if (label === "Pret" || label === "Pret a envoyer") return "badge-ready";
+    if (label === "Incomplet") return "badge-danger";
+    return "badge-warning";
+  }
+
+  function getStudentEvidenceEntriesSafe(studentId) {
+    return (app.evidencePortfolio || []).filter((entry) => entry.studentId === studentId);
+  }
+
+  function getJourneyTimelineItemsSafe(student) {
+    return getStudentJourney(student)
+      .filter((item) => {
+        const level = getClassLevelOrder(item.classId);
+        return level >= 1 && level <= 3;
+      })
+      .sort((a, b) => getClassLevelOrder(a.classId) - getClassLevelOrder(b.classId));
+  }
+
+  function getJourneyLabelSafe(item) {
+    const level = getClassLevelOrder(item.classId);
+    const prefix = level === 1 ? "2nde" : (level === 2 ? "1ere" : "Terminale");
+    return `${prefix} // ${item.year || getClassById(item.classId)?.year || ""}`;
+  }
+
+  function buildJourneyTimelineHtmlSafe(student) {
+    const items = getJourneyTimelineItemsSafe(student);
+    if (!items.length) {
+      return `<article class="summary-card"><h3>Aucun parcours</h3><p class="muted-copy">Le parcours 3 ans apparaitra ici des que plusieurs annees existeront pour cet eleve.</p></article>`;
+    }
+    return items.map((item) => {
+      const classItem = getClassById(item.classId);
+      const progress = getStudentProgress(item);
+      const activities = getActivitiesByClass(item.classId).filter((activity) => getActivityStudentAverage(item.id, activity.id) !== null);
+      const pfmpPeriods = getPfmpPeriodsForLevel(getClassLevelOrder(item.classId));
+      const pfmpRows = buildPfmpWorkbookRowsForStudent(item, pfmpPeriods);
+      const evidenceCount = getStudentEvidenceEntriesSafe(item.id).length;
+      const exam = getClassLevelOrder(item.classId) === 3 ? computeOverallExamSafe(item) : null;
+      return `
+        <article class="journey-stage">
+          <div class="journey-stage-head">
+            <div>
+              <h3>${escapeHtml(getJourneyLabelSafe(item))}</h3>
+              <p class="muted-copy">${escapeHtml(classItem?.name || "")} // ${progress}% de progression</p>
+            </div>
+            <div class="student-badges">
+              <span class="badge">${activities.length} seance(s)</span>
+              <span class="badge">${pfmpRows.length} trace(s) PFMP</span>
+              <span class="badge">${evidenceCount} preuve(s)</span>
+              ${exam ? `<span class="badge ${getExamStatusClassSafe(exam.label)}">${exam.label}</span>` : ""}
+            </div>
+          </div>
+          <div class="journey-stage-grid">
+            <article class="period-card">
+              <strong>Domaines</strong>
+              ${referentialDomains.map((domain) => {
+                const domainSkills = skillCatalog.filter((skill) => getSkillDomain(skill) === domain);
+                const score = domainSkills.reduce((sum, skill) => sum + (levelScores[item.skills?.[skill.id]] || 0), 0);
+                const max = Math.max(domainSkills.length * (levelScores.acquis || 1), 1);
+                return `<p>${escapeHtml(domain)} // ${Math.round((score / max) * 100)}%</p>`;
+              }).join("")}
+            </article>
+            <article class="period-card">
+              <strong>PFMP et preuves</strong>
+              <p>${pfmpPeriods.length} periode(s) cible(s)</p>
+              <p>${pfmpRows.filter((row) => row[3] && row[3] !== "-").length} observation(s) renseignee(s)</p>
+              <p>${evidenceCount} preuve(s) rattachee(s)</p>
+            </article>
+            <article class="period-card">
+              <strong>Certification</strong>
+              ${exam ? `<p>Etat global // ${escapeHtml(exam.label)}</p><p>Note estimative // ${exam.note.toFixed(1)}/20</p>` : `<p>Non concerne sur ce niveau.</p>`}
+            </article>
+          </div>
+        </article>
+      `;
+    }).join("");
+  }
+
+  function ensureJourneyPanelSafe() {
+    if (document.body?.dataset?.page !== "bulletin") return;
+    const sheet = document.querySelector("#bulletin-sheet");
+    const studentSelect = document.querySelector("#bulletin-student-select");
+    const classSelect = document.querySelector("#bulletin-class-select");
+    if (!sheet || !studentSelect || !classSelect) return;
+
+    let panel = document.querySelector("#bulletin-journey-panel");
+    if (!panel) {
+      panel = document.createElement("section");
+      panel.id = "bulletin-journey-panel";
+      panel.className = "panel";
+      panel.innerHTML = `
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Parcours</p>
+            <h2>Parcours eleve sur 3 ans</h2>
+          </div>
+        </div>
+        <div id="bulletin-journey-content" class="journey-timeline"></div>
+      `;
+      sheet.parentElement?.insertAdjacentElement("afterend", panel);
+    }
+    const content = document.querySelector("#bulletin-journey-content");
+    const render = () => {
+      const classId = classSelect.value || app.classes[0]?.id || "";
+      const student = getStudentById(studentSelect.value) || getStudentsByClass(classId)[0];
+      if (!content) return;
+      if (!student) {
+        content.innerHTML = `<article class="summary-card"><h3>Aucun eleve</h3><p class="muted-copy">Selectionne un eleve pour afficher son parcours.</p></article>`;
+        return;
+      }
+      content.innerHTML = buildJourneyTimelineHtmlSafe(student);
+    };
+    render();
+    if (!studentSelect.dataset.journeyBound) {
+      studentSelect.dataset.journeyBound = "true";
+      studentSelect.addEventListener("change", render);
+    }
+    if (!classSelect.dataset.journeyBound) {
+      classSelect.dataset.journeyBound = "true";
+      classSelect.addEventListener("change", () => window.setTimeout(render, 0));
+    }
+  }
+
+  function mergeUniqueItemsByIdSafe(currentItems, incomingItems) {
+    const current = Array.isArray(currentItems) ? currentItems : [];
+    const incoming = Array.isArray(incomingItems) ? incomingItems : [];
+    const known = new Set(current.map((item) => item.id));
+    const merged = [...current];
+    incoming.forEach((item) => {
+      if (!item?.id || known.has(item.id)) return;
+      known.add(item.id);
+      merged.push(JSON.parse(JSON.stringify(item)));
+    });
+    return merged;
+  }
+
+  function mergeObjectEntriesSafe(currentMap, incomingMap) {
+    const output = { ...(currentMap || {}) };
+    Object.entries(incomingMap || {}).forEach(([key, value]) => {
+      if (output[key]) return;
+      output[key] = JSON.parse(JSON.stringify(value));
+    });
+    return output;
+  }
+
+  async function persistSafeLotChanges() {
+    if (typeof persistCriticalAppData === "function") {
+      await persistCriticalAppData();
+      return;
+    }
+    if (typeof persistAppData === "function") {
+      persistAppData();
+    }
+  }
+
+  function restoreArchiveSessionSafe(archiveId) {
+    const archive = (app.archives || []).find((entry) => entry.id === archiveId);
+    if (!archive) return { ok: false, message: "Archive introuvable." };
+    app.classes = mergeUniqueItemsByIdSafe(app.classes, archive.classes);
+    app.students = mergeUniqueItemsByIdSafe(app.students, archive.students);
+    app.evaluationActivities = mergeUniqueItemsByIdSafe(app.evaluationActivities, archive.evaluationActivities);
+    app.evidencePortfolio = mergeUniqueItemsByIdSafe(app.evidencePortfolio, archive.evidencePortfolio);
+    app.pfmpRecords = mergeObjectEntriesSafe(app.pfmpRecords, archive.pfmpRecords);
+    app.pfmpBooklets = mergeObjectEntriesSafe(app.pfmpBooklets, archive.pfmpBooklets);
+    logAction("Archive restauree", archive.label, "Restauration complete");
+    return { ok: true, message: `${archive.label} restauree dans l'espace actif.` };
+  }
+
+  function restoreArchivedStudentSafe(archiveId, studentId) {
+    const archive = (app.archives || []).find((entry) => entry.id === archiveId);
+    const student = archive?.students?.find((item) => item.id === studentId);
+    if (!archive || !student) return { ok: false, message: "Eleve archive introuvable." };
+    if (!app.classes.some((classItem) => classItem.id === student.classId)) {
+      const archivedClass = archive.classes.find((classItem) => classItem.id === student.classId);
+      if (archivedClass) app.classes.push(JSON.parse(JSON.stringify(archivedClass)));
+    }
+    if (!app.students.some((item) => item.id === student.id)) {
+      app.students.push(JSON.parse(JSON.stringify(student)));
+    }
+    app.evidencePortfolio = mergeUniqueItemsByIdSafe(
+      app.evidencePortfolio,
+      (archive.evidencePortfolio || []).filter((entry) => entry.studentId === student.id)
+    );
+    if (archive.pfmpRecords?.[student.id] && !app.pfmpRecords?.[student.id]) {
+      app.pfmpRecords = app.pfmpRecords || {};
+      app.pfmpRecords[student.id] = JSON.parse(JSON.stringify(archive.pfmpRecords[student.id]));
+    }
+    if (archive.pfmpBooklets?.[student.id] && !app.pfmpBooklets?.[student.id]) {
+      app.pfmpBooklets = app.pfmpBooklets || {};
+      app.pfmpBooklets[student.id] = JSON.parse(JSON.stringify(archive.pfmpBooklets[student.id]));
+    }
+    logAction("Eleve restaure", student.name, archive.label);
+    return { ok: true, message: `${student.name} restaure depuis ${archive.label}.` };
+  }
+
+  function renderArchiveDetailsSafe(archiveId) {
+    const target = document.querySelector("#archive-session-detail");
+    if (!target) return;
+    const archive = (app.archives || []).find((entry) => entry.id === archiveId) || app.archives?.[0];
+    if (!archive) {
+      target.innerHTML = `<article class="summary-card"><h3>Aucune archive</h3><p class="muted-copy">Archive une session pour activer cette vue.</p></article>`;
+      return;
+    }
+    const terminalStudents = (archive.students || []).filter((student) => getClassLevelOrder(student.classId) === 3);
+    target.innerHTML = `
+      <article class="summary-card">
+        <h3>${escapeHtml(archive.label)}</h3>
+        <p class="muted-copy">${escapeHtml(archive.summary || "Sans note")} // ${new Date(archive.archivedAt).toLocaleDateString("fr-FR")}</p>
+        <div class="pfmp-kpis">
+          <span class="badge">${archive.classes.length} classe(s)</span>
+          <span class="badge">${archive.students.length} eleve(s)</span>
+          <span class="badge">${archive.evaluationActivities.length} seance(s)</span>
+          <span class="badge">${(archive.evidencePortfolio || []).length} preuve(s)</span>
+        </div>
+        <div class="student-badges archive-action-row">
+          <button class="ghost-button" type="button" data-archive-restore="${archive.id}">Restaurer la session</button>
+        </div>
+      </article>
+      <article class="summary-card">
+        <h3>Terminales archivees</h3>
+        <div class="student-directory">
+          ${terminalStudents.length ? terminalStudents.map((student) => `
+            <article class="directory-row compact">
+              <div>
+                <strong>${escapeHtml(student.name)}</strong>
+                <p>${escapeHtml(getClassById(student.classId)?.name || archive.classes.find((item) => item.id === student.classId)?.name || "")}</p>
+              </div>
+              <div class="student-badges">
+                <button class="ghost-button" type="button" data-archive-restore-student="${archive.id}" data-student-id="${student.id}">Restaurer l'eleve</button>
+              </div>
+            </article>
+          `).join("") : `<article class="directory-row"><div><strong>Aucun eleve</strong><p>Aucun terminale archive dans cette session.</p></div></article>`}
+        </div>
+      </article>
+    `;
+
+    target.querySelector(`[data-archive-restore="${archive.id}"]`)?.addEventListener("click", async () => {
+      const result = restoreArchiveSessionSafe(archive.id);
+      await persistSafeLotChanges();
+      const feedback = document.querySelector("#archive-session-feedback");
+      if (feedback) feedback.textContent = result.message;
+      renderArchiveEnhancementSafe();
+    });
+    target.querySelectorAll("[data-archive-restore-student]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const result = restoreArchivedStudentSafe(button.dataset.archiveRestoreStudent, button.dataset.studentId);
+        await persistSafeLotChanges();
+        const feedback = document.querySelector("#archive-session-feedback");
+        if (feedback) feedback.textContent = result.message;
+        renderArchiveEnhancementSafe(button.dataset.archiveRestoreStudent);
+      });
+    });
+  }
+
+  function renderArchiveEnhancementSafe(selectedArchiveId = "") {
+    if (document.body?.dataset?.page !== "accounts") return;
+    const list = document.querySelector("#archive-session-list");
+    if (!list) return;
+
+    let panel = document.querySelector("#archive-session-detail-panel");
+    if (!panel) {
+      panel = document.createElement("section");
+      panel.id = "archive-session-detail-panel";
+      panel.className = "panel wide-panel";
+      panel.innerHTML = `
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Archivage premium</p>
+            <h2>Consultation et restauration</h2>
+          </div>
+        </div>
+        <div id="archive-session-detail" class="archive-detail-grid"></div>
+      `;
+      list.closest(".panel")?.insertAdjacentElement("afterend", panel);
+    }
+
+    const rows = list.querySelectorAll(".directory-row");
+    rows.forEach((row, index) => {
+      if (row.querySelector(".archive-open-button")) return;
+      const archive = (app.archives || [])[index];
+      if (!archive) return;
+      const actions = document.createElement("div");
+      actions.className = "student-badges";
+      actions.innerHTML = `<button class="ghost-button archive-open-button" type="button" data-archive-open="${archive.id}">Consulter</button>`;
+      row.appendChild(actions);
+      actions.querySelector("button")?.addEventListener("click", () => renderArchiveDetailsSafe(archive.id));
+    });
+
+    renderArchiveDetailsSafe(selectedArchiveId || app.archives?.[0]?.id || "");
+  }
+
+  function renderExamFinalizationSafe() {
+    if (document.body?.dataset?.page !== "candidate") return;
+    const classSelect = document.querySelector("#candidate-class-select");
+    const studentSelect = document.querySelector("#candidate-student-select");
+    const candidateNumberInput = document.querySelector("#candidate-number");
+    const dateInput = document.querySelector("#candidate-date");
+    const academyInput = document.querySelector("#candidate-academy");
+    const schoolInput = document.querySelector("#candidate-school");
+    const fileInput = document.querySelector("#candidate-grid-file");
+    const overview = document.querySelector("#candidate-overview");
+    if (!classSelect || !studentSelect || !candidateNumberInput || !dateInput || !academyInput || !schoolInput || !fileInput || !overview) return;
+
+    let panel = document.querySelector("#candidate-final-panel");
+    if (!panel) {
+      panel = document.createElement("section");
+      panel.id = "candidate-final-panel";
+      panel.className = "panel";
+      panel.innerHTML = `
+        <div class="hero-side-head">
+          <div>
+            <h2>Finalisation jury</h2>
+            <p class="results-count">Checklist du dossier, verrouillage final et suivi d'envoi.</p>
+          </div>
+        </div>
+        <div id="candidate-final-content" class="class-cards"></div>
+      `;
+      overview.closest(".panel")?.insertAdjacentElement("afterend", panel);
+    }
+    const target = document.querySelector("#candidate-final-content");
+    const student = getStudentById(studentSelect.value);
+    if (!target || !student) return;
+
+    const exam = computeOverallExamSafe(student);
+    const evidenceCount = getStudentEvidenceEntriesSafe(student.id).length;
+    const dispatch = getStudentDispatchState(student.id);
+    const checklist = [
+      { label: "Identite candidat renseignee", ok: Boolean(candidateNumberInput.value.trim()) },
+      { label: "Academie et etablissement renseignes", ok: Boolean(academyInput.value.trim() && schoolInput.value.trim()) },
+      { label: "Date d'edition renseignee", ok: Boolean(dateInput.value) },
+      { label: "Modele officiel charge", ok: Boolean(fileInput.files?.[0]) },
+      { label: "Epreuves sans blocage critique", ok: exam.label !== "Incomplet" },
+      { label: "Au moins une preuve disponible", ok: evidenceCount > 0 }
+    ];
+    const readyToFinalize = checklist.every((item) => item.ok);
+    const classStudents = getStudentsByClass(classSelect.value || student.classId);
+    const classDispatch = classStudents.map((item) => getStudentDispatchState(item.id));
+    const finalizedCount = classDispatch.filter((item) => item.finalized).length;
+    const sentCount = classDispatch.filter((item) => item.sent).length;
+
+    target.innerHTML = `
+      <article class="summary-card">
+        <h3>Dossier ${escapeHtml(student.name)}</h3>
+        <div class="pfmp-kpis">
+          <span class="badge ${getExamStatusClassSafe(exam.label)}">${exam.label}</span>
+          <span class="badge ${dispatch.finalized ? "badge-ready" : "badge-warning"}">${dispatch.finalized ? "Finalise" : "Brouillon"}</span>
+          <span class="badge ${dispatch.sent ? "badge-ready" : "badge-warning"}">${dispatch.sent ? "Envoye" : "Non envoye"}</span>
+        </div>
+        <div class="candidate-checklist">
+          ${checklist.map((item) => `<p class="${item.ok ? "check-ok" : "check-ko"}">${item.ok ? "OK" : "A faire"} // ${escapeHtml(item.label)}</p>`).join("")}
+        </div>
+        <div class="student-badges archive-action-row">
+          <button class="ghost-button" type="button" data-finalize="${student.id}" ${readyToFinalize ? "" : "disabled"}>Finaliser le dossier</button>
+          <button class="ghost-button" type="button" data-unlock="${student.id}" ${dispatch.finalized ? "" : "disabled"}>Reouvrir</button>
+          <button class="primary-button" type="button" data-mark-sent="${student.id}" ${dispatch.finalized ? "" : "disabled"}>${dispatch.sent ? "Marquer non envoye" : "Marquer envoye"}</button>
+        </div>
+      </article>
+      <article class="summary-card">
+        <h3>Etat classe examen</h3>
+        <p class="muted-copy">${escapeHtml(getClassById(classSelect.value || student.classId)?.name || "")}</p>
+        <div class="pfmp-kpis">
+          <span class="badge">${finalizedCount}/${classStudents.length} finalises</span>
+          <span class="badge">${sentCount}/${classStudents.length} envoyes</span>
+          <span class="badge">${classStudents.length - finalizedCount} en cours</span>
+        </div>
+      </article>
+    `;
+
+    target.querySelector(`[data-finalize="${student.id}"]`)?.addEventListener("click", () => {
+      setStudentDispatchState(student.id, { finalized: true, checkedAt: new Date().toISOString() });
+      renderExamFinalizationSafe();
+    });
+    target.querySelector(`[data-unlock="${student.id}"]`)?.addEventListener("click", () => {
+      setStudentDispatchState(student.id, { finalized: false, sent: false });
+      renderExamFinalizationSafe();
+    });
+    target.querySelector(`[data-mark-sent="${student.id}"]`)?.addEventListener("click", () => {
+      const current = getStudentDispatchState(student.id);
+      setStudentDispatchState(student.id, { sent: !current.sent, finalized: current.finalized || readyToFinalize });
+      renderExamFinalizationSafe();
+    });
+  }
+
+  function initReportsPageFinalSafe() {
+    if (document.body?.dataset?.page !== "reports") return;
+    bindProtectedChrome();
+    const classSelect = document.querySelector("#reports-class-select");
+    const meta = document.querySelector("#reports-meta");
+    const kpis = document.querySelector("#reports-kpis");
+    const alerts = document.querySelector("#reports-alerts");
+    const exportButton = document.querySelector("#reports-export-pdf");
+    if (!classSelect || !meta || !kpis || !alerts || !exportButton) return;
+
+    const render = () => {
+      const requestedClassId = getRequestedClassId();
+      const classes = [...app.classes].sort((a, b) => getClassNavLabel(a).localeCompare(getClassNavLabel(b), "fr"));
+      classSelect.innerHTML = classes.map((classItem) => `<option value="${classItem.id}">${classItem.name}</option>`).join("");
+      classSelect.value = classes.some((item) => item.id === classSelect.value)
+        ? classSelect.value
+        : (classes.some((item) => item.id === requestedClassId) ? requestedClassId : (classes[0]?.id || ""));
+      const classId = classSelect.value || classes[0]?.id || "";
+      const classItem = getClassById(classId);
+      const students = getStudentsByClass(classId);
+      const activities = getActivitiesByClass(classId);
+      const alertsList = getClassAlerts(classId, "all");
+      const coherenceItems = skillCatalog.map((skill) => {
+        const activityHits = activities.filter((activity) => getActivitySkillIds(activity).includes(skill.id)).length;
+        const pfmpHits = students.filter((student) => getPfmpObservationLabels(student.id, skill.id).length > 0).length;
+        return activityHits === 0 && pfmpHits === 0;
+      }).filter(Boolean).length;
+      const readyExam = students.filter((student) => getStudentDispatchState(student.id).finalized).length;
+      const evidenceCount = (app.evidencePortfolio || []).filter((entry) => students.some((student) => student.id === entry.studentId)).length;
+
+      meta.textContent = `${classItem?.name || ""} // ${students.length} eleve(s) // ${activities.length} seance(s)`;
+      kpis.innerHTML = `
+        <article class="stat-card"><span class="stat-value">${students.length}</span><span class="stat-label">Eleves suivis</span></article>
+        <article class="stat-card"><span class="stat-value">${activities.length}</span><span class="stat-label">Seances actives</span></article>
+        <article class="stat-card"><span class="stat-value">${evidenceCount}</span><span class="stat-label">Preuves</span></article>
+        <article class="stat-card"><span class="stat-value">${readyExam}</span><span class="stat-label">Dossiers finalises</span></article>
+        <article class="stat-card"><span class="stat-value">${coherenceItems}</span><span class="stat-label">Competences a surveiller</span></article>
+      `;
+      alerts.innerHTML = alertsList.length ? alertsList.map((item) => `
+        <article class="directory-row compact">
+          <div>
+            <strong>${escapeHtml(item.title)}</strong>
+            <p>${escapeHtml(item.detail || item.meta || "")}</p>
+          </div>
+        </article>
+      `).join("") : `<article class="summary-card"><h3>Aucune alerte</h3><p class="muted-copy">La classe ne presente pas d'alerte majeure sur cette vue.</p></article>`;
+    };
+
+    render();
+    if (!classSelect.dataset.reportsBound) {
+      classSelect.dataset.reportsBound = "true";
+      classSelect.addEventListener("change", render);
+      exportButton.addEventListener("click", () => {
+        const classItem = getClassById(classSelect.value);
+        const html = buildPrintShell(
+          `Rapport premium - ${classItem?.name || ""}`,
+          `${classItem?.name || ""} // ${new Date().toLocaleDateString("fr-FR")}`,
+          `
+            <div class="card">
+              <p><strong>Classe :</strong> ${escapeHtml(classItem?.name || "-")}</p>
+              <p><strong>Annee :</strong> ${escapeHtml(classItem?.year || "-")}</p>
+              <p><strong>Indicateurs :</strong> ${kpis.textContent.replace(/\s+/g, " ").trim()}</p>
+            </div>
+            ${alerts.innerHTML}
+          `
+        );
+        printHtmlDocument(`Rapport premium ${classItem?.name || ""}`, html);
+      });
+    }
+  }
+
+  const originalInitBulletinPageSafeLot = initBulletinPage;
+  initBulletinPage = function () {
+    originalInitBulletinPageSafeLot();
+    window.setTimeout(ensureJourneyPanelSafe, 0);
+  };
+
+  const originalInitAccountsPageSafeLot = initAccountsPageFinal;
+  initAccountsPageFinal = function () {
+    originalInitAccountsPageSafeLot();
+    window.setTimeout(() => renderArchiveEnhancementSafe(), 0);
+  };
+
+  const originalInitCandidatePageSafeLot = initCandidatePageFinal;
+  initCandidatePageFinal = function () {
+    originalInitCandidatePageSafeLot();
+    window.setTimeout(renderExamFinalizationSafe, 0);
+    const classSelect = document.querySelector("#candidate-class-select");
+    const studentSelect = document.querySelector("#candidate-student-select");
+    const inputs = [
+      document.querySelector("#candidate-number"),
+      document.querySelector("#candidate-date"),
+      document.querySelector("#candidate-academy"),
+      document.querySelector("#candidate-school"),
+      document.querySelector("#candidate-grid-file")
+    ].filter(Boolean);
+    if (classSelect && !classSelect.dataset.examSafeFinalBound) {
+      classSelect.dataset.examSafeFinalBound = "true";
+      classSelect.addEventListener("change", () => window.setTimeout(renderExamFinalizationSafe, 0));
+    }
+    if (studentSelect && !studentSelect.dataset.examSafeFinalBound) {
+      studentSelect.dataset.examSafeFinalBound = "true";
+      studentSelect.addEventListener("change", () => window.setTimeout(renderExamFinalizationSafe, 0));
+    }
+    inputs.forEach((input) => {
+      if (input.dataset.examSafeFinalBound) return;
+      input.dataset.examSafeFinalBound = "true";
+      input.addEventListener("change", () => window.setTimeout(renderExamFinalizationSafe, 0));
+    });
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => {
+      if (document.body?.dataset?.page === "reports") initReportsPageFinalSafe();
+    }, { once: true });
+  } else if (document.body?.dataset?.page === "reports") {
+    initReportsPageFinalSafe();
+  }
 })();

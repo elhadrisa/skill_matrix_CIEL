@@ -692,6 +692,62 @@ body:not([data-page="home"]) .nav-tabs {
 .muted-text { fill: var(--muted); font-size: 12px; }
 .main-text { fill: var(--text); font-size: 13px; }
 
+.journey-timeline {
+  display: grid;
+  gap: 16px;
+}
+
+.journey-stage {
+  padding: 20px;
+  border-radius: 22px;
+  border: 1px solid var(--line);
+  background: rgba(6, 17, 27, 0.62);
+}
+
+.journey-stage-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.journey-stage-grid,
+.archive-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.archive-action-row {
+  margin-top: 14px;
+}
+
+.candidate-checklist {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.candidate-checklist p {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: rgba(7, 18, 28, 0.72);
+}
+
+.check-ok {
+  color: #98f5a6;
+  border-color: rgba(152, 245, 166, 0.24) !important;
+}
+
+.check-ko {
+  color: #ffbe69;
+  border-color: rgba(255, 190, 105, 0.24) !important;
+}
+
 @media (max-width: 1160px) {
   .topbar, .hero, .dashboard-grid, .management-layout, .evaluation-layout, .class-cards, .catalog-grid, .skill-row, .matrix-header, .matrix-row, .pfmp-form-grid, .periods-grid, .login-layout, .bulletin-grid, .bulletin-kpis, .calendar-grid {
     grid-template-columns: 1fr;
@@ -706,6 +762,10 @@ body:not([data-page="home"]) .nav-tabs {
     width: 122px;
     top: 16px;
     right: 16px;
+  }
+  .journey-stage-grid,
+  .archive-detail-grid {
+    grid-template-columns: 1fr;
   }
 }
 
