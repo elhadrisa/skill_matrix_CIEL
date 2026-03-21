@@ -8041,3 +8041,129 @@ function initAccountsPage() {
     `;
   };
 })();
+
+;(function () {
+  const originalInitMappingPageFinal = initMappingPageFinal;
+  initMappingPageFinal = function() {
+    bindProtectedChrome();
+    const classSelect = document.querySelector('#mapping-class-select');
+    const domainSelect = document.querySelector('#mapping-domain-select');
+    const skillSelect = document.querySelector('#mapping-skill-select');
+    const exportButton = document.querySelector('#mapping-export-pdf');
+    const meta = document.querySelector('#mapping-meta');
+    const grid = document.querySelector('#mapping-grid');
+    if (!classSelect || !domainSelect || !skillSelect || !grid) {
+      if (typeof originalInitMappingPageFinal === 'function') originalInitMappingPageFinal();
+      return;
+    }
+
+    populateClassSelect(classSelect);
+    domainSelect.innerHTML = [`<option value="all">Tous les domaines</option>`, ...referentialDomains.map((domain) => `<option value="${domain}">${domain}</option>`)].join('');
+    skillSelect.innerHTML = [`<option value="all">Toutes les competences</option>`, ...skillCatalog.map((skill) => `<option value="${skill.id}">${skill.code} - ${skill.title}</option>`)].join('');
+    const requestedClassId = getRequestedClassId();
+    if (requestedClassId) classSelect.value = requestedClassId;
+    classSelect.addEventListener('change', renderMapping);
+    domainSelect.addEventListener('change', renderMapping);
+    skillSelect.addEventListener('change', renderMapping);
+    exportButton?.addEventListener('click', exportMappingPdf);
+    renderMapping();
+
+    function renderMapping() {
+      const classId = classSelect.value || app.classes[0]?.id || '';
+      const classItem = getClassById(classId);
+      const selectedDomain = domainSelect.value || 'all';
+      const selectedSkillId = skillSelect.value || 'all';
+      const cards = skillCatalog
+        .filter((skill) => (selectedDomain === 'all' || getSkillDomain(skill) === selectedDomain) && (selectedSkillId === 'all' || skill.id === selectedSkillId))
+        .map((skill) => {
+          const relatedActivities = getActivitiesByClass(classId).filter((activity) => getActivitySkillIds(activity).includes(skill.id));
+          const pfmpHits = getStudentsByClass(classId).flatMap((student) => getPfmpObservationLabels(student.id, skill.id));
+          const coverageValue = Math.min((relatedActivities.length + pfmpHits.length) / 8, 1);
+          return { skill, relatedActivities, pfmpHits, coverageValue };
+        });
+      meta.textContent = `${classItem?.name || ''} // ${selectedDomain === 'all' ? 'tous les domaines' : selectedDomain} // ${selectedSkillId === 'all' ? 'toutes les competences' : (getSkillById(selectedSkillId)?.code || '')}`;
+      grid.innerHTML = cards.map(({ skill, relatedActivities, pfmpHits, coverageValue }) => {
+        const heatCells = Array.from({ length: 8 }, (_, index) => {
+          const active = index < Math.round(coverageValue * 8);
+          return `<span class="mapping-heat-dot" style="background:${active ? getHeatmapColor((index + 1) / 8) : 'rgba(255,255,255,0.08)'}"></span>`;
+        }).join('');
+        return `
+          <article class="catalog-card">
+            <div class="skill-headline">
+              <span class="skill-code">${skill.code}</span>
+              <span class="skill-domain">${getSkillDomain(skill)}</span>
+            </div>
+            <h3>${skill.title}</h3>
+            <p>${relatedActivities.length} seance(s) // ${pfmpHits.length} observation(s) PFMP</p>
+            <div class="heatmap-row">
+              <div class="heatmap-cell">
+                <span>Seances</span>
+                <strong style="background:${getHeatmapColor(Math.min(relatedActivities.length / 4, 1))}">${relatedActivities.length}</strong>
+              </div>
+              <div class="heatmap-cell">
+                <span>PFMP</span>
+                <strong style="background:${getHeatmapColor(Math.min(pfmpHits.length / 6, 1))}">${pfmpHits.length}</strong>
+              </div>
+              <div class="heatmap-cell">
+                <span>Couverture</span>
+                <strong style="background:${getHeatmapColor(coverageValue)}">${relatedActivities.length + pfmpHits.length}</strong>
+              </div>
+            </div>
+            <div class="mapping-heat-strip">${heatCells}</div>
+            <p class="muted-copy">${relatedActivities.length ? relatedActivities.map((activity) => `${activity.type} ${activity.title}`).join(' | ') : 'Aucune seance reliee.'}</p>
+            <p class="muted-copy">${pfmpHits.length ? pfmpHits.join(' | ') : 'Aucune observation PFMP.'}</p>
+            <div class="student-badges">
+              <a class="ghost-button button-link" href="evaluations.html?view=session&class=${encodeURIComponent(classId)}">Voir les seances</a>
+              <a class="ghost-button button-link" href="pfmp.html?class=${encodeURIComponent(classId)}">Voir les PFMP</a>
+              <a class="ghost-button button-link" href="evaluations.html?view=create&class=${encodeURIComponent(classId)}&skill=${encodeURIComponent(skill.id)}">Creer une seance</a>
+            </div>
+          </article>
+        `;
+      }).join('') || `<article class="summary-card"><h3>Aucune donnee</h3><p class="muted-copy">Aucune competence ne correspond au filtre courant.</p></article>`;
+    }
+
+    function exportMappingPdf() {
+      const classId = classSelect.value || app.classes[0]?.id || '';
+      const classItem = getClassById(classId);
+      const selectedDomain = domainSelect.value || 'all';
+      const selectedSkillId = skillSelect.value || 'all';
+      const rows = skillCatalog
+        .filter((skill) => (selectedDomain === 'all' || getSkillDomain(skill) === selectedDomain) && (selectedSkillId === 'all' || skill.id === selectedSkillId))
+        .map((skill) => {
+          const relatedActivities = getActivitiesByClass(classId).filter((activity) => getActivitySkillIds(activity).includes(skill.id));
+          const pfmpHits = getStudentsByClass(classId).flatMap((student) => getPfmpObservationLabels(student.id, skill.id));
+          return `<tr><td>${escapeHtml(skill.code)}</td><td>${escapeHtml(skill.title)}</td><td>${escapeHtml(getSkillDomain(skill))}</td><td>${relatedActivities.length}</td><td>${pfmpHits.length}</td><td>${relatedActivities.length + pfmpHits.length}</td></tr>`;
+        }).join('');
+      const html = buildPrintShell(
+        `Cartographie - ${classItem?.name || ''}`,
+        `${selectedDomain === 'all' ? 'Tous les domaines' : selectedDomain} // ${selectedSkillId === 'all' ? 'Toutes les competences' : (getSkillById(selectedSkillId)?.code || '')}`,
+        `<table><thead><tr><th>Code</th><th>Competence</th><th>Domaine</th><th>Seances</th><th>PFMP</th><th>Couverture</th></tr></thead><tbody>${rows || '<tr><td colspan="6">Aucune donnee.</td></tr>'}</tbody></table>`
+      );
+      printHtmlDocument(`Cartographie ${classItem?.name || ''}`, html);
+    }
+  };
+
+  const originalRenderRemediationCard = renderRemediationCard;
+  renderRemediationCard = function(item) {
+    const skillMatch = skillCatalog.find((skill) => item.title?.startsWith(`${skill.code} //`));
+    let suggestedTemplate = null;
+    if (skillMatch && Array.isArray(app.lessonLibrary)) {
+      suggestedTemplate = app.lessonLibrary.find((template) => (template.skillIds || []).includes(skillMatch.id));
+    }
+    const suggestionHtml = suggestedTemplate
+      ? `<div class="student-badges"><a class="ghost-button button-link" href="evaluations.html?view=create&template=${encodeURIComponent(suggestedTemplate.id)}">Utiliser le modele ${suggestedTemplate.title}</a></div>`
+      : '';
+    const base = typeof originalRenderRemediationCard === 'function'
+      ? originalRenderRemediationCard(item)
+      : `
+        <article class="summary-card alert-card ${item.level}">
+          <p class="alert-level">${item.level}</p>
+          <h3>${item.title}</h3>
+          <p class="muted-copy">${item.detail}</p>
+          <p class="muted-copy">${item.action || ''}</p>
+          ${item.actionHref ? `<div class="student-badges"><a class="ghost-button button-link" href="${item.actionHref}">${item.actionLabel || 'Ouvrir'}</a></div>` : ''}
+        </article>
+      `;
+    return base.replace('</article>', `${suggestionHtml}</article>`);
+  };
+})();
