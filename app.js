@@ -7896,6 +7896,304 @@ function initAccountsPage() {
 })();
 
 ;(function () {
+  function getJourneyItemForLevel(student, levelOrder) {
+    return getStudentJourney(student).find((item) => getClassLevelOrder(item.classId) === levelOrder) || null;
+  }
+
+  function getJourneyItemsForUpperYears(student) {
+    return getStudentJourney(student).filter((item) => {
+      const levelOrder = getClassLevelOrder(item.classId);
+      return levelOrder === 2 || levelOrder === 3;
+    });
+  }
+
+  function getLevelExportLabel(levelOrder) {
+    if (levelOrder === 2) return "Premiere";
+    if (levelOrder === 3) return "Terminale";
+    return "Annee";
+  }
+
+  function getJourneyDomainSummaryRowsFromItems(journey) {
+    return referentialDomains.map((domain) => {
+      const domainSkills = skillCatalog.filter((skill) => getSkillDomain(skill) === domain);
+      const values = journey.map((item) => {
+        const score = domainSkills.reduce((sum, skill) => sum + (levelScores[item.skills[skill.id]] || 0), 0);
+        const max = domainSkills.length * (levelScores.acquis || 1) || 1;
+        return `${Math.round((score / max) * 100)}%`;
+      });
+      const average = values.length
+        ? `${Math.round(values.reduce((sum, value) => sum + Number.parseInt(value, 10), 0) / values.length)}%`
+        : "";
+      return [domain, ...values, average];
+    });
+  }
+
+  function exportStudentSkillsYearWorkbook(student, levelOrder) {
+    const yearStudent = getJourneyItemForLevel(student, levelOrder);
+    const classItem = getClassById(yearStudent?.classId);
+    if (!yearStudent || !classItem) return false;
+
+    const yearLabel = getLevelExportLabel(levelOrder);
+    const headers = ["Eleve", "Classe", "Annee", "Competence", "Domaine", "Niveau"];
+    const rows = skillCatalog.map((skill) => [
+      yearStudent.name,
+      classItem.name,
+      classItem.year || "",
+      `${skill.code} - ${skill.title}`,
+      getSkillDomain(skill),
+      levelLabels[yearStudent.skills[skill.id]] || ""
+    ]);
+
+    rows.push(["", "", "", `Progression ${yearLabel.toLowerCase()}`, "", `${getStudentProgress(yearStudent)}%`]);
+    getBlockAverages([yearStudent]).forEach((block) => {
+      rows.push(["", "", "", `Synthese bloc - ${block.domain}`, block.domain, `${block.progress}%`]);
+    });
+
+    downloadExcelTable(`${yearStudent.name} - competences ${yearLabel.toLowerCase()}.xls`, `Competences ${yearLabel}`, headers, rows);
+    return true;
+  }
+
+  function exportStudentSkillsUpperYearsSynthesisWorkbook(student) {
+    const journey = getJourneyItemsForUpperYears(student);
+    if (!journey.length) return false;
+
+    const headers = ["Eleve", "Classe", "Annee", ...skillCatalog.map((skill) => skill.code), "Progression"];
+    const rows = journey.map((item) => {
+      const classItem = getClassById(item.classId);
+      return [
+        item.name,
+        classItem?.name || "",
+        classItem?.year || "",
+        ...skillCatalog.map((skill) => levelLabels[item.skills[skill.id]] || ""),
+        `${getStudentProgress(item)}%`
+      ];
+    });
+
+    const average = journey.length
+      ? Math.round(journey.reduce((sum, item) => sum + getStudentProgress(item), 0) / journey.length)
+      : 0;
+
+    rows.push([
+      "",
+      "",
+      "",
+      ...skillCatalog.map((skill) => {
+        const statuses = journey.map((item) => item.skills[skill.id]).filter(Boolean);
+        return statuses[statuses.length - 1] ? levelLabels[statuses[statuses.length - 1]] : "";
+      }),
+      `${average}% moyen`
+    ]);
+    rows.push([]);
+    rows.push(buildCycleDomainSummaryHeaders(journey));
+    getJourneyDomainSummaryRowsFromItems(journey).forEach((row) => rows.push(row));
+
+    downloadExcelTable(`${student.name} - synthese competences 1ere terminale.xls`, "Synthese competences", headers, rows);
+    return true;
+  }
+
+  function getPfmpPeriodsForLevel(levelOrder) {
+    if (levelOrder === 2) return PFMP_PERIODS.filter((period) => period.id.startsWith("premiere_"));
+    if (levelOrder === 3) return PFMP_PERIODS.filter((period) => period.id.startsWith("terminale_"));
+    return [];
+  }
+
+  function buildPfmpWorkbookRowsForStudent(student, periods) {
+    const classItem = getClassById(student.classId);
+    return periods.map((period) => {
+      const entry = getPfmpPeriodEntry(student.id, period.id);
+      return [
+        classItem?.name || "",
+        student.name,
+        classItem?.year || "",
+        period.label,
+        entry.companyName,
+        entry.comment,
+        entry.address,
+        entry.tutorName,
+        entry.tutorEmail,
+        entry.tutorPhone,
+        entry.conventionSent,
+        entry.conventionSignedCompany,
+        entry.conventionSignedParents,
+        entry.conventionSignedSchool,
+        entry.teacher,
+        entry.visitDate,
+        entry.reportDate,
+        entry.bookletDate,
+        entry.attendanceDate,
+        (entry.observedSkillIds || []).map((skillId) => getSkillById(skillId)?.code).filter(Boolean).join(" | ")
+      ];
+    });
+  }
+
+  function exportStudentPfmpYearWorkbook(student, levelOrder) {
+    const yearStudent = getJourneyItemForLevel(student, levelOrder);
+    if (!yearStudent) return false;
+    const periods = getPfmpPeriodsForLevel(levelOrder);
+    if (!periods.length) return false;
+
+    const yearLabel = getLevelExportLabel(levelOrder);
+    const headers = [
+      "Classe", "Eleve", "Annee", "Periode", "Entreprise", "Commentaire", "Adresse", "Tuteur", "Mail tuteur", "Telephone tuteur",
+      "Convention transmise", "Convention signee entreprise", "Convention signee parents", "Convention signee lycee",
+      "Professeur referent", "Date de visite", "Rapport rendu", "Livret d'evaluation", "Fiche de presence", "Competences observees"
+    ];
+    const rows = buildPfmpWorkbookRowsForStudent(yearStudent, periods);
+    downloadExcelTable(`${yearStudent.name} - pfmp ${yearLabel.toLowerCase()}.xls`, `PFMP ${yearLabel}`, headers, rows);
+    return true;
+  }
+
+  function exportStudentPfmpUpperYearsSynthesisWorkbook(student) {
+    const journey = getJourneyItemsForUpperYears(student);
+    if (!journey.length) return false;
+
+    const headers = [
+      "Classe", "Eleve", "Annee", "Periode", "Entreprise", "Commentaire", "Adresse", "Tuteur", "Mail tuteur", "Telephone tuteur",
+      "Convention transmise", "Convention signee entreprise", "Convention signee parents", "Convention signee lycee",
+      "Professeur referent", "Date de visite", "Rapport rendu", "Livret d'evaluation", "Fiche de presence", "Competences observees"
+    ];
+    const rows = journey.flatMap((item) => buildPfmpWorkbookRowsForStudent(item, getPfmpPeriodsForLevel(getClassLevelOrder(item.classId))));
+    downloadExcelTable(`${student.name} - synthese pfmp 1ere terminale.xls`, "Synthese PFMP", headers, rows);
+    return true;
+  }
+
+  function bindClickWithClone(button, handler) {
+    if (!button) return null;
+    const replacement = button.cloneNode(true);
+    button.replaceWith(replacement);
+    replacement.addEventListener("click", handler);
+    return replacement;
+  }
+
+  function updateActionMeta(target, message) {
+    if (target) target.textContent = message;
+  }
+
+  const originalInitBulletinPage = initBulletinPage;
+  initBulletinPage = function() {
+    originalInitBulletinPage();
+
+    const printButton = document.querySelector("#print-bulletin-button");
+    const classSelect = document.querySelector("#bulletin-class-select");
+    const studentSelect = document.querySelector("#bulletin-student-select");
+    const meta = document.querySelector("#bulletin-meta");
+    if (!printButton?.parentElement || !classSelect || !studentSelect) return;
+
+    let premiereButton = document.querySelector("#export-bulletin-premiere");
+    let terminaleButton = document.querySelector("#export-bulletin-terminale");
+    let synthesisButton = document.querySelector("#export-bulletin-synthesis");
+
+    if (!premiereButton) {
+      premiereButton = document.createElement("button");
+      premiereButton.id = "export-bulletin-premiere";
+      premiereButton.className = "ghost-button";
+      premiereButton.type = "button";
+      premiereButton.textContent = "Exporter competences Premiere";
+      printButton.parentElement.insertBefore(premiereButton, printButton);
+    }
+
+    if (!terminaleButton) {
+      terminaleButton = document.createElement("button");
+      terminaleButton.id = "export-bulletin-terminale";
+      terminaleButton.className = "ghost-button";
+      terminaleButton.type = "button";
+      terminaleButton.textContent = "Exporter competences Terminale";
+      printButton.parentElement.insertBefore(terminaleButton, printButton);
+    }
+
+    if (!synthesisButton) {
+      synthesisButton = document.createElement("button");
+      synthesisButton.id = "export-bulletin-synthesis";
+      synthesisButton.className = "ghost-button";
+      synthesisButton.type = "button";
+      synthesisButton.textContent = "Exporter synthese competences";
+      printButton.parentElement.insertBefore(synthesisButton, printButton);
+    }
+
+    const legacyAnnual = document.querySelector("#export-bulletin-annual");
+    const legacyCycle = document.querySelector("#export-bulletin-cycle");
+    if (legacyAnnual) legacyAnnual.style.display = "none";
+    if (legacyCycle) legacyCycle.style.display = "none";
+
+    bindClickWithClone(premiereButton, () => {
+      const classId = classSelect.value || app.classes[0]?.id || "";
+      const student = getStudentById(studentSelect.value) || getStudentsByClass(classId)[0];
+      if (!student) return;
+      if (!exportStudentSkillsYearWorkbook(student, 2)) {
+        updateActionMeta(meta, "Aucune donnee Premiere disponible pour cet eleve.");
+      }
+    });
+
+    bindClickWithClone(terminaleButton, () => {
+      const classId = classSelect.value || app.classes[0]?.id || "";
+      const student = getStudentById(studentSelect.value) || getStudentsByClass(classId)[0];
+      if (!student) return;
+      if (!exportStudentSkillsYearWorkbook(student, 3)) {
+        updateActionMeta(meta, "Aucune donnee Terminale disponible pour cet eleve.");
+      }
+    });
+
+    bindClickWithClone(synthesisButton, () => {
+      const classId = classSelect.value || app.classes[0]?.id || "";
+      const student = getStudentById(studentSelect.value) || getStudentsByClass(classId)[0];
+      if (!student) return;
+      if (!exportStudentSkillsUpperYearsSynthesisWorkbook(student)) {
+        updateActionMeta(meta, "Aucune synthese Premiere / Terminale disponible pour cet eleve.");
+      }
+    });
+  };
+
+  const originalInitPfmpPageFinal = initPfmpPageFinal;
+  initPfmpPageFinal = function() {
+    originalInitPfmpPageFinal();
+
+    const exportButton = document.querySelector("#export-pfmp-button");
+    const classSelect = document.querySelector("#pfmp-class-select");
+    const studentSelect = document.querySelector("#pfmp-student-select");
+    if (!exportButton?.parentElement || !classSelect || !studentSelect) return;
+
+    let yearToolbar = document.querySelector("#pfmp-year-export-toolbar");
+    if (!yearToolbar) {
+      yearToolbar = document.createElement("div");
+      yearToolbar.id = "pfmp-year-export-toolbar";
+      yearToolbar.className = "student-badges";
+      yearToolbar.innerHTML = `
+        <button id="export-pfmp-premiere" class="ghost-button" type="button">Exporter PFMP Premiere</button>
+        <button id="export-pfmp-terminale" class="ghost-button" type="button">Exporter PFMP Terminale</button>
+        <button id="export-pfmp-synthesis" class="ghost-button" type="button">Exporter synthese PFMP</button>
+      `;
+      const pdfToolbar = document.querySelector("#pfmp-pdf-toolbar");
+      if (pdfToolbar) {
+        pdfToolbar.insertAdjacentElement("afterend", yearToolbar);
+      } else {
+        exportButton.insertAdjacentElement("afterend", yearToolbar);
+      }
+    }
+
+    bindClickWithClone(document.querySelector("#export-pfmp-premiere"), () => {
+      const classId = classSelect.value || app.classes[0]?.id || "";
+      const student = getStudentById(studentSelect.value) || getStudentsByClass(classId)[0];
+      if (!student) return;
+      exportStudentPfmpYearWorkbook(student, 2);
+    });
+
+    bindClickWithClone(document.querySelector("#export-pfmp-terminale"), () => {
+      const classId = classSelect.value || app.classes[0]?.id || "";
+      const student = getStudentById(studentSelect.value) || getStudentsByClass(classId)[0];
+      if (!student) return;
+      exportStudentPfmpYearWorkbook(student, 3);
+    });
+
+    bindClickWithClone(document.querySelector("#export-pfmp-synthesis"), () => {
+      const classId = classSelect.value || app.classes[0]?.id || "";
+      const student = getStudentById(studentSelect.value) || getStudentsByClass(classId)[0];
+      if (!student) return;
+      exportStudentPfmpUpperYearsSynthesisWorkbook(student);
+    });
+  };
+})();
+
+;(function () {
   initMappingPageFinal = function() {
     bindProtectedChrome();
     const classSelect = document.querySelector('#mapping-class-select');
