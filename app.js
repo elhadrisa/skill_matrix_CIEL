@@ -1358,6 +1358,446 @@ function initAccountsPage() {
   }
 }
 
+printHtmlDocument = function(title, html) {
+  const printWindow = window.open("", "_blank", "width=1200,height=900");
+  if (!printWindow) return false;
+  printWindow.document.open();
+  printWindow.document.write(html);
+  printWindow.document.close();
+  const triggerPrint = () => {
+    try {
+      printWindow.focus();
+      printWindow.print();
+    } catch {}
+  };
+  if (printWindow.document.readyState === "complete") {
+    setTimeout(triggerPrint, 350);
+  } else {
+    printWindow.addEventListener("load", () => setTimeout(triggerPrint, 350), { once: true });
+    setTimeout(triggerPrint, 900);
+  }
+  return true;
+};
+
+buildActivityPdfHtml = function(activity, classId) {
+  const classItem = getClassById(classId);
+  const skills = getActivitySkills(activity);
+  const skillCodes = skills.map((item) => item.code).join(", ");
+  const skillTitles = skills.map((item) => item.title).join(" // ");
+  const students = getStudentsByClass(classId);
+  const summaryHtml = `
+    <div class="card">
+      <p><strong>Classe :</strong> ${escapeHtml(classItem?.name || "")}</p>
+      <p><strong>Competences :</strong> ${escapeHtml(`${skillCodes} ${skillTitles}`.trim() || "Non renseignees")}</p>
+      <p><strong>Periode :</strong> ${escapeHtml(formatActivityDateRange(activity) || "Non renseignee")}</p>
+      <p><strong>Moyenne de seance :</strong> ${getActivityAverage(activity, students)}%</p>
+      <p><strong>Indicateurs :</strong> ${activity.indicators.length}</p>
+      <p><strong>Commentaire :</strong> ${escapeHtml(activity.comment || "-")}</p>
+    </div>
+  `;
+  const tableHtml = `
+    <table>
+      <thead>
+        <tr>
+          <th>Eleve</th>
+          ${activity.indicators.map((indicator) => `<th>${escapeHtml(indicator.label)}</th>`).join("")}
+        </tr>
+      </thead>
+      <tbody>
+        ${students.map((student) => `
+          <tr>
+            <td>${escapeHtml(student.name)}</td>
+            ${activity.indicators.map((indicator) => `<td>${escapeHtml(levelLabels[getActivityIndicatorStatus(activity, student.id, indicator.id)] || "Non evalue")}</td>`).join("")}
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  `;
+  const indicatorsHtml = `
+    <div class="grid">
+      ${activity.indicators.map((indicator) => `
+        <div class="card">
+          <p><strong>${escapeHtml(indicator.label)}</strong></p>
+          <p>Moyenne : ${getIndicatorAverage(activity, students, indicator.id)}%</p>
+          <p>${escapeHtml(renderIndicatorStatusBreakdown(activity, students, indicator.id))}</p>
+        </div>
+      `).join("")}
+    </div>
+  `;
+  return buildPrintShell(
+    `${activity.type} - ${activity.title}`,
+    `${classItem?.name || ""} - ${skillCodes}`,
+    `${summaryHtml}<h2>Grille de saisie</h2>${tableHtml}<h2>Bilan par indicateur</h2>${indicatorsHtml}`
+  );
+};
+
+buildActivitySynthesisPdfHtml = function(classId) {
+  const classItem = getClassById(classId);
+  const activities = getActivitiesByClass(classId);
+  const students = getStudentsByClass(classId);
+  const rows = activities.map((activity) => {
+    const skillCodes = getActivitySkills(activity).map((item) => item.code).join(", ");
+    return `
+      <tr>
+        <td>${escapeHtml(activity.type)}</td>
+        <td>${escapeHtml(activity.title)}</td>
+        <td>${escapeHtml(skillCodes)}</td>
+        <td>${escapeHtml(formatActivityDateRange(activity) || "Non renseignee")}</td>
+        <td>${activity.indicators.length}</td>
+        <td>${getActivityAverage(activity, students)}%</td>
+      </tr>
+    `;
+  }).join("");
+  return buildPrintShell(
+    `Synthese des seances - ${classItem?.name || ""}`,
+    `${activities.length} seance(s) enregistree(s)`,
+    `
+      <table>
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th>Seance</th>
+            <th>Competences</th>
+            <th>Periode</th>
+            <th>Indicateurs</th>
+            <th>Moyenne</th>
+          </tr>
+        </thead>
+        <tbody>${rows || '<tr><td colspan="6">Aucune seance enregistree.</td></tr>'}</tbody>
+      </table>
+    `
+  );
+};
+
+getCycleDomainSummaryRows = function(student) {
+  const journey = getStudentJourney(student);
+  return referentialDomains.map((domain) => {
+    const domainSkills = skillCatalog.filter((skill) => getSkillDomain(skill) === domain);
+    const values = journey.map((item) => {
+      const score = domainSkills.reduce((sum, skill) => sum + (levelScores[item.skills[skill.id]] || 0), 0);
+      const max = domainSkills.length * (levelScores.acquis || 1) || 1;
+      return `${Math.round((score / max) * 100)}%`;
+    });
+    const average = values.length ? `${Math.round(values.reduce((sum, value) => sum + Number.parseInt(value, 10), 0) / values.length)}%` : "";
+    return [domain, ...values, average];
+  });
+};
+
+buildCycleDomainSummaryHeaders = function(journey) {
+  return ["Domaine", ...journey.map((item) => {
+    const classItem = getClassById(item.classId);
+    return `${classItem?.name || item.classId} ${classItem?.year || ""}`.trim();
+  }), "Synthese"];
+};
+
+exportStudentAnnualWorkbook = function(student) {
+  const classItem = getClassById(student.classId);
+  if (!classItem) return;
+  const headers = ["Eleve", "Classe", "Annee", "Competence", "Domaine", "Niveau"];
+  const rows = skillCatalog.map((skill) => [
+    student.name,
+    classItem.name,
+    classItem.year || "",
+    `${skill.code} - ${skill.title}`,
+    getSkillDomain(skill),
+    levelLabels[student.skills[skill.id]] || ""
+  ]);
+  rows.push(["", "", "", "Progression annuelle", "", `${getStudentProgress(student)}%`]);
+  getBlockAverages([student]).forEach((block) => {
+    rows.push(["", "", "", `Synthese bloc - ${block.domain}`, block.domain, `${block.progress}%`]);
+  });
+  downloadExcelTable(`${student.name} - bilan annuel.xls`, "Bilan annuel", headers, rows);
+};
+
+exportStudentCycleWorkbook = function(student) {
+  const journey = getStudentJourney(student);
+  const headers = ["Eleve", "Classe", "Annee", ...skillCatalog.map((skill) => skill.code), "Progression"];
+  const rows = journey.map((item) => {
+    const classItem = getClassById(item.classId);
+    return [
+      item.name,
+      classItem?.name || "",
+      classItem?.year || "",
+      ...skillCatalog.map((skill) => levelLabels[item.skills[skill.id]] || ""),
+      `${getStudentProgress(item)}%`
+    ];
+  });
+  const average = journey.length ? Math.round(journey.reduce((sum, item) => sum + getStudentProgress(item), 0) / journey.length) : 0;
+  rows.push(["", "", "", ...skillCatalog.map((skill) => {
+    const statuses = journey.map((item) => item.skills[skill.id]).filter(Boolean);
+    return statuses[statuses.length - 1] ? levelLabels[statuses[statuses.length - 1]] : "";
+  }), `${average}% moyen`]);
+  rows.push([]);
+  rows.push(buildCycleDomainSummaryHeaders(journey));
+  getCycleDomainSummaryRows(student).forEach((row) => rows.push(row));
+  downloadExcelTable(`${student.name} - synthese 3 ans.xls`, "Synthese 3 ans", headers, rows);
+};
+
+if (typeof document !== "undefined") {
+  window.setTimeout(() => {
+    if (document.body?.dataset?.page !== "evaluations") return;
+    const exportButton = document.querySelector("#activity-export-pdf");
+    const synthesisButton = document.querySelector("#activity-synthesis-pdf");
+    const feedback = document.querySelector("#activity-feedback");
+    if (exportButton && !exportButton.dataset.safeBound) {
+      const replacement = exportButton.cloneNode(true);
+      exportButton.replaceWith(replacement);
+      replacement.dataset.safeBound = "true";
+      replacement.addEventListener("click", () => {
+        const classSelect = document.querySelector("#session-class-select");
+        const activitySelect = document.querySelector("#activity-select");
+        const classId = classSelect?.value || app.classes[0]?.id || "";
+        const activity = getActivityById(activitySelect?.value) || getActivitiesByClass(classId)[0];
+        if (!activity) {
+          if (feedback) feedback.textContent = "Aucune seance a exporter.";
+          return;
+        }
+        const opened = printHtmlDocument(`${activity.type} - ${activity.title}`, buildActivityPdfHtml(activity, classId));
+        if (!opened && feedback) {
+          feedback.textContent = "Le navigateur a bloque la fenetre PDF. Autorise les popups puis recommence.";
+        }
+      });
+    }
+    if (synthesisButton && !synthesisButton.dataset.safeBound) {
+      const replacement = synthesisButton.cloneNode(true);
+      synthesisButton.replaceWith(replacement);
+      replacement.dataset.safeBound = "true";
+      replacement.addEventListener("click", () => {
+        const classSelect = document.querySelector("#session-class-select");
+        const classId = classSelect?.value || app.classes[0]?.id || "";
+        const classItem = getClassById(classId);
+        if (!classItem) {
+          if (feedback) feedback.textContent = "Aucune classe selectionnee.";
+          return;
+        }
+        const opened = printHtmlDocument(`Synthese ${classItem.name}`, buildActivitySynthesisPdfHtml(classId));
+        if (!opened && feedback) {
+          feedback.textContent = "Le navigateur a bloque la fenetre PDF. Autorise les popups puis recommence.";
+        }
+      });
+    }
+  }, 0);
+}
+
+function printHtmlDocument(title, html) {
+  const printWindow = window.open("", "_blank", "width=1200,height=900");
+  if (!printWindow) return false;
+  printWindow.document.open();
+  printWindow.document.write(html);
+  printWindow.document.close();
+  const triggerPrint = () => {
+    try {
+      printWindow.focus();
+      printWindow.print();
+    } catch {}
+  };
+  if (printWindow.document.readyState === "complete") {
+    setTimeout(triggerPrint, 350);
+  } else {
+    printWindow.addEventListener("load", () => setTimeout(triggerPrint, 350), { once: true });
+    setTimeout(triggerPrint, 900);
+  }
+  return true;
+}
+
+function buildActivityPdfHtml(activity, classId) {
+  const classItem = getClassById(classId);
+  const skills = getActivitySkills(activity);
+  const skillCodes = skills.map((item) => item.code).join(", ");
+  const skillTitles = skills.map((item) => item.title).join(" // ");
+  const students = getStudentsByClass(classId);
+  const summaryHtml = `
+    <div class="card">
+      <p><strong>Classe :</strong> ${escapeHtml(classItem?.name || "")}</p>
+      <p><strong>Competences :</strong> ${escapeHtml(`${skillCodes} ${skillTitles}`.trim() || "Non renseignees")}</p>
+      <p><strong>Periode :</strong> ${escapeHtml(formatActivityDateRange(activity) || "Non renseignee")}</p>
+      <p><strong>Moyenne de seance :</strong> ${getActivityAverage(activity, students)}%</p>
+      <p><strong>Indicateurs :</strong> ${activity.indicators.length}</p>
+      <p><strong>Commentaire :</strong> ${escapeHtml(activity.comment || "-")}</p>
+    </div>
+  `;
+  const tableHtml = `
+    <table>
+      <thead>
+        <tr>
+          <th>Eleve</th>
+          ${activity.indicators.map((indicator) => `<th>${escapeHtml(indicator.label)}</th>`).join("")}
+        </tr>
+      </thead>
+      <tbody>
+        ${students.map((student) => `
+          <tr>
+            <td>${escapeHtml(student.name)}</td>
+            ${activity.indicators.map((indicator) => `<td>${escapeHtml(levelLabels[getActivityIndicatorStatus(activity, student.id, indicator.id)] || "Non evalue")}</td>`).join("")}
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  `;
+  const indicatorsHtml = `
+    <div class="grid">
+      ${activity.indicators.map((indicator) => `
+        <div class="card">
+          <p><strong>${escapeHtml(indicator.label)}</strong></p>
+          <p>Moyenne : ${getIndicatorAverage(activity, students, indicator.id)}%</p>
+          <p>${escapeHtml(renderIndicatorStatusBreakdown(activity, students, indicator.id))}</p>
+        </div>
+      `).join("")}
+    </div>
+  `;
+  return buildPrintShell(
+    `${activity.type} - ${activity.title}`,
+    `${classItem?.name || ""} - ${skillCodes}`,
+    `${summaryHtml}<h2>Grille de saisie</h2>${tableHtml}<h2>Bilan par indicateur</h2>${indicatorsHtml}`
+  );
+}
+
+function buildActivitySynthesisPdfHtml(classId) {
+  const classItem = getClassById(classId);
+  const activities = getActivitiesByClass(classId);
+  const students = getStudentsByClass(classId);
+  const rows = activities.map((activity) => {
+    const skillCodes = getActivitySkills(activity).map((item) => item.code).join(", ");
+    return `
+      <tr>
+        <td>${escapeHtml(activity.type)}</td>
+        <td>${escapeHtml(activity.title)}</td>
+        <td>${escapeHtml(skillCodes)}</td>
+        <td>${escapeHtml(formatActivityDateRange(activity) || "Non renseignee")}</td>
+        <td>${activity.indicators.length}</td>
+        <td>${getActivityAverage(activity, students)}%</td>
+      </tr>
+    `;
+  }).join("");
+  return buildPrintShell(
+    `Synthese des seances - ${classItem?.name || ""}`,
+    `${activities.length} seance(s) enregistree(s)`,
+    `
+      <table>
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th>Seance</th>
+            <th>Competences</th>
+            <th>Periode</th>
+            <th>Indicateurs</th>
+            <th>Moyenne</th>
+          </tr>
+        </thead>
+        <tbody>${rows || '<tr><td colspan="6">Aucune seance enregistree.</td></tr>'}</tbody>
+      </table>
+    `
+  );
+}
+
+function getCycleDomainSummaryRows(student) {
+  const journey = getStudentJourney(student);
+  return referentialDomains.map((domain) => {
+    const domainSkills = skillCatalog.filter((skill) => getSkillDomain(skill) === domain);
+    const values = journey.map((item) => {
+      const score = domainSkills.reduce((sum, skill) => sum + (levelScores[item.skills[skill.id]] || 0), 0);
+      const max = domainSkills.length * (levelScores.acquis || 1) || 1;
+      return `${Math.round((score / max) * 100)}%`;
+    });
+    const average = values.length
+      ? `${Math.round(values.reduce((sum, value) => sum + Number.parseInt(value, 10), 0) / values.length)}%`
+      : "";
+    return [domain, ...values, average];
+  });
+}
+
+function exportStudentAnnualWorkbook(student) {
+  const classItem = getClassById(student.classId);
+  if (!classItem) return;
+  const headers = ["Eleve", "Classe", "Annee", "Competence", "Domaine", "Niveau"];
+  const rows = skillCatalog.map((skill) => [
+    student.name,
+    classItem.name,
+    classItem.year || "",
+    `${skill.code} - ${skill.title}`,
+    getSkillDomain(skill),
+    levelLabels[student.skills[skill.id]] || ""
+  ]);
+  rows.push(["", "", "", "Progression annuelle", "", `${getStudentProgress(student)}%`]);
+  getBlockAverages([student]).forEach((block) => {
+    rows.push(["", "", "", `Synthese bloc - ${block.domain}`, block.domain, `${block.progress}%`]);
+  });
+  downloadExcelTable(`${student.name} - bilan annuel.xls`, "Bilan annuel", headers, rows);
+}
+
+function exportStudentCycleWorkbook(student) {
+  const journey = getStudentJourney(student);
+  const headers = ["Eleve", "Classe", "Annee", ...skillCatalog.map((skill) => skill.code), "Progression"];
+  const rows = journey.map((item) => {
+    const classItem = getClassById(item.classId);
+    return [
+      item.name,
+      classItem?.name || "",
+      classItem?.year || "",
+      ...skillCatalog.map((skill) => levelLabels[item.skills[skill.id]] || ""),
+      `${getStudentProgress(item)}%`
+    ];
+  });
+  const average = journey.length ? Math.round(journey.reduce((sum, item) => sum + getStudentProgress(item), 0) / journey.length) : 0;
+  rows.push(["", "", "", ...skillCatalog.map((skill) => {
+    const statuses = journey.map((item) => item.skills[skill.id]).filter(Boolean);
+    return statuses[statuses.length - 1] ? levelLabels[statuses[statuses.length - 1]] : "";
+  }), `${average}% moyen`]);
+  rows.push([]);
+  rows.push(buildCycleDomainSummaryHeaders(journey));
+  getCycleDomainSummaryRows(student).forEach((row) => rows.push(row));
+  downloadExcelTable(`${student.name} - synthese 3 ans.xls`, "Synthese 3 ans", headers, rows);
+}
+
+function buildCycleDomainSummaryHeaders(journey) {
+  return ["Domaine", ...journey.map((item) => {
+    const classItem = getClassById(item.classId);
+    return `${classItem?.name || item.classId} ${classItem?.year || ""}`.trim();
+  }), "Synthese"];
+}
+
+if (typeof document !== "undefined") {
+  window.setTimeout(() => {
+    if (document.body?.dataset?.page !== "evaluations") return;
+    const exportButton = document.querySelector("#activity-export-pdf");
+    const synthesisButton = document.querySelector("#activity-synthesis-pdf");
+    const feedback = document.querySelector("#activity-feedback");
+    if (exportButton && !exportButton.dataset.safeBound) {
+      exportButton.dataset.safeBound = "true";
+      exportButton.addEventListener("click", () => {
+        const classSelect = document.querySelector("#session-class-select");
+        const activitySelect = document.querySelector("#activity-select");
+        const classId = classSelect?.value || app.classes[0]?.id || "";
+        const activity = getActivityById(activitySelect?.value) || getActivitiesByClass(classId)[0];
+        if (!activity) {
+          if (feedback) feedback.textContent = "Aucune seance a exporter.";
+          return;
+        }
+        const opened = printHtmlDocument(`${activity.type} - ${activity.title}`, buildActivityPdfHtml(activity, classId));
+        if (!opened && feedback) {
+          feedback.textContent = "Le navigateur a bloque la fenetre PDF. Autorise les popups puis recommence.";
+        }
+      });
+    }
+    if (synthesisButton && !synthesisButton.dataset.safeBound) {
+      synthesisButton.dataset.safeBound = "true";
+      synthesisButton.addEventListener("click", () => {
+        const classSelect = document.querySelector("#session-class-select");
+        const classId = classSelect?.value || app.classes[0]?.id || "";
+        const classItem = getClassById(classId);
+        if (!classItem) {
+          if (feedback) feedback.textContent = "Aucune classe selectionnee.";
+          return;
+        }
+        const opened = printHtmlDocument(`Synthese ${classItem.name}`, buildActivitySynthesisPdfHtml(classId));
+        if (!opened && feedback) {
+          feedback.textContent = "Le navigateur a bloque la fenetre PDF. Autorise les popups puis recommence.";
+        }
+      });
+    }
+  }, 0);
+}
+
 function initClassesPageFinal() {
   bindProtectedChrome();
   const classForm = document.querySelector("#class-form");
@@ -4400,7 +4840,7 @@ function buildPrintShell(title, subtitle, bodyHtml) {
 
 function printHtmlDocument(title, html) {
   const printWindow = window.open("", "_blank", "width=1200,height=900");
-  if (!printWindow) return;
+  if (!printWindow) return false;
   printWindow.document.open();
   printWindow.document.write(html);
   printWindow.document.close();
@@ -4416,6 +4856,7 @@ function printHtmlDocument(title, html) {
     printWindow.addEventListener("load", () => setTimeout(triggerPrint, 350), { once: true });
     setTimeout(triggerPrint, 900);
   }
+  return true;
 }
 
 function buildActivityPdfHtml(activity, classId) {
@@ -7231,3 +7672,225 @@ function initAccountsPage() {
     });
   }
 }
+
+;(function () {
+  printHtmlDocument = function(title, html) {
+    const printWindow = window.open('', '_blank', 'width=1200,height=900');
+    if (!printWindow) return false;
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+    const triggerPrint = () => {
+      try {
+        printWindow.focus();
+        printWindow.print();
+      } catch {}
+    };
+    if (printWindow.document.readyState === 'complete') {
+      setTimeout(triggerPrint, 350);
+    } else {
+      printWindow.addEventListener('load', () => setTimeout(triggerPrint, 350), { once: true });
+      setTimeout(triggerPrint, 900);
+    }
+    return true;
+  };
+
+  buildActivityPdfHtml = function(activity, classId) {
+    const classItem = getClassById(classId);
+    const skills = getActivitySkills(activity);
+    const skillCodes = skills.map((item) => item.code).join(', ');
+    const skillTitles = skills.map((item) => item.title).join(' // ');
+    const students = getStudentsByClass(classId);
+    const summaryHtml = `
+      <div class="card">
+        <p><strong>Classe :</strong> ${escapeHtml(classItem?.name || '')}</p>
+        <p><strong>Competences :</strong> ${escapeHtml(`${skillCodes} ${skillTitles}`.trim() || 'Non renseignees')}</p>
+        <p><strong>Periode :</strong> ${escapeHtml(formatActivityDateRange(activity) || 'Non renseignee')}</p>
+        <p><strong>Moyenne de seance :</strong> ${getActivityAverage(activity, students)}%</p>
+        <p><strong>Indicateurs :</strong> ${activity.indicators.length}</p>
+        <p><strong>Commentaire :</strong> ${escapeHtml(activity.comment || '-')}</p>
+      </div>
+    `;
+    const tableHtml = `
+      <table>
+        <thead>
+          <tr>
+            <th>Eleve</th>
+            ${activity.indicators.map((indicator) => `<th>${escapeHtml(indicator.label)}</th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${students.map((student) => `
+            <tr>
+              <td>${escapeHtml(student.name)}</td>
+              ${activity.indicators.map((indicator) => `<td>${escapeHtml(levelLabels[getActivityIndicatorStatus(activity, student.id, indicator.id)] || 'Non evalue')}</td>`).join('')}
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+    const indicatorsHtml = `
+      <div class="grid">
+        ${activity.indicators.map((indicator) => `
+          <div class="card">
+            <p><strong>${escapeHtml(indicator.label)}</strong></p>
+            <p>Moyenne : ${getIndicatorAverage(activity, students, indicator.id)}%</p>
+            <p>${escapeHtml(renderIndicatorStatusBreakdown(activity, students, indicator.id))}</p>
+          </div>
+        `).join('')}
+      </div>
+    `;
+    return buildPrintShell(
+      `${activity.type} - ${activity.title}`,
+      `${classItem?.name || ''} - ${skillCodes}`,
+      `${summaryHtml}<h2>Grille de saisie</h2>${tableHtml}<h2>Bilan par indicateur</h2>${indicatorsHtml}`
+    );
+  };
+
+  buildActivitySynthesisPdfHtml = function(classId) {
+    const classItem = getClassById(classId);
+    const activities = getActivitiesByClass(classId);
+    const students = getStudentsByClass(classId);
+    const rows = activities.map((activity) => {
+      const skillCodes = getActivitySkills(activity).map((item) => item.code).join(', ');
+      return `
+        <tr>
+          <td>${escapeHtml(activity.type)}</td>
+          <td>${escapeHtml(activity.title)}</td>
+          <td>${escapeHtml(skillCodes)}</td>
+          <td>${escapeHtml(formatActivityDateRange(activity) || 'Non renseignee')}</td>
+          <td>${activity.indicators.length}</td>
+          <td>${getActivityAverage(activity, students)}%</td>
+        </tr>
+      `;
+    }).join('');
+    return buildPrintShell(
+      `Synthese des seances - ${classItem?.name || ''}`,
+      `${activities.length} seance(s) enregistree(s)`,
+      `
+        <table>
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Seance</th>
+              <th>Competences</th>
+              <th>Periode</th>
+              <th>Indicateurs</th>
+              <th>Moyenne</th>
+            </tr>
+          </thead>
+          <tbody>${rows || '<tr><td colspan="6">Aucune seance enregistree.</td></tr>'}</tbody>
+        </table>
+      `
+    );
+  };
+
+  buildCycleDomainSummaryHeaders = function(journey) {
+    return ['Domaine', ...journey.map((item) => {
+      const classItem = getClassById(item.classId);
+      return `${classItem?.name || item.classId} ${classItem?.year || ''}`.trim();
+    }), 'Synthese'];
+  };
+
+  getCycleDomainSummaryRows = function(student) {
+    const journey = getStudentJourney(student);
+    return referentialDomains.map((domain) => {
+      const domainSkills = skillCatalog.filter((skill) => getSkillDomain(skill) === domain);
+      const values = journey.map((item) => {
+        const score = domainSkills.reduce((sum, skill) => sum + (levelScores[item.skills[skill.id]] || 0), 0);
+        const max = domainSkills.length * (levelScores.acquis || 1) || 1;
+        return `${Math.round((score / max) * 100)}%`;
+      });
+      const average = values.length ? `${Math.round(values.reduce((sum, value) => sum + Number.parseInt(value, 10), 0) / values.length)}%` : '';
+      return [domain, ...values, average];
+    });
+  };
+
+  exportStudentAnnualWorkbook = function(student) {
+    const classItem = getClassById(student.classId);
+    if (!classItem) return;
+    const headers = ['Eleve', 'Classe', 'Annee', 'Competence', 'Domaine', 'Niveau'];
+    const rows = skillCatalog.map((skill) => [
+      student.name,
+      classItem.name,
+      classItem.year || '',
+      `${skill.code} - ${skill.title}`,
+      getSkillDomain(skill),
+      levelLabels[student.skills[skill.id]] || ''
+    ]);
+    rows.push(['', '', '', 'Progression annuelle', '', `${getStudentProgress(student)}%`]);
+    getBlockAverages([student]).forEach((block) => {
+      rows.push(['', '', '', `Synthese bloc - ${block.domain}`, block.domain, `${block.progress}%`]);
+    });
+    downloadExcelTable(`${student.name} - bilan annuel.xls`, 'Bilan annuel', headers, rows);
+  };
+
+  exportStudentCycleWorkbook = function(student) {
+    const journey = getStudentJourney(student);
+    const headers = ['Eleve', 'Classe', 'Annee', ...skillCatalog.map((skill) => skill.code), 'Progression'];
+    const rows = journey.map((item) => {
+      const classItem = getClassById(item.classId);
+      return [
+        item.name,
+        classItem?.name || '',
+        classItem?.year || '',
+        ...skillCatalog.map((skill) => levelLabels[item.skills[skill.id]] || ''),
+        `${getStudentProgress(item)}%`
+      ];
+    });
+    const average = journey.length ? Math.round(journey.reduce((sum, item) => sum + getStudentProgress(item), 0) / journey.length) : 0;
+    rows.push(['', '', '', ...skillCatalog.map((skill) => {
+      const statuses = journey.map((item) => item.skills[skill.id]).filter(Boolean);
+      return statuses[statuses.length - 1] ? levelLabels[statuses[statuses.length - 1]] : '';
+    }), `${average}% moyen`]);
+    rows.push([]);
+    rows.push(buildCycleDomainSummaryHeaders(journey));
+    getCycleDomainSummaryRows(student).forEach((row) => rows.push(row));
+    downloadExcelTable(`${student.name} - synthese 3 ans.xls`, 'Synthese 3 ans', headers, rows);
+  };
+
+  if (document.body?.dataset?.page === 'evaluations') {
+    window.setTimeout(() => {
+      const exportButton = document.querySelector('#activity-export-pdf');
+      const synthesisButton = document.querySelector('#activity-synthesis-pdf');
+      const feedback = document.querySelector('#activity-feedback');
+      if (exportButton && !exportButton.dataset.finalBound) {
+        const replacement = exportButton.cloneNode(true);
+        exportButton.replaceWith(replacement);
+        replacement.dataset.finalBound = 'true';
+        replacement.addEventListener('click', () => {
+          const classSelect = document.querySelector('#session-class-select');
+          const activitySelect = document.querySelector('#activity-select');
+          const classId = classSelect?.value || app.classes[0]?.id || '';
+          const activity = getActivityById(activitySelect?.value) || getActivitiesByClass(classId)[0];
+          if (!activity) {
+            if (feedback) feedback.textContent = 'Aucune seance a exporter.';
+            return;
+          }
+          const opened = printHtmlDocument(`${activity.type} - ${activity.title}`, buildActivityPdfHtml(activity, classId));
+          if (!opened && feedback) {
+            feedback.textContent = 'Le navigateur a bloque la fenetre PDF. Autorise les popups puis recommence.';
+          }
+        });
+      }
+      if (synthesisButton && !synthesisButton.dataset.finalBound) {
+        const replacement = synthesisButton.cloneNode(true);
+        synthesisButton.replaceWith(replacement);
+        replacement.dataset.finalBound = 'true';
+        replacement.addEventListener('click', () => {
+          const classSelect = document.querySelector('#session-class-select');
+          const classId = classSelect?.value || app.classes[0]?.id || '';
+          const classItem = getClassById(classId);
+          if (!classItem) {
+            if (feedback) feedback.textContent = 'Aucune classe selectionnee.';
+            return;
+          }
+          const opened = printHtmlDocument(`Synthese ${classItem.name}`, buildActivitySynthesisPdfHtml(classId));
+          if (!opened && feedback) {
+            feedback.textContent = 'Le navigateur a bloque la fenetre PDF. Autorise les popups puis recommence.';
+          }
+        });
+      }
+    }, 0);
+  }
+})();
