@@ -8428,14 +8428,16 @@ function initAccountsPage() {
       });
     }
     if (!activityEditButton.dataset.structuredBound) {
-      activityEditButton.dataset.structuredBound = "true";
-      activityEditButton.addEventListener("click", (event) => {
+      const replacement = activityEditButton.cloneNode(true);
+      replacement.dataset.structuredBound = "true";
+      activityEditButton.replaceWith(replacement);
+      replacement.addEventListener("click", (event) => {
         event.preventDefault();
-        event.stopImmediatePropagation();
+        event.stopPropagation();
         const activity = getActivityById(activitySelect.value);
         if (!activity || !hasPermission("edit_evaluations")) return;
         loadActivityForEditSafe(activity);
-      }, true);
+      });
     }
     if (!activityForm.dataset.structuredBound) {
       activityForm.dataset.structuredBound = "true";
