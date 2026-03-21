@@ -6128,8 +6128,8 @@ function bindProtectedChrome() {
     upsertDashboardDropdown(nav);
     upsertEvaluationsDropdown(nav);
     upsertPfmpDropdown(nav);
-    upsertNavLink(nav, "candidate.html", "Candidat", page === "candidate");
-    upsertNavLink(nav, "certification.html", "Certification", page === "certification");
+    nav.querySelector('a[href="candidate.html"]')?.remove();
+    nav.querySelector('a[href="certification.html"]')?.remove();
     upsertStaticDropdown(nav, "Referentiel", [
       { href: "coverage.html", label: "Couverture" },
       { href: "mapping.html", label: "Cartographie" },
@@ -6226,13 +6226,22 @@ function upsertBulletinDropdown(nav) {
 
 function upsertEvaluationsDropdown(nav) {
   nav.querySelector('a[href="evaluations.html"]')?.remove();
-  const links = app.classes.flatMap((classItem) => ([
-    { type: "label", label: getClassNavLabel(classItem) },
-    { href: `evaluations.html?class=${encodeURIComponent(classItem.id)}&view=create`, label: "Creation de seance" },
-    { href: `evaluations.html?class=${encodeURIComponent(classItem.id)}&view=session`, label: "Evaluation seance" },
-    { href: `evaluations.html?class=${encodeURIComponent(classItem.id)}&view=skills`, label: "Competences eleves" }
-  ]));
-  upsertStaticDropdown(nav, "Evaluations", links, page === "evaluations", "evaluations-menu");
+  const links = app.classes.flatMap((classItem) => {
+    const classLinks = [
+      { type: "label", label: getClassNavLabel(classItem) },
+      { href: `evaluations.html?class=${encodeURIComponent(classItem.id)}&view=create`, label: "Creation de seance" },
+      { href: `evaluations.html?class=${encodeURIComponent(classItem.id)}&view=session`, label: "Evaluation seance" },
+      { href: `evaluations.html?class=${encodeURIComponent(classItem.id)}&view=skills`, label: "Competences eleves" }
+    ];
+    if (getClassLevelOrder(classItem.id) === 3) {
+      classLinks.push({
+        href: `candidate.html?class=${encodeURIComponent(classItem.id)}`,
+        label: "Examen"
+      });
+    }
+    return classLinks;
+  });
+  upsertStaticDropdown(nav, "Evaluations", links, page === "evaluations" || page === "candidate" || page === "certification", "evaluations-menu");
 }
 
 function upsertPfmpDropdown(nav) {
