@@ -7927,6 +7927,221 @@ function initAccountsPage() {
 })();
 
 ;(function () {
+  const EXAM_CENTER_SETTINGS_KEY = "ciel-exam-center-settings";
+  const EXAM_GRID_STORAGE_KEY = "ciel-exam-grid-settings";
+
+  function getExamCenterDefaultsSafe() {
+    try {
+      const raw = localStorage.getItem(EXAM_CENTER_SETTINGS_KEY);
+      const parsed = raw ? JSON.parse(raw) : {};
+      return {
+        academy: parsed.academy || "Creteil",
+        school: parsed.school || "Lycee",
+        date: new Date().toISOString().slice(0, 10)
+      };
+    } catch {
+      return {
+        academy: "Creteil",
+        school: "Lycee",
+        date: new Date().toISOString().slice(0, 10)
+      };
+    }
+  }
+
+  function saveExamCenterDefaultsSafe(settings) {
+    localStorage.setItem(EXAM_CENTER_SETTINGS_KEY, JSON.stringify({
+      academy: settings.academy || "",
+      school: settings.school || ""
+    }));
+  }
+
+  function mergeExamGridStoredSettings(patch) {
+    let current = {};
+    try {
+      current = JSON.parse(localStorage.getItem(EXAM_GRID_STORAGE_KEY) || "{}");
+    } catch {}
+    localStorage.setItem(EXAM_GRID_STORAGE_KEY, JSON.stringify({ ...getExamCenterDefaultsSafe(), ...current, ...patch }));
+  }
+
+  function getExamSkillPreviewSafe(student) {
+    return [
+      { exam: "E2", skillIds: ["c3", "c7", "c11"] },
+      { exam: "E31", skillIds: ["c6", "c9", "c10"] },
+      { exam: "E32", skillIds: ["c1", "c4", "c8"] }
+    ].map((item) => {
+      const lines = item.skillIds.map((skillId) => {
+        const skill = getSkillById(skillId);
+        const status = student?.skills?.[skillId] || "non_evalue";
+        return {
+          code: skill?.code || skillId.toUpperCase(),
+          title: skill?.title || skillId,
+          status,
+          label: levelLabels[status] || status
+        };
+      });
+      const validated = lines.filter((line) => ["partiellement_acquis", "acquis"].includes(line.status)).length;
+      const average = Math.round(lines.reduce((sum, line) => sum + (levelScores[line.status] || 0), 0) / (lines.length || 1) * 100);
+      return { exam: item.exam, lines, validated, average };
+    });
+  }
+
+  function renderExamPreviewSafe(target, student) {
+    if (!target) return;
+    if (!student) {
+      target.innerHTML = "";
+      return;
+    }
+    const preview = getExamSkillPreviewSafe(student);
+    target.innerHTML = preview.map((item) => `
+      <article class="summary-card">
+        <h3>${item.exam}</h3>
+        <p class="muted-copy">${item.validated}/${item.lines.length} competence(s) consolidee(s)</p>
+        <div class="pfmp-kpis"><span class="badge">${item.average}%</span></div>
+        <div class="directory-row compact">
+          <div>${item.lines.map((line) => `<p><strong>${line.code}</strong> ${line.title} // ${line.label}</p>`).join("")}</div>
+        </div>
+      </article>
+    `).join("");
+  }
+
+  function buildExamRecapHtmlSafe(student, settings) {
+    const classItem = getClassById(student.classId);
+    const parts = String(student?.name || "").trim().split(/\s+/).filter(Boolean);
+    const firstName = parts[0] || "";
+    const lastName = parts.slice(1).join(" ") || student.name || "";
+    const preview = getExamSkillPreviewSafe(student);
+    return buildPrintShell(
+      `Recapitulatif examen - ${student.name}`,
+      `${classItem?.name || ""} // ${settings.academy || ""} // ${settings.school || ""}`,
+      `
+        <div class="card">
+          <p><strong>Nom :</strong> ${escapeHtml(lastName)}</p>
+          <p><strong>Prenom :</strong> ${escapeHtml(firstName)}</p>
+          <p><strong>Numero candidat :</strong> ${escapeHtml(settings.candidateNumber || "-")}</p>
+          <p><strong>Date :</strong> ${escapeHtml(settings.date || "-")}</p>
+        </div>
+        <table>
+          <thead><tr><th>Epreuve</th><th>Competence</th><th>Intitule</th><th>Niveau</th></tr></thead>
+          <tbody>
+            ${preview.flatMap((item) => item.lines.map((line) => `
+              <tr>
+                <td>${item.exam}</td>
+                <td>${line.code}</td>
+                <td>${escapeHtml(line.title)}</td>
+                <td>${escapeHtml(line.label)}</td>
+              </tr>
+            `)).join("")}
+          </tbody>
+        </table>
+      `
+    );
+  }
+
+  const originalInitAccountsPageFinalExamSafe = initAccountsPageFinal;
+  initAccountsPageFinal = function() {
+    originalInitAccountsPageFinalExamSafe();
+    const form = document.querySelector("#exam-center-form");
+    const academyInput = document.querySelector("#exam-center-academy");
+    const schoolInput = document.querySelector("#exam-center-school");
+    const feedback = document.querySelector("#exam-center-feedback");
+    if (!form || !academyInput || !schoolInput) return;
+    const defaults = getExamCenterDefaultsSafe();
+    academyInput.value = defaults.academy || "";
+    schoolInput.value = defaults.school || "";
+    if (form.dataset.examCenterSafeBound) return;
+    form.dataset.examCenterSafeBound = "true";
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      saveExamCenterDefaultsSafe({
+        academy: academyInput.value.trim(),
+        school: schoolInput.value.trim()
+      });
+      mergeExamGridStoredSettings({
+        academy: academyInput.value.trim(),
+        school: schoolInput.value.trim()
+      });
+      if (feedback) feedback.textContent = "Parametres d'examen enregistres.";
+    });
+  };
+
+  const originalInitEvaluationsPageFinalExamSafe = initEvaluationsPageFinal;
+  initEvaluationsPageFinal = function() {
+    originalInitEvaluationsPageFinalExamSafe();
+    window.setTimeout(() => {
+      if (document.body?.dataset?.page !== "evaluations") return;
+      const classSelect = document.querySelector("#eval-class-select");
+      const studentSelect = document.querySelector("#eval-student-select");
+      const academyInput = document.querySelector("#exam-grid-academy");
+      const schoolInput = document.querySelector("#exam-grid-school");
+      const candidateNumberInput = document.querySelector("#exam-grid-candidate-number");
+      const dateInput = document.querySelector("#exam-grid-date");
+      const preview = document.querySelector("#exam-grid-preview");
+      const pdfButton = document.querySelector("#exam-grid-pdf");
+      const feedback = document.querySelector("#exam-grid-feedback");
+      if (!classSelect || !studentSelect || !academyInput || !schoolInput || !candidateNumberInput || !dateInput) return;
+
+      const defaults = getExamCenterDefaultsSafe();
+      if (!academyInput.value.trim()) academyInput.value = defaults.academy || "";
+      if (!schoolInput.value.trim()) schoolInput.value = defaults.school || "";
+      if (!dateInput.value) dateInput.value = defaults.date || "";
+      mergeExamGridStoredSettings({
+        academy: academyInput.value.trim(),
+        school: schoolInput.value.trim(),
+        candidateNumber: candidateNumberInput.value.trim(),
+        date: dateInput.value
+      });
+
+      const renderCurrentPreview = () => {
+        const classId = classSelect.value || app.classes[0]?.id || "";
+        const student = getStudentById(studentSelect.value) || getStudentsByClass(classId)[0];
+        renderExamPreviewSafe(preview, student);
+      };
+
+      renderCurrentPreview();
+
+      if (!classSelect.dataset.examPreviewSafeBound) {
+        classSelect.dataset.examPreviewSafeBound = "true";
+        classSelect.addEventListener("change", renderCurrentPreview);
+      }
+      if (!studentSelect.dataset.examPreviewSafeBound) {
+        studentSelect.dataset.examPreviewSafeBound = "true";
+        studentSelect.addEventListener("change", renderCurrentPreview);
+      }
+      [academyInput, schoolInput, candidateNumberInput, dateInput].forEach((input) => {
+        if (input.dataset.examPreviewSafeBound) return;
+        input.dataset.examPreviewSafeBound = "true";
+        input.addEventListener("change", () => {
+          mergeExamGridStoredSettings({
+            academy: academyInput.value.trim(),
+            school: schoolInput.value.trim(),
+            candidateNumber: candidateNumberInput.value.trim(),
+            date: dateInput.value
+          });
+        });
+      });
+
+      if (pdfButton && !pdfButton.dataset.examPreviewSafeBound) {
+        pdfButton.dataset.examPreviewSafeBound = "true";
+        pdfButton.addEventListener("click", () => {
+          const classId = classSelect.value || app.classes[0]?.id || "";
+          const student = getStudentById(studentSelect.value) || getStudentsByClass(classId)[0];
+          if (!student) {
+            if (feedback) feedback.textContent = "Aucun eleve selectionne.";
+            return;
+          }
+          printHtmlDocument(`Recap examen ${student.name}`, buildExamRecapHtmlSafe(student, {
+            academy: academyInput.value.trim(),
+            school: schoolInput.value.trim(),
+            candidateNumber: candidateNumberInput.value.trim(),
+            date: dateInput.value
+          }));
+        });
+      }
+    }, 0);
+  };
+})();
+
+;(function () {
   function getJourneyItemForLevel(student, levelOrder) {
     return getStudentJourney(student).find((item) => getClassLevelOrder(item.classId) === levelOrder) || null;
   }

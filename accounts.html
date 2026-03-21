@@ -79,6 +79,29 @@
       <section class="panel wide-panel">
         <div class="section-head">
           <div>
+            <p class="eyebrow">Maison Des Examens</p>
+            <h2>Paramètres globaux d'export</h2>
+          </div>
+        </div>
+        <form id="exam-center-form" class="stack-form">
+          <div class="mini-grid">
+            <label class="field">
+              <span>Académie par défaut</span>
+              <input id="exam-center-academy" type="text" placeholder="Ex. Créteil">
+            </label>
+            <label class="field">
+              <span>Établissement par défaut</span>
+              <input id="exam-center-school" type="text" placeholder="Ex. Lycée ...">
+            </label>
+          </div>
+          <button class="ghost-button" type="submit">Enregistrer les paramètres d'examen</button>
+          <p id="exam-center-feedback" class="results-count"></p>
+        </form>
+      </section>
+
+      <section class="panel wide-panel">
+        <div class="section-head">
+          <div>
             <p class="eyebrow">Sauvegarde</p>
             <h2>Sauvegarder ou remettre l'application</h2>
           </div>
