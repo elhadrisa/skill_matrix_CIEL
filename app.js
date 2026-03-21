@@ -399,6 +399,177 @@ function initAccountsPageFinal() {
   }
 }
 
+function bindProtectedChrome() {
+  const session = getSession();
+  const roleBadge = document.querySelector("#session-role");
+  const logoutButton = document.querySelector("#logout-button");
+  const navs = [...document.querySelectorAll(".nav-tabs")];
+
+  if (roleBadge && session) {
+    roleBadge.textContent = session.label;
+  }
+
+  navs.forEach((nav) => {
+    nav.querySelectorAll('.nav-dropdown[data-key]').forEach((item) => item.remove());
+    nav.querySelector('a[href="accounts.html"]')?.remove();
+
+    upsertDashboardDropdown(nav);
+    upsertEvaluationsDropdown(nav);
+    upsertPfmpDropdown(nav);
+    upsertStaticDropdown(nav, "Referentiel", [
+      { href: "coverage.html", label: "Couverture" },
+      { href: "mapping.html", label: "Cartographie" },
+      { href: "library.html", label: "Bibliotheque de seances" }
+    ], page === "coverage" || page === "mapping" || page === "library", "referential-menu");
+    upsertStaticDropdown(nav, "Remediations", [
+      { href: "remediation-pfmp.html", label: "PFMP" },
+      { href: "remediation-competences.html", label: "Competences" }
+    ], page === "remediation_pfmp" || page === "remediation_competences", "remediation-menu");
+
+    if (session?.role === "admin") {
+      upsertNavLink(nav, "accounts.html", "Comptes", page === "accounts");
+    }
+  });
+
+  document.querySelectorAll(".nav-dropdown").forEach((dropdown) => {
+    dropdown.addEventListener("toggle", () => {
+      if (!dropdown.open) return;
+      document.querySelectorAll(".nav-dropdown").forEach((other) => {
+        if (other !== dropdown) other.removeAttribute("open");
+      });
+    });
+  });
+
+  document.addEventListener("click", (event) => {
+    if (event.target.closest(".nav-dropdown")) return;
+    document.querySelectorAll(".nav-dropdown").forEach((dropdown) => dropdown.removeAttribute("open"));
+  });
+
+  document.querySelectorAll(".nav-dropdown-link").forEach((link) => {
+    link.addEventListener("click", () => {
+      document.querySelectorAll(".nav-dropdown").forEach((dropdown) => dropdown.removeAttribute("open"));
+    });
+  });
+
+  if (logoutButton) {
+    logoutButton.onclick = async () => {
+      try {
+        await fetch("/api/logout", { method: "POST", credentials: "include" });
+      } catch {}
+      clearSession();
+      window.location.href = "login.html";
+    };
+  }
+}
+
+function upsertNavLink(nav, href, label, active) {
+  let link = nav.querySelector(`a[href="${href}"]`);
+  if (!link) {
+    link = document.createElement("a");
+    link.href = href;
+    link.textContent = label;
+    nav.insertBefore(link, nav.querySelector("#session-role") || nav.querySelector("#logout-button") || null);
+  }
+  link.className = `nav-tab${active ? " active" : ""}`;
+}
+
+function upsertDashboardDropdown(nav) {
+  nav.querySelector('a[href="dashboard.html"]')?.remove();
+  const links = app.classes.flatMap((classItem) => ([
+    { type: "label", label: getClassNavLabel(classItem) },
+    { href: `dashboard.html?class=${encodeURIComponent(classItem.id)}&view=skills`, label: "Pilotage competences" },
+    { href: `dashboard.html?class=${encodeURIComponent(classItem.id)}&view=pfmp`, label: "Pilotage PFMP" },
+    { href: `dashboard.html?class=${encodeURIComponent(classItem.id)}&view=calendar`, label: "Calendrier pedagogique" }
+  ]));
+  upsertStaticDropdown(nav, "Dashboard", links, page === "dashboard", "dashboard-menu");
+}
+
+function upsertEvaluationsDropdown(nav) {
+  nav.querySelector('a[href="evaluations.html"]')?.remove();
+  const links = app.classes.flatMap((classItem) => ([
+    { type: "label", label: getClassNavLabel(classItem) },
+    { href: `evaluations.html?class=${encodeURIComponent(classItem.id)}&view=create`, label: "Creation de seance" },
+    { href: `evaluations.html?class=${encodeURIComponent(classItem.id)}&view=session`, label: "Evaluation seance" },
+    { href: `evaluations.html?class=${encodeURIComponent(classItem.id)}&view=skills`, label: "Competences eleves" }
+  ]));
+  upsertStaticDropdown(nav, "Evaluations", links, page === "evaluations", "evaluations-menu");
+}
+
+function upsertPfmpDropdown(nav) {
+  nav.querySelector('a[href="pfmp.html"]')?.remove();
+  const links = app.classes.flatMap((classItem) => ([
+    { type: "label", label: getClassNavLabel(classItem) },
+    { href: `pfmp.html?class=${encodeURIComponent(classItem.id)}`, label: "Infos PFMP" },
+    { href: `pfmp-livret.html?class=${encodeURIComponent(classItem.id)}`, label: "Livret d'evaluation" }
+  ]));
+  upsertStaticDropdown(nav, "PFMP", links, page === "pfmp" || page === "pfmp_livret", "pfmp-menu");
+}
+
+function upsertStaticDropdown(nav, label, links, isActive, key = label) {
+  let dropdown = nav.querySelector(`.nav-dropdown[data-key="${key}"]`);
+  if (!dropdown) {
+    dropdown = document.createElement("details");
+    dropdown.className = "nav-dropdown";
+    dropdown.dataset.key = key;
+    nav.insertBefore(dropdown, nav.querySelector("#session-role") || nav.querySelector("#logout-button") || null);
+  }
+  dropdown.classList.toggle("active", isActive);
+  dropdown.innerHTML = `
+    <summary class="nav-tab nav-dropdown-toggle">${label} ▾</summary>
+    <div class="nav-dropdown-menu">
+      ${links.map((item) => item.type === "label"
+        ? `<span class="nav-dropdown-group">${item.label}</span>`
+        : `<a class="nav-dropdown-link" href="${item.href}">${item.label}</a>`).join("")}
+    </div>
+  `;
+}
+
+function getTeacherRoleValues() {
+  return roleCatalog.map((role) => role.value);
+}
+
+function getAccountByRole(role) {
+  return app.accounts.find((account) => account.role === role);
+}
+
+function getAccountById(accountId) {
+  return app.accounts.find((account) => account.id === accountId);
+}
+
+function getTeacherAccounts() {
+  const primaryAdminId = getAccountByRole("admin")?.id;
+  return app.accounts.filter((account) => account.id !== primaryAdminId);
+}
+
+function updateAccount(accountId, updates) {
+  const account = getAccountById(accountId);
+  if (!account) return;
+  Object.assign(account, updates);
+  if (!updates?.label && updates?.role) {
+    account.label = getRoleLabel(updates.role);
+  }
+  persistAppData();
+}
+
+function addTeacherAccount(username, password, role = "professeur") {
+  const account = {
+    id: slugify(`teacher-${username}-${Date.now()}`),
+    username,
+    password,
+    role,
+    label: getRoleLabel(role)
+  };
+  app.accounts.push(account);
+  persistAppData();
+  return account;
+}
+
+function removeTeacherAccount(accountId) {
+  const primaryAdminId = getAccountByRole("admin")?.id;
+  app.accounts = app.accounts.filter((account) => account.id === primaryAdminId || account.id !== accountId);
+  persistAppData();
+}
+
 function loadAppData() {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (raw) {
