@@ -143,7 +143,7 @@ async function initializeApp() {
       if (page === "evaluations") initEvaluationsPageFinal();
       if (page === "pfmp") initPfmpPageFinal();
       if (page === "pfmp_livret") initPfmpLivretPageFinal();
-      if (page === "accounts") initAccountsPage();
+      if (page === "accounts") initAccountsPageFinal();
       if (page === "bulletin") initBulletinPage();
       if (page === "remediation_pfmp" || page === "remediation_competences") initRemediationPageFinal();
       return;
@@ -168,9 +168,159 @@ async function initializeApp() {
     if (page === "evaluations") initEvaluationsPageFinal();
     if (page === "pfmp") initPfmpPageFinal();
     if (page === "pfmp_livret") initPfmpLivretPageFinal();
-    if (page === "accounts") initAccountsPage();
+    if (page === "accounts") initAccountsPageFinal();
     if (page === "bulletin") initBulletinPage();
     if (page === "remediation_pfmp" || page === "remediation_competences") initRemediationPageFinal();
+}
+}
+
+function getTeacherRoleValues() {
+  return roleCatalog.map((role) => role.value);
+}
+
+function getTeacherAccounts() {
+  const primaryAdminId = getAccountByRole("admin")?.id;
+  return app.accounts.filter((account) => account.id !== primaryAdminId);
+}
+
+function removeTeacherAccount(accountId) {
+  const primaryAdminId = getAccountByRole("admin")?.id;
+  app.accounts = app.accounts.filter((account) => account.id === primaryAdminId || account.id !== accountId);
+  persistAppData();
+}
+
+function initAccountsPageFinal() {
+  bindProtectedChrome();
+  const adminForm = document.querySelector("#admin-account-form");
+  const teacherForm = document.querySelector("#teacher-account-form");
+  const adminUsername = document.querySelector("#admin-username");
+  const adminPassword = document.querySelector("#admin-password");
+  const teacherUsername = document.querySelector("#teacher-username");
+  const teacherPassword = document.querySelector("#teacher-password");
+  const teacherRole = document.querySelector("#teacher-role");
+  const feedback = document.querySelector("#accounts-feedback");
+  const accountsSummary = document.querySelector("#accounts-summary");
+  const teacherAccountsList = document.querySelector("#teacher-accounts-list");
+  const activityLogList = document.querySelector("#activity-log-list");
+
+  teacherRole.innerHTML = roleCatalog
+    .map((role) => `<option value="${role.value}">${role.label}</option>`)
+    .join("");
+  teacherRole.value = "professeur";
+
+  const adminAccount = getAccountByRole("admin");
+  adminUsername.value = adminAccount.username;
+  adminPassword.value = adminAccount.password;
+
+  adminForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!adminUsername.value.trim() || !adminPassword.value.trim()) return;
+    updateAccount(adminAccount.id, {
+      username: adminUsername.value.trim(),
+      password: adminPassword.value.trim(),
+      previousUsername: adminAccount.username
+    });
+    logAction("Compte admin mis a jour", adminUsername.value.trim(), "Identifiant ou mot de passe modifie");
+    await persistCriticalAppData();
+    feedback.textContent = "Compte administrateur mis a jour.";
+    renderAdministration();
+  });
+
+  teacherForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!teacherUsername.value.trim() || !teacherPassword.value.trim()) return;
+    const account = addTeacherAccount(teacherUsername.value.trim(), teacherPassword.value.trim(), teacherRole.value);
+    logAction("Compte cree", account.username, `Role: ${getRoleLabel(account.role)}`);
+    await persistCriticalAppData();
+    teacherForm.reset();
+    teacherRole.value = "professeur";
+    feedback.textContent = "Compte ajoute.";
+    renderAdministration();
+  });
+
+  renderAdministration();
+
+  function renderAdministration() {
+    const managedAccounts = getTeacherAccounts();
+    const countsByRole = roleCatalog.map((role) => ({
+      label: role.label,
+      count: managedAccounts.filter((account) => account.role === role.value).length
+    }));
+
+    accountsSummary.innerHTML = `
+      <article class="summary-card">
+        <h3>Admin principal</h3>
+        <p class="muted-copy">${adminAccount.username}</p>
+      </article>
+      <article class="summary-card">
+        <h3>Comptes actifs</h3>
+        <p class="muted-copy">${managedAccounts.length} compte(s)</p>
+      </article>
+      ${countsByRole.map((item) => `
+        <article class="summary-card">
+          <h3>${item.label}</h3>
+          <p class="muted-copy">${item.count} compte(s)</p>
+        </article>
+      `).join("")}
+    `;
+
+    teacherAccountsList.innerHTML = managedAccounts.length ? managedAccounts.map((account) => `
+      <article class="directory-row compact">
+        <div>
+          <strong>${account.username}</strong>
+          <p>${account.label}</p>
+        </div>
+        <div class="student-badges">
+          <button class="ghost-button teacher-edit" type="button" data-id="${account.id}">Modifier</button>
+          <button class="ghost-button teacher-delete" type="button" data-id="${account.id}">Supprimer</button>
+        </div>
+      </article>
+    `).join("") : `<article class="summary-card"><h3>Aucun compte</h3><p class="muted-copy">Ajoute un compte avec le formulaire ci-dessus.</p></article>`;
+
+    activityLogList.innerHTML = app.activityLog.length ? app.activityLog.slice(0, 30).map((entry) => `
+      <article class="directory-row compact">
+        <div>
+          <strong>${entry.action}</strong>
+          <p>${entry.actor} // ${formatRole(entry.role)} // ${formatLogTimestamp(entry.timestamp)}</p>
+          <p>${entry.target}${entry.detail ? ` // ${entry.detail}` : ""}</p>
+        </div>
+      </article>
+    `).join("") : `<article class="summary-card"><h3>Aucune activite</h3><p class="muted-copy">Le journal se remplira automatiquement des les premieres actions.</p></article>`;
+
+    teacherAccountsList.querySelectorAll(".teacher-edit").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const account = getAccountById(button.dataset.id);
+        if (!account) return;
+        const username = window.prompt("Nouvel identifiant du compte", account.username);
+        if (!username) return;
+        const password = window.prompt("Nouveau mot de passe du compte", account.password);
+        if (!password) return;
+        const role = window.prompt(`Nouveau role (${getTeacherRoleValues().join(", ")})`, account.role);
+        if (!role || !getTeacherRoleValues().includes(role.trim())) return;
+        updateAccount(account.id, {
+          username: username.trim(),
+          password: password.trim(),
+          role: role.trim(),
+          previousUsername: account.username
+        });
+        logAction("Compte modifie", username.trim(), `Role: ${getRoleLabel(role.trim())}`);
+        await persistCriticalAppData();
+        feedback.textContent = "Compte modifie.";
+        renderAdministration();
+      });
+    });
+
+    teacherAccountsList.querySelectorAll(".teacher-delete").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const removed = getAccountById(button.dataset.id);
+        if (!removed) return;
+        removeTeacherAccount(button.dataset.id);
+        logAction("Compte supprime", removed.username, removed.label);
+        await persistCriticalAppData();
+        feedback.textContent = "Compte supprime.";
+        renderAdministration();
+      });
+    });
   }
 }
 
@@ -1027,7 +1177,6 @@ function initAccountsPage() {
   const activityLogList = document.querySelector("#activity-log-list");
 
   teacherRole.innerHTML = roleCatalog
-    .filter((role) => role.value !== "admin")
     .map((role) => `<option value="${role.value}">${role.label}</option>`)
     .join("");
 
@@ -1035,7 +1184,7 @@ function initAccountsPage() {
   adminUsername.value = adminAccount.username;
   adminPassword.value = adminAccount.password;
 
-  adminForm.addEventListener("submit", (event) => {
+  adminForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (!adminUsername.value.trim() || !adminPassword.value.trim()) return;
     updateAccount("admin", adminUsername.value.trim(), adminPassword.value.trim());
@@ -1043,7 +1192,7 @@ function initAccountsPage() {
     renderTeachers();
   });
 
-  teacherForm.addEventListener("submit", (event) => {
+  teacherForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (!teacherUsername.value.trim() || !teacherPassword.value.trim()) return;
     addTeacherAccount(teacherUsername.value.trim(), teacherPassword.value.trim());
@@ -1303,6 +1452,156 @@ function initClassesPageFinal() {
         if (!window.confirm(`Supprimer l'élève "${student.name}" ?`)) return;
         deleteStudent(button.dataset.id);
         renderClassesPage();
+      });
+    });
+  }
+}
+
+function getTeacherRoleValues() {
+  return roleCatalog.map((role) => role.value);
+}
+
+function getTeacherAccounts() {
+  const primaryAdminId = getAccountByRole("admin")?.id;
+  return app.accounts.filter((account) => account.id !== primaryAdminId);
+}
+
+function removeTeacherAccount(accountId) {
+  const primaryAdminId = getAccountByRole("admin")?.id;
+  app.accounts = app.accounts.filter((account) => account.id === primaryAdminId || account.id !== accountId);
+  persistAppData();
+}
+
+function initAccountsPage() {
+  bindProtectedChrome();
+  const adminForm = document.querySelector("#admin-account-form");
+  const teacherForm = document.querySelector("#teacher-account-form");
+  const adminUsername = document.querySelector("#admin-username");
+  const adminPassword = document.querySelector("#admin-password");
+  const teacherUsername = document.querySelector("#teacher-username");
+  const teacherPassword = document.querySelector("#teacher-password");
+  const teacherRole = document.querySelector("#teacher-role");
+  const feedback = document.querySelector("#accounts-feedback");
+  const accountsSummary = document.querySelector("#accounts-summary");
+  const teacherAccountsList = document.querySelector("#teacher-accounts-list");
+  const activityLogList = document.querySelector("#activity-log-list");
+
+  teacherRole.innerHTML = roleCatalog
+    .map((role) => `<option value="${role.value}">${role.label}</option>`)
+    .join("");
+  teacherRole.value = "professeur";
+
+  const adminAccount = getAccountByRole("admin");
+  adminUsername.value = adminAccount.username;
+  adminPassword.value = adminAccount.password;
+
+  adminForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!adminUsername.value.trim() || !adminPassword.value.trim()) return;
+    updateAccount(adminAccount.id, {
+      username: adminUsername.value.trim(),
+      password: adminPassword.value.trim(),
+      previousUsername: adminAccount.username
+    });
+    logAction("Compte admin mis a jour", adminUsername.value.trim(), "Identifiant ou mot de passe modifie");
+    await persistCriticalAppData();
+    feedback.textContent = "Compte administrateur mis a jour.";
+    renderAdministration();
+  });
+
+  teacherForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!teacherUsername.value.trim() || !teacherPassword.value.trim()) return;
+    const account = addTeacherAccount(teacherUsername.value.trim(), teacherPassword.value.trim(), teacherRole.value);
+    logAction("Compte cree", account.username, `Role: ${getRoleLabel(account.role)}`);
+    await persistCriticalAppData();
+    teacherForm.reset();
+    teacherRole.value = "professeur";
+    feedback.textContent = "Compte ajoute.";
+    renderAdministration();
+  });
+
+  renderAdministration();
+
+  function renderAdministration() {
+    const managedAccounts = getTeacherAccounts();
+    const countsByRole = roleCatalog.map((role) => ({
+      label: role.label,
+      count: managedAccounts.filter((account) => account.role === role.value).length
+    }));
+
+    accountsSummary.innerHTML = `
+      <article class="summary-card">
+        <h3>Admin principal</h3>
+        <p class="muted-copy">${adminAccount.username}</p>
+      </article>
+      <article class="summary-card">
+        <h3>Comptes actifs</h3>
+        <p class="muted-copy">${managedAccounts.length} compte(s)</p>
+      </article>
+      ${countsByRole.map((item) => `
+        <article class="summary-card">
+          <h3>${item.label}</h3>
+          <p class="muted-copy">${item.count} compte(s)</p>
+        </article>
+      `).join("")}
+    `;
+
+    teacherAccountsList.innerHTML = managedAccounts.length ? managedAccounts.map((account) => `
+      <article class="directory-row compact">
+        <div>
+          <strong>${account.username}</strong>
+          <p>${account.label}</p>
+        </div>
+        <div class="student-badges">
+          <button class="ghost-button teacher-edit" type="button" data-id="${account.id}">Modifier</button>
+          <button class="ghost-button teacher-delete" type="button" data-id="${account.id}">Supprimer</button>
+        </div>
+      </article>
+    `).join("") : `<article class="summary-card"><h3>Aucun compte</h3><p class="muted-copy">Ajoute un compte avec le formulaire ci-dessus.</p></article>`;
+
+    activityLogList.innerHTML = app.activityLog.length ? app.activityLog.slice(0, 30).map((entry) => `
+      <article class="directory-row compact">
+        <div>
+          <strong>${entry.action}</strong>
+          <p>${entry.actor} // ${formatRole(entry.role)} // ${formatLogTimestamp(entry.timestamp)}</p>
+          <p>${entry.target}${entry.detail ? ` // ${entry.detail}` : ""}</p>
+        </div>
+      </article>
+    `).join("") : `<article class="summary-card"><h3>Aucune activite</h3><p class="muted-copy">Le journal se remplira automatiquement des les premieres actions.</p></article>`;
+
+    teacherAccountsList.querySelectorAll(".teacher-edit").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const account = getAccountById(button.dataset.id);
+        if (!account) return;
+        const username = window.prompt("Nouvel identifiant du compte", account.username);
+        if (!username) return;
+        const password = window.prompt("Nouveau mot de passe du compte", account.password);
+        if (!password) return;
+        const role = window.prompt(`Nouveau role (${getTeacherRoleValues().join(", ")})`, account.role);
+        if (!role || !getTeacherRoleValues().includes(role.trim())) return;
+        updateAccount(account.id, {
+          username: username.trim(),
+          password: password.trim(),
+          role: role.trim(),
+          previousUsername: account.username
+        });
+        logAction("Compte modifie", username.trim(), `Role: ${getRoleLabel(role.trim())}`);
+        await persistCriticalAppData();
+        feedback.textContent = "Compte modifie.";
+        renderAdministration();
+      });
+    });
+
+    teacherAccountsList.querySelectorAll(".teacher-delete").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const removed = getAccountById(button.dataset.id);
+        if (!removed) return;
+        removeTeacherAccount(button.dataset.id);
+        logAction("Compte supprime", removed.username, removed.label);
+        await persistCriticalAppData();
+        feedback.textContent = "Compte supprime.";
+        renderAdministration();
       });
     });
   }
@@ -5787,7 +6086,7 @@ function formatRole(role) {
 }
 
 function getTeacherRoleValues() {
-  return roleCatalog.filter((role) => role.value !== "admin").map((role) => role.value);
+  return roleCatalog.map((role) => role.value);
 }
 
 function hasPermission(permission) {
@@ -5825,7 +6124,8 @@ function formatLogTimestamp(value) {
 }
 
 function getTeacherAccounts() {
-  return app.accounts.filter((account) => account.role !== "admin");
+  const primaryAdminId = getAccountByRole("admin")?.id;
+  return app.accounts.filter((account) => account.id !== primaryAdminId);
 }
 
 function updateAccount(accountId, fields) {
@@ -5857,7 +6157,8 @@ function addTeacherAccount(username, password, role = "professeur") {
 }
 
 function removeTeacherAccount(accountId) {
-  app.accounts = app.accounts.filter((account) => !(account.role !== "admin" && account.id === accountId));
+  const primaryAdminId = getAccountByRole("admin")?.id;
+  app.accounts = app.accounts.filter((account) => account.id === primaryAdminId || account.id !== accountId);
   persistAppData();
 }
 
