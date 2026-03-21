@@ -47,6 +47,7 @@
           <div class="student-badges">
             <button id="candidate-use-default" class="ghost-button" type="button">Utiliser le modele officiel</button>
             <button id="candidate-export-pack" class="ghost-button" type="button">Exporter le dossier complet</button>
+            <button id="candidate-export-class-pdf" class="ghost-button" type="button">Exporter la vue classe</button>
             <button id="candidate-export-pdf" class="ghost-button" type="button">Exporter le recap PDF</button>
             <button id="candidate-export-grid" class="primary-button" type="button">Telecharger la grille completee</button>
           </div>
@@ -75,6 +76,15 @@
           <label class="field">
             <span>Etablissement</span>
             <input id="candidate-school" type="text" placeholder="Ex. Lycee ...">
+          </label>
+          <label class="field">
+            <span>Filtre statut</span>
+            <select id="candidate-status-filter">
+              <option value="all">Tous</option>
+              <option value="ready">Prets</option>
+              <option value="review">A verifier</option>
+              <option value="incomplete">Incomplets</option>
+            </select>
           </label>
           <label class="field wide-field">
             <span>Grille nationale (.xlsx)</span>

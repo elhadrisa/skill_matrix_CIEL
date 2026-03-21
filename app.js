@@ -8179,15 +8179,17 @@ function initCandidatePageFinal() {
   const fileInput = document.querySelector("#candidate-grid-file");
   const useDefaultButton = document.querySelector("#candidate-use-default");
   const exportPackButton = document.querySelector("#candidate-export-pack");
+  const exportClassPdfButton = document.querySelector("#candidate-export-class-pdf");
   const exportGridButton = document.querySelector("#candidate-export-grid");
   const exportPdfButton = document.querySelector("#candidate-export-pdf");
+  const statusFilter = document.querySelector("#candidate-status-filter");
   const feedback = document.querySelector("#candidate-feedback");
   const meta = document.querySelector("#candidate-meta");
   const overview = document.querySelector("#candidate-overview");
   const preview = document.querySelector("#candidate-exam-preview");
   const certificationOverview = document.querySelector("#candidate-cert-overview");
   const certificationStudents = document.querySelector("#candidate-cert-students");
-  if (!classSelect || !studentSelect || !candidateNumberInput || !dateInput || !academyInput || !schoolInput || !fileInput || !useDefaultButton || !exportPackButton || !exportGridButton || !exportPdfButton || !overview || !preview || !certificationOverview || !certificationStudents) return;
+  if (!classSelect || !studentSelect || !candidateNumberInput || !dateInput || !academyInput || !schoolInput || !fileInput || !useDefaultButton || !exportPackButton || !exportClassPdfButton || !exportGridButton || !exportPdfButton || !statusFilter || !overview || !preview || !certificationOverview || !certificationStudents) return;
 
   const EXAM_GRID_STORAGE_KEY = "ciel-exam-grid-settings";
   const EXAM_CENTER_SETTINGS_KEY = "ciel-exam-center-settings";
@@ -8372,12 +8374,25 @@ function initCandidatePageFinal() {
       </article>
     `).join("");
 
-    certificationStudents.innerHTML = students.map((student) => {
+    const filterValue = statusFilter.value || "all";
+    const filteredStudents = students.map((student) => {
       const previews = computeExamPreview(student);
       const ready = previews.filter((item) => item.status === "Pret").length;
       const hasIncomplete = previews.some((item) => item.status === "Incomplet");
       const status = ready === previews.length ? "Pret a envoyer" : (hasIncomplete ? "Incomplet" : "A verifier");
-      return `
+      return {
+        student,
+        previews,
+        status
+      };
+    }).filter((item) => {
+      if (filterValue === "ready") return item.status === "Pret a envoyer";
+      if (filterValue === "review") return item.status === "A verifier";
+      if (filterValue === "incomplete") return item.status === "Incomplet";
+      return true;
+    });
+
+    certificationStudents.innerHTML = filteredStudents.map(({ student, previews, status }) => `
         <article class="summary-card">
           <h3>${student.name}</h3>
           <p class="muted-copy">${classItem?.name || ""}</p>
@@ -8386,8 +8401,46 @@ function initCandidatePageFinal() {
             <span class="badge ${getExamStatusClass(status)}">${status}</span>
           </div>
         </article>
-      `;
-    }).join("");
+      `
+    ).join("");
+  }
+
+  function buildClassCertificationHtml(classId) {
+    const classItem = getClassById(classId);
+    const students = getStudentsByClass(classId);
+    const filterValue = statusFilter.value || "all";
+    const rows = students.map((student) => {
+      const previews = computeExamPreview(student);
+      const ready = previews.filter((item) => item.status === "Pret").length;
+      const hasIncomplete = previews.some((item) => item.status === "Incomplet");
+      const status = ready === previews.length ? "Pret a envoyer" : (hasIncomplete ? "Incomplet" : "A verifier");
+      return { student, previews, status };
+    }).filter((item) => {
+      if (filterValue === "ready") return item.status === "Pret a envoyer";
+      if (filterValue === "review") return item.status === "A verifier";
+      if (filterValue === "incomplete") return item.status === "Incomplet";
+      return true;
+    });
+    return buildPrintShell(
+      `Certification - ${classItem?.name || ""}`,
+      `${classItem?.name || ""} // filtre ${statusFilter.options[statusFilter.selectedIndex]?.text || "Tous"}`,
+      `
+        <table>
+          <thead><tr><th>Eleve</th><th>E2</th><th>E31</th><th>E32</th><th>Etat</th></tr></thead>
+          <tbody>
+            ${rows.map(({ student, previews, status }) => `
+              <tr>
+                <td>${escapeHtml(student.name)}</td>
+                <td>${previews.find((item) => item.exam === "E2")?.note.toFixed(1) || "0.0"}/20</td>
+                <td>${previews.find((item) => item.exam === "E31")?.note.toFixed(1) || "0.0"}/20</td>
+                <td>${previews.find((item) => item.exam === "E32")?.note.toFixed(1) || "0.0"}/20</td>
+                <td>${escapeHtml(status)}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      `
+    );
   }
 
   function buildCandidateRecapHtml(student) {
@@ -8496,6 +8549,9 @@ function initCandidatePageFinal() {
   refreshStudentOptions();
 
   classSelect.addEventListener("change", renderStudentsForClass);
+  statusFilter.addEventListener("change", () => {
+    renderCertificationSnapshot(classSelect.value || app.classes[0]?.id || "");
+  });
   studentSelect.addEventListener("change", () => {
     renderCandidateOverview(getStudentById(studentSelect.value) || null);
   });
@@ -8535,6 +8591,11 @@ function initCandidatePageFinal() {
     window.setTimeout(() => {
       exportPdfButton.click();
     }, 250);
+  });
+
+  exportClassPdfButton.addEventListener("click", () => {
+    const classId = classSelect.value || app.classes[0]?.id || "";
+    printHtmlDocument(`Certification ${getClassById(classId)?.name || ""}`, buildClassCertificationHtml(classId));
   });
 
   exportGridButton.addEventListener("click", async () => {
