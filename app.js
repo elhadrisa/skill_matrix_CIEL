@@ -10358,7 +10358,7 @@ function initCertificationPageFinal() {
     if (!items.length) {
       return `<article class="summary-card"><h3>Aucun parcours</h3><p class="muted-copy">Le parcours 3 ans apparaitra ici des que plusieurs annees existeront pour cet eleve.</p></article>`;
     }
-    return items.map((item) => {
+    return `<div class="journey-rail">${items.map((item, index) => {
       const classItem = getClassById(item.classId);
       const progress = getStudentProgress(item);
       const activities = getActivitiesByClass(item.classId).filter((activity) => getActivityStudentAverage(item.id, activity.id) !== null);
@@ -10367,7 +10367,11 @@ function initCertificationPageFinal() {
       const evidenceCount = getStudentEvidenceEntriesSafe(item.id).length;
       const exam = getClassLevelOrder(item.classId) === 3 ? computeOverallExamSafe(item) : null;
       return `
-        <article class="journey-stage">
+        <article class="journey-stage journey-stage-level-${getClassLevelOrder(item.classId)}">
+          <div class="journey-node">
+            <span class="journey-dot">${index + 1}</span>
+            <span class="journey-bar"></span>
+          </div>
           <div class="journey-stage-head">
             <div>
               <h3>${escapeHtml(getJourneyLabelSafe(item))}</h3>
@@ -10403,7 +10407,7 @@ function initCertificationPageFinal() {
           </div>
         </article>
       `;
-    }).join("");
+    }).join("")}</div>`;
   }
 
   function ensureJourneyPanelSafe() {
@@ -10656,8 +10660,25 @@ function initCertificationPageFinal() {
       overview.closest(".panel")?.insertAdjacentElement("afterend", panel);
     }
     const target = document.querySelector("#candidate-final-content");
+    let promoPanel = document.querySelector("#candidate-promo-panel");
+    if (!promoPanel) {
+      promoPanel = document.createElement("section");
+      promoPanel.id = "candidate-promo-panel";
+      promoPanel.className = "panel";
+      promoPanel.innerHTML = `
+        <div class="hero-side-head">
+          <div>
+            <h2>Checklist d'envoi par promo</h2>
+            <p class="results-count">Vision industrielle de la classe avant envoi Maison des examens.</p>
+          </div>
+        </div>
+        <div id="candidate-promo-content" class="class-cards"></div>
+      `;
+      panel.insertAdjacentElement("afterend", promoPanel);
+    }
+    const promoTarget = document.querySelector("#candidate-promo-content");
     const student = getStudentById(studentSelect.value);
-    if (!target || !student) return;
+    if (!target || !promoTarget || !student) return;
 
     const exam = computeOverallExamSafe(student);
     const evidenceCount = getStudentEvidenceEntriesSafe(student.id).length;
@@ -10675,6 +10696,9 @@ function initCertificationPageFinal() {
     const classDispatch = classStudents.map((item) => getStudentDispatchState(item.id));
     const finalizedCount = classDispatch.filter((item) => item.finalized).length;
     const sentCount = classDispatch.filter((item) => item.sent).length;
+    const readyStudents = classStudents.map((item) => ({ student: item, exam: computeOverallExamSafe(item), dispatch: getStudentDispatchState(item.id) }));
+    const incompleteCount = readyStudents.filter((item) => item.exam.label === "Incomplet").length;
+    const readyToFinalizeCount = readyStudents.filter((item) => item.exam.label !== "Incomplet").length;
 
     target.innerHTML = `
       <article class="summary-card">
@@ -10716,6 +10740,75 @@ function initCertificationPageFinal() {
       const current = getStudentDispatchState(student.id);
       setStudentDispatchState(student.id, { sent: !current.sent, finalized: current.finalized || readyToFinalize });
       renderExamFinalizationSafe();
+    });
+
+    promoTarget.innerHTML = `
+      <article class="summary-card">
+        <h3>Etat de la promo</h3>
+        <div class="pfmp-kpis">
+          <span class="badge">${readyToFinalizeCount}/${classStudents.length} sans blocage</span>
+          <span class="badge">${finalizedCount}/${classStudents.length} finalises</span>
+          <span class="badge">${sentCount}/${classStudents.length} envoyes</span>
+          <span class="badge ${incompleteCount ? "badge-danger" : "badge-ready"}">${incompleteCount} incomplet(s)</span>
+        </div>
+        <div class="student-badges archive-action-row">
+          <button class="ghost-button" type="button" id="candidate-export-promo-checklist">Exporter la checklist promo</button>
+          <button class="ghost-button" type="button" id="candidate-export-promo-batch">Lancer l'export groupe</button>
+        </div>
+      </article>
+      <article class="summary-card">
+        <h3>Suivi candidats</h3>
+        <div class="student-directory">
+          ${readyStudents.map((item) => `
+            <article class="directory-row compact">
+              <div>
+                <strong>${escapeHtml(item.student.name)}</strong>
+                <p>${item.exam.label} // ${item.exam.note.toFixed(1)}/20</p>
+              </div>
+              <div class="student-badges">
+                <span class="badge ${getExamStatusClassSafe(item.exam.label)}">${item.exam.label}</span>
+                <span class="badge ${item.dispatch.finalized ? "badge-ready" : "badge-warning"}">${item.dispatch.finalized ? "Finalise" : "Brouillon"}</span>
+                <span class="badge ${item.dispatch.sent ? "badge-ready" : "badge-warning"}">${item.dispatch.sent ? "Envoye" : "Non envoye"}</span>
+              </div>
+            </article>
+          `).join("")}
+        </div>
+      </article>
+    `;
+
+    document.querySelector("#candidate-export-promo-checklist")?.addEventListener("click", () => {
+      const classItem = getClassById(classSelect.value || student.classId);
+      const html = buildPrintShell(
+        `Checklist promo - ${classItem?.name || ""}`,
+        `${classItem?.name || ""} // ${new Date().toLocaleDateString("fr-FR")}`,
+        `
+          <div class="card">
+            <p><strong>Classe :</strong> ${escapeHtml(classItem?.name || "-")}</p>
+            <p><strong>Finalises :</strong> ${finalizedCount}/${classStudents.length}</p>
+            <p><strong>Envoyes :</strong> ${sentCount}/${classStudents.length}</p>
+            <p><strong>Incomplets :</strong> ${incompleteCount}</p>
+          </div>
+          <table>
+            <thead><tr><th>Eleve</th><th>Etat examen</th><th>Finalisation</th><th>Envoi</th><th>Note estimee</th></tr></thead>
+            <tbody>
+              ${readyStudents.map((item) => `
+                <tr>
+                  <td>${escapeHtml(item.student.name)}</td>
+                  <td>${escapeHtml(item.exam.label)}</td>
+                  <td>${item.dispatch.finalized ? "Finalise" : "Brouillon"}</td>
+                  <td>${item.dispatch.sent ? "Envoye" : "Non envoye"}</td>
+                  <td>${item.exam.note.toFixed(1)}/20</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        `
+      );
+      printHtmlDocument(`Checklist promo ${classItem?.name || ""}`, html);
+    });
+
+    document.querySelector("#candidate-export-promo-batch")?.addEventListener("click", () => {
+      document.querySelector("#candidate-export-class-pack")?.click();
     });
   }
 

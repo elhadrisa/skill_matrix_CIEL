@@ -697,11 +697,18 @@ body:not([data-page="home"]) .nav-tabs {
   gap: 16px;
 }
 
+.journey-rail {
+  display: grid;
+  gap: 18px;
+}
+
 .journey-stage {
+  position: relative;
   padding: 20px;
   border-radius: 22px;
   border: 1px solid var(--line);
   background: rgba(6, 17, 27, 0.62);
+  padding-left: 88px;
 }
 
 .journey-stage-head {
@@ -711,6 +718,57 @@ body:not([data-page="home"]) .nav-tabs {
   gap: 14px;
   flex-wrap: wrap;
   margin-bottom: 14px;
+}
+
+.journey-node {
+  position: absolute;
+  left: 24px;
+  top: 18px;
+  bottom: 18px;
+  width: 42px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.journey-dot {
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Orbitron", sans-serif;
+  color: var(--text);
+  border: 1px solid rgba(98,245,212,0.28);
+  background: linear-gradient(180deg, rgba(14, 32, 48, 0.96), rgba(7, 19, 29, 0.96));
+  box-shadow: 0 0 18px rgba(98,245,212,0.12);
+}
+
+.journey-bar {
+  flex: 1;
+  width: 2px;
+  margin-top: 8px;
+  background: linear-gradient(180deg, rgba(98,245,212,0.26), rgba(89,198,255,0.04));
+}
+
+.journey-stage:last-child .journey-bar {
+  opacity: 0;
+}
+
+.journey-stage-level-1 .journey-dot {
+  border-color: rgba(89,198,255,0.28);
+  box-shadow: 0 0 18px rgba(89,198,255,0.14);
+}
+
+.journey-stage-level-2 .journey-dot {
+  border-color: rgba(255,190,105,0.28);
+  box-shadow: 0 0 18px rgba(255,190,105,0.14);
+}
+
+.journey-stage-level-3 .journey-dot {
+  border-color: rgba(152,245,166,0.28);
+  box-shadow: 0 0 18px rgba(152,245,166,0.14);
 }
 
 .journey-stage-grid,
@@ -771,6 +829,19 @@ body:not([data-page="home"]) .nav-tabs {
     width: 122px;
     top: 16px;
     right: 16px;
+  }
+  .journey-stage {
+    padding-left: 20px;
+  }
+  .journey-node {
+    position: static;
+    width: auto;
+    flex-direction: row;
+    justify-content: flex-start;
+    margin-bottom: 12px;
+  }
+  .journey-bar {
+    display: none;
   }
   .journey-stage-grid,
   .archive-detail-grid {
