@@ -316,6 +316,21 @@ body:not([data-page="home"]) .nav-tabs {
   border-color: var(--line-strong);
   box-shadow: inset 0 0 0 1px rgba(98,245,212,0.08), 0 0 18px rgba(98,245,212,0.1);
 }
+.badge-ready {
+  color: #79ffbf;
+  border-color: rgba(121,255,191,0.4);
+  box-shadow: inset 0 0 0 1px rgba(121,255,191,0.08), 0 0 16px rgba(121,255,191,0.12);
+}
+.badge-warning {
+  color: #ffe17a;
+  border-color: rgba(255,225,122,0.38);
+  box-shadow: inset 0 0 0 1px rgba(255,225,122,0.08), 0 0 16px rgba(255,225,122,0.12);
+}
+.badge-danger {
+  color: #ff8f8f;
+  border-color: rgba(255,143,143,0.38);
+  box-shadow: inset 0 0 0 1px rgba(255,143,143,0.08), 0 0 16px rgba(255,143,143,0.12);
+}
 .is-disabled { opacity: 0.5; pointer-events: none; }
 
 .hero-side-head, .section-head {

@@ -157,7 +157,7 @@ const PFMP_PERIODS = [
 ];
 
 const page = document.body.dataset.page;
-const PROTECTED_PAGES = new Set(["dashboard", "classes", "evaluations", "pfmp", "pfmp_livret", "accounts", "bulletin", "candidate", "remediation_pfmp", "remediation_competences", "coverage", "mapping", "library"]);
+const PROTECTED_PAGES = new Set(["dashboard", "classes", "evaluations", "pfmp", "pfmp_livret", "accounts", "bulletin", "candidate", "certification", "remediation_pfmp", "remediation_competences", "coverage", "mapping", "library"]);
 const ADMIN_ONLY_PAGES = new Set(["accounts"]);
 const app = createEmptyApp();
 let persistTimeout = null;
@@ -220,6 +220,7 @@ async function initializeApp() {
       if (page === "mapping") initMappingPageFinal();
       if (page === "library") initLibraryPageFinal();
       if (page === "candidate") initCandidatePageFinal();
+      if (page === "certification") initCertificationPageFinal();
       if (page === "remediation_pfmp" || page === "remediation_competences") initRemediationPageFinal();
       return;
     }
@@ -249,6 +250,7 @@ async function initializeApp() {
     if (page === "mapping") initMappingPageFinal();
     if (page === "library") initLibraryPageFinal();
     if (page === "candidate") initCandidatePageFinal();
+    if (page === "certification") initCertificationPageFinal();
     if (page === "remediation_pfmp" || page === "remediation_competences") initRemediationPageFinal();
 }
 }
@@ -6127,6 +6129,7 @@ function bindProtectedChrome() {
     upsertEvaluationsDropdown(nav);
     upsertPfmpDropdown(nav);
     upsertNavLink(nav, "candidate.html", "Candidat", page === "candidate");
+    upsertNavLink(nav, "certification.html", "Certification", page === "certification");
     upsertStaticDropdown(nav, "Referentiel", [
       { href: "coverage.html", label: "Couverture" },
       { href: "mapping.html", label: "Cartographie" },
@@ -8166,13 +8169,14 @@ function initCandidatePageFinal() {
   const schoolInput = document.querySelector("#candidate-school");
   const fileInput = document.querySelector("#candidate-grid-file");
   const useDefaultButton = document.querySelector("#candidate-use-default");
+  const exportPackButton = document.querySelector("#candidate-export-pack");
   const exportGridButton = document.querySelector("#candidate-export-grid");
   const exportPdfButton = document.querySelector("#candidate-export-pdf");
   const feedback = document.querySelector("#candidate-feedback");
   const meta = document.querySelector("#candidate-meta");
   const overview = document.querySelector("#candidate-overview");
   const preview = document.querySelector("#candidate-exam-preview");
-  if (!classSelect || !studentSelect || !candidateNumberInput || !dateInput || !academyInput || !schoolInput || !fileInput || !useDefaultButton || !exportGridButton || !exportPdfButton || !overview || !preview) return;
+  if (!classSelect || !studentSelect || !candidateNumberInput || !dateInput || !academyInput || !schoolInput || !fileInput || !useDefaultButton || !exportPackButton || !exportGridButton || !exportPdfButton || !overview || !preview) return;
 
   const EXAM_GRID_STORAGE_KEY = "ciel-exam-grid-settings";
   const EXAM_CENTER_SETTINGS_KEY = "ciel-exam-center-settings";
@@ -8276,6 +8280,12 @@ function initCandidatePageFinal() {
     return { label, note, ready, progress };
   }
 
+  function getExamStatusClass(label) {
+    if (label === "Pret" || label === "Pret a envoyer") return "badge-ready";
+    if (label === "Incomplet") return "badge-danger";
+    return "badge-warning";
+  }
+
   function renderCandidateOverview(student) {
     if (!student) {
       overview.innerHTML = "";
@@ -8294,7 +8304,7 @@ function initCandidatePageFinal() {
         <div class="pfmp-kpis">
           <span class="badge">${overall.progress}%</span>
           <span class="badge">${overall.note.toFixed(1)}/20</span>
-          <span class="badge">${overall.label}</span>
+          <span class="badge ${getExamStatusClass(overall.label)}">${overall.label}</span>
         </div>
         <div class="directory-row compact">
           <div>
@@ -8313,7 +8323,7 @@ function initCandidatePageFinal() {
         <div class="pfmp-kpis">
           <span class="badge">${item.average}%</span>
           <span class="badge">${item.note.toFixed(1)}/20</span>
-          <span class="badge">${item.status}</span>
+          <span class="badge ${getExamStatusClass(item.status)}">${item.status}</span>
         </div>
         <div class="directory-row compact">
           <div>${item.lines.map((line) => `<p><strong>${line.code}</strong> ${line.title} // ${line.label}</p>`).join("")}</div>
@@ -8461,6 +8471,13 @@ function initCandidatePageFinal() {
     printHtmlDocument(`Dossier candidat ${student.name}`, buildCandidateRecapHtml(student));
   });
 
+  exportPackButton.addEventListener("click", () => {
+    exportGridButton.click();
+    window.setTimeout(() => {
+      exportPdfButton.click();
+    }, 250);
+  });
+
   exportGridButton.addEventListener("click", async () => {
     const student = getStudentById(studentSelect.value);
     const file = fileInput.files?.[0];
@@ -8491,6 +8508,106 @@ function initCandidatePageFinal() {
       feedback.textContent = "Impossible de générer la grille officielle pour ce candidat.";
     }
   });
+}
+
+function initCertificationPageFinal() {
+  bindProtectedChrome();
+
+  const classSelect = document.querySelector("#certification-class-select");
+  const meta = document.querySelector("#certification-meta");
+  const overview = document.querySelector("#certification-overview");
+  const studentsTarget = document.querySelector("#certification-students");
+  if (!classSelect || !meta || !overview || !studentsTarget) return;
+
+  const EXAM_GROUPS = [
+    { exam: "E2", skillIds: ["c3", "c7", "c11"] },
+    { exam: "E31", skillIds: ["c6", "c9", "c10"] },
+    { exam: "E32", skillIds: ["c1", "c4", "c8"] }
+  ];
+
+  function getExamStatusClass(label) {
+    if (label === "Pret" || label === "Pret a envoyer") return "badge-ready";
+    if (label === "Incomplet") return "badge-danger";
+    return "badge-warning";
+  }
+
+  function computeStudentExamPreview(student) {
+    return EXAM_GROUPS.map((item) => {
+      const lines = item.skillIds.map((skillId) => {
+        const status = student?.skills?.[skillId] || "non_evalue";
+        return { status };
+      });
+      const score = lines.reduce((sum, line) => sum + (levelScores[line.status] || 0), 0) / (lines.length || 1);
+      const note = Math.round(score * 20 * 10) / 10;
+      const ready = lines.every((line) => ["partiellement_acquis", "acquis"].includes(line.status));
+      const incomplete = lines.some((line) => ["absent", "non_evalue", "non_acquis"].includes(line.status));
+      return {
+        exam: item.exam,
+        note,
+        status: ready ? "Pret" : (incomplete ? "Incomplet" : "A verifier")
+      };
+    });
+  }
+
+  function renderCertification() {
+    const requestedClassId = getRequestedClassId();
+    const classes = [...app.classes].sort((a, b) => getClassNavLabel(a).localeCompare(getClassNavLabel(b), "fr"));
+    classSelect.innerHTML = classes.map((classItem) => `<option value="${classItem.id}">${classItem.name}</option>`).join("");
+    classSelect.value = classes.some((item) => item.id === classSelect.value) ? classSelect.value : (classes.some((item) => item.id === requestedClassId) ? requestedClassId : (classes[0]?.id || ""));
+
+    const classItem = getClassById(classSelect.value);
+    const students = getStudentsByClass(classSelect.value);
+    meta.textContent = `${classItem?.name || ""} // ${students.length} eleve(s)`;
+
+    const examStats = EXAM_GROUPS.map((group) => {
+      const previews = students.map((student) => computeStudentExamPreview(student).find((item) => item.exam === group.exam)).filter(Boolean);
+      const average = previews.length ? Math.round(previews.reduce((sum, item) => sum + item.note, 0) / previews.length * 10) / 10 : 0;
+      const ready = previews.filter((item) => item.status === "Pret").length;
+      const incomplete = previews.filter((item) => item.status === "Incomplet").length;
+      return {
+        exam: group.exam,
+        average,
+        ready,
+        incomplete,
+        status: ready === previews.length && previews.length ? "Pret a envoyer" : (incomplete ? "Incomplet" : "A verifier")
+      };
+    });
+
+    overview.innerHTML = examStats.map((item) => `
+      <article class="summary-card">
+        <h3>${item.exam}</h3>
+        <p class="muted-copy">${item.ready}/${students.length} dossier(s) prets</p>
+        <div class="pfmp-kpis">
+          <span class="badge">${item.average.toFixed(1)}/20</span>
+          <span class="badge">${item.incomplete} incomplet(s)</span>
+          <span class="badge ${getExamStatusClass(item.status)}">${item.status}</span>
+        </div>
+      </article>
+    `).join("");
+
+    studentsTarget.innerHTML = students.map((student) => {
+      const previews = computeStudentExamPreview(student);
+      const ready = previews.filter((item) => item.status === "Pret").length;
+      const hasIncomplete = previews.some((item) => item.status === "Incomplet");
+      const status = ready === previews.length ? "Pret a envoyer" : (hasIncomplete ? "Incomplet" : "A verifier");
+      return `
+        <article class="summary-card">
+          <h3>${student.name}</h3>
+          <p class="muted-copy">${classItem?.name || ""}</p>
+          <div class="pfmp-kpis">
+            ${previews.map((item) => `<span class="badge ${getExamStatusClass(item.status)}">${item.exam} ${item.note.toFixed(1)}/20</span>`).join("")}
+            <span class="badge ${getExamStatusClass(status)}">${status}</span>
+          </div>
+          <div class="directory-row compact">
+            <div><p><strong>Acces direct</strong> <a href="candidate.html?class=${encodeURIComponent(classItem?.id || "")}">Dossier candidat</a></p></div>
+          </div>
+        </article>
+      `;
+    }).join("");
+  }
+
+  renderCertification();
+  classSelect.addEventListener("change", renderCertification);
 }
 
 ;(function () {

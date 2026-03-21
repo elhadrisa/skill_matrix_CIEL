@@ -23,9 +23,9 @@
         <a class="nav-tab" href="dashboard.html">Dashboard</a>
         <a class="nav-tab" href="evaluations.html">Evaluations</a>
         <a class="nav-tab" href="pfmp.html">PFMP</a>
-        <a class="nav-tab" href="candidate.html">Candidat</a>
+        <a class="nav-tab active" href="candidate.html">Candidat</a>
         <span id="session-role" class="badge accent"></span>
-        <button id="logout-button" class="ghost-button" type="button">Déconnexion</button>
+        <button id="logout-button" class="ghost-button" type="button">Deconnexion</button>
       </nav>
       <a class="topbar-brandmark" href="index.html" aria-label="CIEL Matrix"><img src="ciel-matrix-logo.svg" alt="CIEL Matrix"></a>
     </header>
@@ -33,21 +33,22 @@
     <section class="hero panel">
       <div class="hero-copy">
         <p class="eyebrow">Maison des examens</p>
-        <h2 class="hero-title">Prépare le dossier officiel du candidat</h2>
+        <h2 class="hero-title">Prepare le dossier officiel du candidat</h2>
         <p class="hero-text">
-          Sélectionne un élève, contrôle l'état des épreuves E2 / E31 / E32, puis exporte la grille nationale complétée et le récapitulatif PDF.
+          Selectionne un eleve, controle l'etat des epreuves E2 / E31 / E32, puis exporte la grille nationale completee et le recapitulatif PDF.
         </p>
       </div>
       <section class="hero-side">
         <div class="hero-side-head">
           <div>
-            <h2>Paramètres candidat</h2>
+            <h2>Parametres candidat</h2>
             <p id="candidate-meta" class="results-count"></p>
           </div>
           <div class="student-badges">
-            <button id="candidate-use-default" class="ghost-button" type="button">Utiliser le modèle officiel</button>
-            <button id="candidate-export-pdf" class="ghost-button" type="button">Exporter le récap PDF</button>
-            <button id="candidate-export-grid" class="primary-button" type="button">Télécharger la grille complétée</button>
+            <button id="candidate-use-default" class="ghost-button" type="button">Utiliser le modele officiel</button>
+            <button id="candidate-export-pack" class="ghost-button" type="button">Exporter le dossier complet</button>
+            <button id="candidate-export-pdf" class="ghost-button" type="button">Exporter le recap PDF</button>
+            <button id="candidate-export-grid" class="primary-button" type="button">Telecharger la grille completee</button>
           </div>
         </div>
         <div class="mini-grid">
@@ -56,11 +57,11 @@
             <select id="candidate-class-select"></select>
           </label>
           <label class="field">
-            <span>Élève</span>
+            <span>Eleve</span>
             <select id="candidate-student-select"></select>
           </label>
           <label class="field">
-            <span>Numéro candidat</span>
+            <span>Numero candidat</span>
             <input id="candidate-number" type="text" placeholder="Ex. 2457812A">
           </label>
           <label class="field">
@@ -68,12 +69,12 @@
             <input id="candidate-date" type="date">
           </label>
           <label class="field">
-            <span>Académie</span>
-            <input id="candidate-academy" type="text" placeholder="Ex. Créteil">
+            <span>Academie</span>
+            <input id="candidate-academy" type="text" placeholder="Ex. Creteil">
           </label>
           <label class="field">
-            <span>Établissement</span>
-            <input id="candidate-school" type="text" placeholder="Ex. Lycée ...">
+            <span>Etablissement</span>
+            <input id="candidate-school" type="text" placeholder="Ex. Lycee ...">
           </label>
           <label class="field wide-field">
             <span>Grille nationale (.xlsx)</span>
@@ -88,8 +89,8 @@
       <section class="panel">
         <div class="hero-side-head">
           <div>
-            <h2>État global du dossier</h2>
-            <p class="results-count">Vision synthétique du candidat avant envoi à la Maison des examens.</p>
+            <h2>Etat global du dossier</h2>
+            <p class="results-count">Vision synthetique du candidat avant envoi a la Maison des examens.</p>
           </div>
         </div>
         <div id="candidate-overview" class="class-cards"></div>
@@ -98,8 +99,8 @@
       <section class="panel">
         <div class="hero-side-head">
           <div>
-            <h2>Détail des épreuves</h2>
-            <p class="results-count">Compétences mobilisées, niveau actuel, note estimative et statut.</p>
+            <h2>Detail des epreuves</h2>
+            <p class="results-count">Competences mobilisees, niveau actuel, note estimative et statut.</p>
           </div>
         </div>
         <div id="candidate-exam-preview" class="class-cards"></div>
