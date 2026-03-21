@@ -95,6 +95,8 @@ const defaultAccounts = [
   { id: "teacher-account-1", username: "prof", password: "prof123", role: "professeur", label: "Professeur" }
 ];
 const defaultActivityLog = [];
+const defaultEvidencePortfolio = [];
+const defaultArchives = [];
 const roleCatalog = [
   { value: "admin", label: "Administrateur" },
   { value: "prof_principal", label: "Prof principal" },
@@ -165,7 +167,7 @@ let persistTimeout = null;
 initializeApp();
 
 function createEmptyApp() {
-  return hydrateAppData({ classes: defaultClasses, students: defaultStudents, pfmpRecords: defaultPfmpRecords, pfmpBooklets: defaultPfmpBooklets, evaluationActivities: defaultEvaluationActivities, indicatorBank: defaultIndicatorBank, lessonLibrary: defaultLessonLibrary, accounts: defaultAccounts, activityLog: defaultActivityLog });
+  return hydrateAppData({ classes: defaultClasses, students: defaultStudents, pfmpRecords: defaultPfmpRecords, pfmpBooklets: defaultPfmpBooklets, evaluationActivities: defaultEvaluationActivities, indicatorBank: defaultIndicatorBank, lessonLibrary: defaultLessonLibrary, accounts: defaultAccounts, activityLog: defaultActivityLog, evidencePortfolio: defaultEvidencePortfolio, archives: defaultArchives });
 }
 
 async function initializeApp() {
@@ -501,7 +503,32 @@ function hydrateAppData(data) {
   const lessonLibrary = hydrateLessonLibrary(data.lessonLibrary || defaultLessonLibrary);
   const accounts = hydrateAccounts(data.accounts || defaultAccounts);
   const activityLog = hydrateActivityLog(data.activityLog || defaultActivityLog);
-  return { classes, students, pfmpRecords, pfmpBooklets, evaluationActivities, indicatorBank, lessonLibrary, accounts, activityLog };
+  const evidencePortfolio = (data.evidencePortfolio || defaultEvidencePortfolio).map((entry, index) => ({
+    id: entry.id || `evidence-${index + 1}`,
+    studentId: entry.studentId || "",
+    classId: entry.classId || "",
+    skillId: entry.skillId || "",
+    type: entry.type || "production",
+    title: entry.title || `Preuve ${index + 1}`,
+    url: entry.url || "",
+    note: entry.note || "",
+    date: entry.date || new Date().toISOString().slice(0, 10),
+    createdAt: entry.createdAt || new Date().toISOString()
+  }));
+  const archives = (data.archives || defaultArchives).map((entry, index) => ({
+    id: entry.id || `archive-${index + 1}`,
+    label: entry.label || `Archive ${index + 1}`,
+    sessionYear: entry.sessionYear || "",
+    archivedAt: entry.archivedAt || new Date().toISOString(),
+    summary: entry.summary || "",
+    classes: Array.isArray(entry.classes) ? entry.classes : [],
+    students: Array.isArray(entry.students) ? entry.students : [],
+    evaluationActivities: Array.isArray(entry.evaluationActivities) ? entry.evaluationActivities : [],
+    evidencePortfolio: Array.isArray(entry.evidencePortfolio) ? entry.evidencePortfolio : [],
+    pfmpRecords: entry.pfmpRecords || {},
+    pfmpBooklets: entry.pfmpBooklets || {}
+  }));
+  return { classes, students, pfmpRecords, pfmpBooklets, evaluationActivities, indicatorBank, lessonLibrary, accounts, activityLog, evidencePortfolio, archives };
 }
 
 function hydrateAccounts(accounts) {
@@ -8164,6 +8191,266 @@ function initAccountsPage() {
         });
       }
     }, 0);
+  };
+})();
+
+;(function () {
+  function getEvidenceEntriesForStudent(studentId) {
+    return (app.evidencePortfolio || [])
+      .filter((entry) => entry.studentId === studentId)
+      .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+  }
+
+  function renderEvidenceList(target, student) {
+    if (!target) return;
+    if (!student) {
+      target.innerHTML = "";
+      return;
+    }
+    const entries = getEvidenceEntriesForStudent(student.id);
+    if (!entries.length) {
+      target.innerHTML = `<article class="directory-row"><div><strong>Aucune preuve enregistrée</strong><p>Ajoute une première preuve pour alimenter le portefeuille de compétences de cet élève.</p></div></article>`;
+      return;
+    }
+    target.innerHTML = entries.map((entry) => {
+      const skill = getSkillById(entry.skillId);
+      return `
+        <article class="directory-row">
+          <div>
+            <strong>${escapeHtml(entry.title)}</strong>
+            <p>${escapeHtml(skill?.code || entry.skillId || "-")} // ${escapeHtml(skill?.title || "Compétence")} // ${escapeHtml(entry.type)}</p>
+            <p>${escapeHtml(entry.date || "-")} // ${escapeHtml(entry.note || "Sans commentaire")}</p>
+            ${entry.url ? `<p><a href="${escapeHtml(entry.url)}" target="_blank" rel="noreferrer">Ouvrir la preuve</a></p>` : ""}
+          </div>
+          <div class="student-badges">
+            <button class="ghost-button evidence-delete-button" type="button" data-id="${entry.id}">Supprimer</button>
+          </div>
+        </article>
+      `;
+    }).join("");
+    target.querySelectorAll(".evidence-delete-button").forEach((button) => {
+      button.addEventListener("click", () => {
+        app.evidencePortfolio = (app.evidencePortfolio || []).filter((entry) => entry.id !== button.dataset.id);
+        persistAppData();
+        renderEvidenceList(target, student);
+      });
+    });
+  }
+
+  const originalInitEvaluationsPageFinalEvidence = initEvaluationsPageFinal;
+  initEvaluationsPageFinal = function () {
+    originalInitEvaluationsPageFinalEvidence();
+    window.setTimeout(() => {
+      if (document.body?.dataset?.page !== "evaluations") return;
+      const classSelect = document.querySelector("#eval-class-select");
+      const studentSelect = document.querySelector("#eval-student-select");
+      const skillSelect = document.querySelector("#evidence-skill-select");
+      const typeSelect = document.querySelector("#evidence-type-select");
+      const titleInput = document.querySelector("#evidence-title-input");
+      const urlInput = document.querySelector("#evidence-url-input");
+      const dateInput = document.querySelector("#evidence-date-input");
+      const noteInput = document.querySelector("#evidence-note-input");
+      const addButton = document.querySelector("#evidence-add-button");
+      const feedback = document.querySelector("#evidence-feedback");
+      const list = document.querySelector("#evidence-list");
+      if (!classSelect || !studentSelect || !skillSelect || !typeSelect || !titleInput || !urlInput || !dateInput || !noteInput || !addButton || !list) return;
+
+      skillSelect.innerHTML = skillCatalog.map((skill) => `<option value="${skill.id}">${skill.code} // ${skill.title}</option>`).join("");
+      if (!dateInput.value) dateInput.value = new Date().toISOString().slice(0, 10);
+
+      const refreshEvidence = () => {
+        const classId = classSelect.value || app.classes[0]?.id || "";
+        const student = getStudentById(studentSelect.value) || getStudentsByClass(classId)[0] || null;
+        renderEvidenceList(list, student);
+      };
+
+      if (!addButton.dataset.evidenceBound) {
+        addButton.dataset.evidenceBound = "true";
+        addButton.addEventListener("click", () => {
+          const classId = classSelect.value || app.classes[0]?.id || "";
+          const student = getStudentById(studentSelect.value) || getStudentsByClass(classId)[0] || null;
+          if (!student) {
+            feedback.textContent = "Aucun élève sélectionné.";
+            return;
+          }
+          if (!titleInput.value.trim() || !skillSelect.value) {
+            feedback.textContent = "Renseigne un titre et une compétence.";
+            return;
+          }
+          app.evidencePortfolio = app.evidencePortfolio || [];
+          app.evidencePortfolio.push({
+            id: slugify(`evidence-${student.id}-${Date.now()}`),
+            studentId: student.id,
+            classId: student.classId,
+            skillId: skillSelect.value,
+            type: typeSelect.value,
+            title: titleInput.value.trim(),
+            url: urlInput.value.trim(),
+            note: noteInput.value.trim(),
+            date: dateInput.value || new Date().toISOString().slice(0, 10),
+            createdAt: new Date().toISOString()
+          });
+          logAction("Preuve ajoutée", student.name, titleInput.value.trim());
+          persistAppData();
+          titleInput.value = "";
+          urlInput.value = "";
+          noteInput.value = "";
+          feedback.textContent = "Preuve ajoutée au portefeuille.";
+          refreshEvidence();
+        });
+      }
+
+      if (!classSelect.dataset.evidenceBound) {
+        classSelect.dataset.evidenceBound = "true";
+        classSelect.addEventListener("change", refreshEvidence);
+      }
+      if (!studentSelect.dataset.evidenceBound) {
+        studentSelect.dataset.evidenceBound = "true";
+        studentSelect.addEventListener("change", refreshEvidence);
+      }
+
+      refreshEvidence();
+    }, 0);
+  };
+
+  function getNextSchoolYear(yearLabel) {
+    const match = String(yearLabel || "").match(/(\d{4})\D+(\d{4})/);
+    if (!match) return "";
+    return `${Number(match[1]) + 1}-${Number(match[2]) + 1}`;
+  }
+
+  function promoteClassName(name, levelOrder) {
+    const current = String(name || "");
+    if (levelOrder === 1) return current.replace(/2nde|Seconde|2CIEL/i, "Première CIEL");
+    if (levelOrder === 2) return current.replace(/Première|1ère|1CIEL/i, "Terminale CIEL");
+    return current;
+  }
+
+  function archiveSchoolSession(sessionYear, nextYear, note) {
+    const classesInSession = app.classes.filter((classItem) => classItem.year === sessionYear);
+    if (!classesInSession.length) {
+      return { ok: false, message: "Aucune classe trouvée pour cette session." };
+    }
+    const classIds = classesInSession.map((classItem) => classItem.id);
+    const studentsInSession = app.students.filter((student) => classIds.includes(student.classId));
+    const terminalStudents = studentsInSession.filter((student) => getClassLevelOrder(student.classId) === 3);
+    const terminalIds = terminalStudents.map((student) => student.id);
+    const archiveEntry = {
+      id: slugify(`archive-${sessionYear}-${Date.now()}`),
+      label: `Session ${sessionYear}`,
+      sessionYear,
+      archivedAt: new Date().toISOString(),
+      summary: note || `Clôture ${sessionYear}`,
+      classes: classesInSession.map((item) => ({ ...item })),
+      students: studentsInSession.map((item) => ({ ...item })),
+      evaluationActivities: app.evaluationActivities.filter((activity) => classIds.includes(activity.classId)).map((item) => ({ ...item })),
+      evidencePortfolio: (app.evidencePortfolio || []).filter((entry) => classIds.includes(entry.classId) || terminalIds.includes(entry.studentId)).map((item) => ({ ...item })),
+      pfmpRecords: Object.fromEntries(terminalIds.map((studentId) => [studentId, JSON.parse(JSON.stringify(app.pfmpRecords?.[studentId] || {}))])),
+      pfmpBooklets: Object.fromEntries(terminalIds.map((studentId) => [studentId, JSON.parse(JSON.stringify(app.pfmpBooklets?.[studentId] || {}))]))
+    };
+    app.archives = app.archives || [];
+    app.archives.unshift(archiveEntry);
+
+    app.evaluationActivities = app.evaluationActivities.filter((activity) => !classIds.includes(activity.classId));
+    app.evidencePortfolio = (app.evidencePortfolio || []).filter((entry) => !terminalIds.includes(entry.studentId));
+
+    app.students = app.students
+      .filter((student) => !terminalIds.includes(student.id))
+      .map((student) => {
+        const level = getClassLevelOrder(student.classId);
+        if (level === 1 || level === 2) {
+          return {
+            ...student,
+            attendance: [],
+            notes: []
+          };
+        }
+        return student;
+      });
+
+    terminalIds.forEach((studentId) => {
+      delete app.pfmpRecords[studentId];
+      delete app.pfmpBooklets[studentId];
+    });
+
+    app.classes = app.classes
+      .filter((classItem) => !(classItem.year === sessionYear && getClassLevelOrder(classItem.id) === 3))
+      .map((classItem) => {
+        if (classItem.year !== sessionYear) return classItem;
+        const level = getClassLevelOrder(classItem.id);
+        if (level === 1 || level === 2) {
+          return {
+            ...classItem,
+            name: promoteClassName(classItem.name, level),
+            year: nextYear
+          };
+        }
+        return classItem;
+      });
+
+    if (!app.classes.some((classItem) => classItem.year === nextYear && getClassLevelOrder(classItem.id) === 1)) {
+      app.classes.push({
+        id: slugify(`seconde-ciel-${nextYear}`),
+        name: "2nde CIEL",
+        year: nextYear,
+        note: "Nouvelle cohorte"
+      });
+    }
+
+    logAction("Session archivée", sessionYear, note || `Promotion vers ${nextYear}`);
+    persistAppData();
+    return { ok: true, message: `Session ${sessionYear} archivée. Promotion active vers ${nextYear}.` };
+  }
+
+  function renderArchiveSessionList(target) {
+    if (!target) return;
+    const archives = app.archives || [];
+    if (!archives.length) {
+      target.innerHTML = `<article class="directory-row"><div><strong>Aucune session archivée</strong><p>Les sessions clôturées apparaîtront ici.</p></div></article>`;
+      return;
+    }
+    target.innerHTML = archives.map((entry) => `
+      <article class="directory-row">
+        <div>
+          <strong>${escapeHtml(entry.label)}</strong>
+          <p>${escapeHtml(entry.sessionYear || "-")} // ${escapeHtml(entry.summary || "Sans note")}</p>
+          <p>${entry.classes.length} classe(s) // ${entry.students.length} élève(s) // ${entry.evaluationActivities.length} séance(s)</p>
+        </div>
+      </article>
+    `).join("");
+  }
+
+  const originalInitAccountsPageFinalArchive = initAccountsPageFinal;
+  initAccountsPageFinal = function () {
+    originalInitAccountsPageFinalArchive();
+    const form = document.querySelector("#archive-session-form");
+    const sessionYearInput = document.querySelector("#archive-session-year");
+    const nextYearInput = document.querySelector("#archive-next-year");
+    const noteInput = document.querySelector("#archive-session-note");
+    const feedback = document.querySelector("#archive-session-feedback");
+    const list = document.querySelector("#archive-session-list");
+    if (!form || !sessionYearInput || !nextYearInput || !noteInput || !list) return;
+
+    if (!sessionYearInput.value) {
+      sessionYearInput.value = [...new Set(app.classes.map((classItem) => classItem.year).filter(Boolean))].sort().slice(-1)[0] || "";
+    }
+    if (!nextYearInput.value) {
+      nextYearInput.value = getNextSchoolYear(sessionYearInput.value) || "";
+    }
+    renderArchiveSessionList(list);
+
+    if (!form.dataset.archiveBound) {
+      form.dataset.archiveBound = "true";
+      sessionYearInput.addEventListener("change", () => {
+        nextYearInput.value = getNextSchoolYear(sessionYearInput.value) || nextYearInput.value;
+      });
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const result = archiveSchoolSession(sessionYearInput.value.trim(), nextYearInput.value.trim(), noteInput.value.trim());
+        feedback.textContent = result.message;
+        renderArchiveSessionList(list);
+      });
+    }
   };
 })();
 

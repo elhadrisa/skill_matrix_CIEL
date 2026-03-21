@@ -220,6 +220,55 @@
           <small>Charge le fichier officiel de la grille nationale : CIEL Matrix renseignera les informations candidat et cochera automatiquement les compétences E2, E31 et E32.</small>
           <div id="exam-grid-preview" class="class-cards"></div>
         </div>
+        <div class="panel exam-grid-panel">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Portefeuille De Preuves</p>
+              <h3>Associer des preuves aux compÃ©tences</h3>
+            </div>
+            <p id="evidence-feedback" class="results-count"></p>
+          </div>
+          <div class="mini-grid">
+            <label class="field">
+              <span>CompÃ©tence</span>
+              <select id="evidence-skill-select"></select>
+            </label>
+            <label class="field">
+              <span>Type</span>
+              <select id="evidence-type-select">
+                <option value="production">Production</option>
+                <option value="observation">Observation</option>
+                <option value="document">Document</option>
+                <option value="pfmp">Observation PFMP</option>
+                <option value="commentaire">Commentaire enseignant</option>
+              </select>
+            </label>
+          </div>
+          <div class="mini-grid">
+            <label class="field">
+              <span>Titre</span>
+              <input id="evidence-title-input" type="text" placeholder="Ex. Configuration VLAN validÃ©e">
+            </label>
+            <label class="field">
+              <span>Lien / URL</span>
+              <input id="evidence-url-input" type="text" placeholder="Ex. https://...">
+            </label>
+          </div>
+          <div class="mini-grid">
+            <label class="field">
+              <span>Date</span>
+              <input id="evidence-date-input" type="date">
+            </label>
+            <label class="field">
+              <span>Commentaire</span>
+              <input id="evidence-note-input" type="text" placeholder="Ex. RÃ©alisation autonome en salle rÃ©seau">
+            </label>
+          </div>
+          <div class="student-badges">
+            <button id="evidence-add-button" class="ghost-button" type="button">Ajouter la preuve</button>
+          </div>
+          <div id="evidence-list" class="student-directory"></div>
+        </div>
         <div id="student-skills-editor" class="skills-table"></div>
       </section>
     </main>

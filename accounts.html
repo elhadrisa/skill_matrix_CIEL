@@ -102,6 +102,35 @@
       <section class="panel wide-panel">
         <div class="section-head">
           <div>
+            <p class="eyebrow">Archivage</p>
+            <h2>ClÃ´turer une session scolaire</h2>
+          </div>
+        </div>
+        <form id="archive-session-form" class="stack-form">
+          <div class="mini-grid">
+            <label class="field">
+              <span>Session Ã  clÃ´turer</span>
+              <input id="archive-session-year" type="text" placeholder="Ex. 2025-2026">
+            </label>
+            <label class="field">
+              <span>Nouvelle annÃ©e scolaire</span>
+              <input id="archive-next-year" type="text" placeholder="Ex. 2026-2027">
+            </label>
+          </div>
+          <label class="field">
+            <span>Note d'archivage</span>
+            <input id="archive-session-note" type="text" placeholder="Ex. ClÃ´ture session 2026 et promotion des cohortes">
+          </label>
+          <div class="student-badges">
+            <button id="archive-session-button" class="ghost-button" type="submit">Archiver et promouvoir</button>
+          </div>
+          <p id="archive-session-feedback" class="results-count"></p>
+        </form>
+      </section>
+
+      <section class="panel wide-panel">
+        <div class="section-head">
+          <div>
             <p class="eyebrow">Sauvegarde</p>
             <h2>Sauvegarder ou remettre l'application</h2>
           </div>
@@ -117,6 +146,16 @@
           <button id="restore-json-button" class="ghost-button" type="button">Remettre la sauvegarde</button>
         </div>
         <p id="restore-feedback" class="results-count"></p>
+      </section>
+
+      <section class="panel wide-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Archives</p>
+            <h2>Sessions archivÃ©es</h2>
+          </div>
+        </div>
+        <div id="archive-session-list" class="student-directory"></div>
       </section>
 
       <section class="panel wide-panel">
