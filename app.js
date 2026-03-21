@@ -4,10 +4,8 @@ const SESSION_KEY = "ciel-session";
 
 const skillCatalog = [
   { id: "c1", code: "C1", domain: "Pilotage pro", title: "Communiquer en situation professionnelle", description: "Restituer clairement une intervention, échanger avec le client ou l'équipe et produire une communication technique exploitable." },
-  { id: "c2", code: "C2", domain: "Pilotage pro", title: "Organiser", description: "Préparer l'activité, prioriser les opérations, gérer les ressources et structurer une intervention dans un cadre sécurisé." },
   { id: "c3", code: "C3", domain: "Pilotage pro", title: "Participer à un projet", description: "Contribuer à une réalisation collective, suivre les jalons et intégrer les contraintes de coût, délai et qualité." },
   { id: "c4", code: "C4", domain: "Étude & analyse", title: "Analyser une structure matérielle et logicielle", description: "Identifier l'architecture d'un système, comprendre ses composants et interpréter ses interactions matérielles et logicielles." },
-  { id: "c5", code: "C5", domain: "Étude & analyse", title: "Concevoir", description: "Proposer une solution adaptée au besoin, choisir des composants ou services pertinents et formaliser une réponse technique." },
   { id: "c6", code: "C6", domain: "Étude & analyse", title: "Valider la conformité d'une installation", description: "Vérifier que l'installation répond au cahier des charges, aux tests attendus et aux exigences de sécurité." },
   { id: "c7", code: "C7", domain: "Étude & analyse", title: "Réaliser des maquettes et prototypes", description: "Assembler, intégrer et tester une preuve de concept matérielle ou logicielle avant déploiement." },
   { id: "c8", code: "C8", domain: "Étude & analyse", title: "Coder", description: "Développer ou adapter un code source fonctionnel, lisible et testable pour automatiser, interfacer ou piloter un système." },
@@ -22,10 +20,10 @@ const defaultClasses = [
 ];
 
 const defaultStudents = [
-  { id: "lea-martin", name: "Léa Martin", classId: "term-ciel", skills: { c1: "acquis", c2: "partiellement_acquis", c3: "partiellement_acquis", c4: "partiellement_acquis", c5: "en_cours_acquisition", c6: "partiellement_acquis", c7: "en_cours_acquisition", c8: "partiellement_acquis", c9: "partiellement_acquis", c10: "en_cours_acquisition", c11: "partiellement_acquis" } },
-  { id: "ines-bernard", name: "Inès Bernard", classId: "term-ciel", skills: { c1: "acquis", c2: "partiellement_acquis", c3: "partiellement_acquis", c4: "acquis", c5: "partiellement_acquis", c6: "acquis", c7: "partiellement_acquis", c8: "partiellement_acquis", c9: "partiellement_acquis", c10: "acquis", c11: "partiellement_acquis" } },
-  { id: "yanis-robert", name: "Yanis Robert", classId: "prem-ciel", skills: { c1: "partiellement_acquis", c2: "en_cours_acquisition", c3: "en_cours_acquisition", c4: "partiellement_acquis", c5: "non_evalue", c6: "en_cours_acquisition", c7: "non_evalue", c8: "acquis", c9: "en_cours_acquisition", c10: "non_evalue", c11: "en_cours_acquisition" } },
-  { id: "sarah-dupont", name: "Sarah Dupont", classId: "prem-ciel", skills: { c1: "en_cours_acquisition", c2: "en_cours_acquisition", c3: "non_evalue", c4: "partiellement_acquis", c5: "en_cours_acquisition", c6: "non_evalue", c7: "en_cours_acquisition", c8: "partiellement_acquis", c9: "en_cours_acquisition", c10: "non_evalue", c11: "en_cours_acquisition" } }
+  { id: "lea-martin", name: "Léa Martin", classId: "term-ciel", skills: { c1: "acquis", c3: "partiellement_acquis", c4: "partiellement_acquis", c6: "partiellement_acquis", c7: "en_cours_acquisition", c8: "partiellement_acquis", c9: "partiellement_acquis", c10: "en_cours_acquisition", c11: "partiellement_acquis" } },
+  { id: "ines-bernard", name: "Inès Bernard", classId: "term-ciel", skills: { c1: "acquis", c3: "partiellement_acquis", c4: "acquis", c6: "acquis", c7: "partiellement_acquis", c8: "partiellement_acquis", c9: "partiellement_acquis", c10: "acquis", c11: "partiellement_acquis" } },
+  { id: "yanis-robert", name: "Yanis Robert", classId: "prem-ciel", skills: { c1: "partiellement_acquis", c3: "en_cours_acquisition", c4: "partiellement_acquis", c6: "en_cours_acquisition", c7: "non_evalue", c8: "acquis", c9: "en_cours_acquisition", c10: "non_evalue", c11: "en_cours_acquisition" } },
+  { id: "sarah-dupont", name: "Sarah Dupont", classId: "prem-ciel", skills: { c1: "en_cours_acquisition", c3: "non_evalue", c4: "partiellement_acquis", c6: "non_evalue", c7: "en_cours_acquisition", c8: "partiellement_acquis", c9: "en_cours_acquisition", c10: "non_evalue", c11: "en_cours_acquisition" } }
 ];
 
 const defaultPfmpRecords = {
@@ -62,7 +60,7 @@ const defaultLessonLibrary = [
     domain: "Réseau Informatique",
     level: "TCIEL",
     duration: "4h",
-    skillIds: ["c5", "c10", "c11"],
+    skillIds: ["c10", "c11"],
     materials: "Switch manageable, PC, Wireshark, outil de supervision",
     indicators: ["Configurer un VLAN fonctionnel", "Verifier la connectivite inter-VLAN", "Superviser les flux et tracer les resultats"],
     notes: "TP reseau complet avec validation d'architecture et exploitation."
@@ -73,7 +71,7 @@ const defaultLessonLibrary = [
     domain: "Cybersécurité",
     level: "1CIEL",
     duration: "3h",
-    skillIds: ["c2", "c3", "c8"],
+    skillIds: ["c3", "c8"],
     materials: "Machine virtuelle, checklist SSI, scripts de verification",
     indicators: ["Appliquer un plan de durcissement", "Verifier les services exposes", "Documenter les ecarts et corrections"],
     notes: "Seance orientee bonnes pratiques et automatisation de controle."
@@ -136,10 +134,8 @@ const statusColors = {
 };
 const skillDomainOverrides = {
   c1: "Cybersécurité",
-  c2: "Cybersécurité",
   c3: "Cybersécurité",
   c4: "Réseau Informatique",
-  c5: "Réseau Informatique",
   c6: "Réseau Informatique",
   c7: "Electronique",
   c8: "Cybersécurité",
