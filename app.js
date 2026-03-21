@@ -8095,6 +8095,50 @@ function initAccountsPage() {
 })();
 
 ;(function () {
+  function getActivityStatusesOnlySafe(activity, studentId) {
+    if (!activity?.evaluations?.[studentId]) return [];
+    return Object.entries(activity.evaluations[studentId])
+      .filter(([key]) => !String(key).startsWith("__"))
+      .map(([, value]) => value)
+      .filter((value) => Object.hasOwn(levelScores, value));
+  }
+
+  const originalGetStudentActivityAverageSafe = getStudentActivityAverage;
+  getStudentActivityAverage = function (activity, studentId) {
+    const statuses = getActivityStatusesOnlySafe(activity, studentId);
+    if (!statuses.length) return 0;
+    const scores = statuses.map((status) => levelScores[status] || 0);
+    return Math.round((scores.reduce((sum, score) => sum + score, 0) / (scores.length * (levelScores.acquis || 1))) * 100);
+  };
+
+  function getActivityGlobalGradeSafe(activity, studentId) {
+    const raw = activity?.evaluations?.[studentId]?.__globalGrade;
+    return normalizeGrade(raw);
+  }
+
+  function setActivityGlobalGradeSafe(activityId, studentId, grade) {
+    const activity = getActivityById(activityId);
+    const student = getStudentById(studentId);
+    if (!activity || !student) return;
+    const normalized = normalizeGrade(grade);
+    if (!activity.evaluations[studentId]) activity.evaluations[studentId] = {};
+    if (normalized === "") {
+      delete activity.evaluations[studentId].__globalGrade;
+      return;
+    }
+    activity.evaluations[studentId].__globalGrade = normalized;
+    const autoStatus = mapGradeToStatus(normalized);
+    activity.indicators.forEach((indicator) => {
+      activity.evaluations[studentId][indicator.id] = autoStatus;
+    });
+    getActivitySkillIds(activity).forEach((skillId) => {
+      student.skillGrades = hydrateSkillGrades(student.skillGrades || {});
+      student.skillGrades[skillId] = normalized;
+      student.skills[skillId] = autoStatus;
+    });
+    logAction("Note de séance appliquée", student.name, `${activity.title} // ${normalized}/20 // ${levelLabels[autoStatus] || autoStatus}`);
+  }
+
   function buildStructuredIndicatorsFromTextareaSafe(title, textarea) {
     return String(textarea?.value || "")
       .split("\n")
@@ -8300,6 +8344,41 @@ function initAccountsPage() {
       });
     }
 
+    function renderGlobalGradeControlsSafe() {
+      const matrix = document.querySelector("#activity-matrix");
+      const classId = document.querySelector("#session-class-select")?.value || app.classes[0]?.id || "";
+      const activity = getActivityById(document.querySelector("#activity-select")?.value) || getActivitiesByClass(classId)[0];
+      if (!matrix || !activity) return;
+      matrix.querySelectorAll(".matrix-row").forEach((row) => {
+        const studentId = row.querySelector(".activity-status-select")?.dataset.studentId;
+        if (!studentId || row.querySelector(".global-grade-field")) return;
+        const firstCell = row.firstElementChild;
+        if (!firstCell) return;
+        const wrapper = document.createElement("div");
+        wrapper.className = "global-grade-field";
+        wrapper.innerHTML = `
+          <label class="field compact-field">
+            <span>Note globale /20</span>
+            <input class="activity-global-grade-input" type="number" min="0" max="20" step="0.5" value="${getActivityGlobalGradeSafe(activity, studentId) ?? ""}" placeholder="Ex. 13.5">
+            <small class="activity-global-grade-hint">${escapeHtml(levelLabels[mapGradeToStatus(getActivityGlobalGradeSafe(activity, studentId))] || "Non évalué")}</small>
+          </label>
+        `;
+        firstCell.appendChild(wrapper);
+        const input = wrapper.querySelector(".activity-global-grade-input");
+        const hint = wrapper.querySelector(".activity-global-grade-hint");
+        input?.addEventListener("change", () => {
+          const normalized = normalizeGrade(input.value);
+          setActivityGlobalGradeSafe(activity.id, studentId, normalized);
+          persistAppData();
+          hint.textContent = normalized === "" ? "Non évalué" : (levelLabels[mapGradeToStatus(normalized)] || "Non évalué");
+          window.setTimeout(() => {
+            document.querySelector("#session-class-select")?.dispatchEvent(new Event("change"));
+            document.querySelector("#eval-student-select")?.dispatchEvent(new Event("change"));
+          }, 0);
+        });
+      });
+    }
+
     syncIndicatorSkillOptionsSafe();
     renderIndicatorDraftSafe();
 
@@ -8367,7 +8446,18 @@ function initAccountsPage() {
       evalStudentSelect.addEventListener("change", () => window.setTimeout(enhanceStudentSkillRowsSafe, 0));
       document.querySelector("#eval-class-select")?.addEventListener("change", () => window.setTimeout(enhanceStudentSkillRowsSafe, 0));
     }
+    if (!document.querySelector("#activity-matrix")?.dataset.globalGradeBound) {
+      const matrix = document.querySelector("#activity-matrix");
+      if (matrix) {
+        matrix.dataset.globalGradeBound = "true";
+        const observer = new MutationObserver(() => window.setTimeout(renderGlobalGradeControlsSafe, 0));
+        observer.observe(matrix, { childList: true, subtree: true });
+      }
+    }
+    document.querySelector("#session-class-select")?.addEventListener("change", () => window.setTimeout(renderGlobalGradeControlsSafe, 0));
+    document.querySelector("#activity-select")?.addEventListener("change", () => window.setTimeout(renderGlobalGradeControlsSafe, 0));
     window.setTimeout(enhanceStudentSkillRowsSafe, 0);
+    window.setTimeout(renderGlobalGradeControlsSafe, 0);
   }
 
   const originalInitEvaluationsPageStructuredSafe = initEvaluationsPageFinal;

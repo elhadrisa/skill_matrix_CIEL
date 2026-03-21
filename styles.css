@@ -632,6 +632,19 @@ body:not([data-page="home"]) .nav-tabs {
   box-shadow: 0 0 0 3px rgba(98,245,212,0.08), 0 0 18px rgba(98,245,212,0.08);
 }
 
+.global-grade-field {
+  margin-top: 12px;
+}
+
+.activity-global-grade-input {
+  min-height: 42px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: rgba(7, 18, 28, 0.96);
+  color: var(--text);
+  padding: 0 12px;
+}
+
 .calendar-event {
   border: 1px solid rgba(89, 198, 255, 0.14);
 }
