@@ -35,6 +35,26 @@ const defaultPfmpRecords = {
 
 const defaultEvaluationActivities = [];
 const defaultPfmpBooklets = {};
+const defaultIndicatorBank = [
+  {
+    id: "bank-vlan-supervision",
+    name: "VLAN et supervision",
+    domain: "Réseau Informatique",
+    indicators: ["Configurer un VLAN fonctionnel", "Verifier la connectivite inter-VLAN", "Tracer les mesures de supervision"]
+  },
+  {
+    id: "bank-durcissement-cyber",
+    name: "Durcissement cybersécurité",
+    domain: "Cybersécurité",
+    indicators: ["Appliquer un plan de durcissement", "Verifier les services exposes", "Documenter les ecarts et corrections"]
+  },
+  {
+    id: "bank-prototype-electronique",
+    name: "Prototype electronique",
+    domain: "Electronique",
+    indicators: ["Cablage conforme", "Acquisition stable", "Validation fonctionnelle du prototype"]
+  }
+];
 const defaultLessonLibrary = [
   {
     id: "tpl-vlan-supervision",
@@ -145,7 +165,7 @@ let persistTimeout = null;
 initializeApp();
 
 function createEmptyApp() {
-  return hydrateAppData({ classes: defaultClasses, students: defaultStudents, pfmpRecords: defaultPfmpRecords, pfmpBooklets: defaultPfmpBooklets, evaluationActivities: defaultEvaluationActivities, lessonLibrary: defaultLessonLibrary, accounts: defaultAccounts, activityLog: defaultActivityLog });
+  return hydrateAppData({ classes: defaultClasses, students: defaultStudents, pfmpRecords: defaultPfmpRecords, pfmpBooklets: defaultPfmpBooklets, evaluationActivities: defaultEvaluationActivities, indicatorBank: defaultIndicatorBank, lessonLibrary: defaultLessonLibrary, accounts: defaultAccounts, activityLog: defaultActivityLog });
 }
 
 async function initializeApp() {
@@ -470,10 +490,11 @@ function hydrateAppData(data) {
     pfmpBooklets[student.id] = hydratePfmpBookletRecord(data.pfmpBooklets?.[student.id] || {});
   });
   const evaluationActivities = (data.evaluationActivities || defaultEvaluationActivities).map((activity, index) => hydrateEvaluationActivity(activity, index));
+  const indicatorBank = hydrateIndicatorBank(data.indicatorBank || defaultIndicatorBank);
   const lessonLibrary = hydrateLessonLibrary(data.lessonLibrary || defaultLessonLibrary);
   const accounts = hydrateAccounts(data.accounts || defaultAccounts);
   const activityLog = hydrateActivityLog(data.activityLog || defaultActivityLog);
-  return { classes, students, pfmpRecords, pfmpBooklets, evaluationActivities, lessonLibrary, accounts, activityLog };
+  return { classes, students, pfmpRecords, pfmpBooklets, evaluationActivities, indicatorBank, lessonLibrary, accounts, activityLog };
 }
 
 function hydrateAccounts(accounts) {
@@ -514,6 +535,15 @@ function hydrateLessonLibrary(items) {
     indicators: Array.isArray(item.indicators) ? item.indicators.filter(Boolean) : [],
     notes: item.notes || ""
   }));
+}
+
+function hydrateIndicatorBank(items) {
+  return (items || []).map((item, index) => ({
+    id: item.id || `indicator-bank-${index + 1}`,
+    name: item.name || `Banque ${index + 1}`,
+    domain: referentialDomains.includes(item.domain) ? item.domain : "",
+    indicators: Array.isArray(item.indicators) ? item.indicators.map((indicator) => String(indicator || "").trim()).filter(Boolean) : []
+  })).filter((item) => item.indicators.length);
 }
 
 function hydrateAttendanceEntries(items) {
@@ -563,7 +593,8 @@ function hydratePfmpEntry(record) {
     visitDate: record.visitDate || "",
     reportDate: record.reportDate || "",
     bookletDate: record.bookletDate || "",
-    attendanceDate: record.attendanceDate || ""
+    attendanceDate: record.attendanceDate || "",
+    observedSkillIds: Array.isArray(record.observedSkillIds) ? record.observedSkillIds.filter((skillId) => getSkillById(skillId)) : []
   };
 }
 
@@ -2362,11 +2393,15 @@ function initEvaluationsPageFinal() {
   const activityDateStart = document.querySelector("#activity-date-start");
   const activityDateEnd = document.querySelector("#activity-date-end");
   const activityIndicators = document.querySelector("#activity-indicators");
+  const indicatorBankSelect = document.querySelector("#indicator-bank-select");
+  const indicatorBankLoadButton = document.querySelector("#indicator-bank-load");
+  const indicatorBankSaveButton = document.querySelector("#indicator-bank-save");
   const activityComment = document.querySelector("#activity-comment");
   const activityFeedback = document.querySelector("#activity-feedback");
   const sessionClassSelect = document.querySelector("#session-class-select");
   const activitySelect = document.querySelector("#activity-select");
   const activitySearchInput = document.querySelector("#activity-search-input");
+  const activityDuplicateButton = document.querySelector("#activity-duplicate-button");
   const activityEditButton = document.querySelector("#activity-edit-button");
   const activityDeleteButton = document.querySelector("#activity-delete-button");
   const activitySummary = document.querySelector("#activity-summary");
@@ -2399,6 +2434,7 @@ function initEvaluationsPageFinal() {
 
   populateClassSelect(activityClass);
   populateSkillMultiSelect(activitySkill);
+  populateIndicatorBankSelect(indicatorBankSelect);
   populateClassSelect(sessionClassSelect);
   populateClassSelect(evalClassSelect);
   const requestedClassId = getRequestedClassId();
@@ -2418,6 +2454,7 @@ function initEvaluationsPageFinal() {
   if (requestedDates.endDate) activityDateEnd.value = requestedDates.endDate;
 
   enforcePermission("edit_evaluations", activityType, activityTitle, activityClass, activitySkill, activityDateStart, activityDateEnd, activityIndicators, activityComment, activityEditButton, activityDeleteButton);
+  enforcePermission("edit_evaluations", indicatorBankSelect, indicatorBankLoadButton, indicatorBankSaveButton, activityDuplicateButton);
 
   activityForm.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -2446,6 +2483,7 @@ function initEvaluationsPageFinal() {
     persistAppData();
     activityForm.reset();
     clearMultiSelect(activitySkill);
+    populateIndicatorBankSelect(indicatorBankSelect);
     activityFeedback.textContent = "Séance créée.";
     sessionClassSelect.value = activityClass.value;
     syncSessionActivities();
@@ -2455,6 +2493,9 @@ function initEvaluationsPageFinal() {
   sessionClassSelect.addEventListener("change", () => {
     syncSessionActivities();
     renderEvaluationPage();
+  });
+  activitySkill.addEventListener("change", () => {
+    populateIndicatorBankSelect(indicatorBankSelect, getSelectedValues(activitySkill));
   });
   activitySelect.addEventListener("change", renderEvaluationPage);
   activitySearchInput?.addEventListener("input", () => {
@@ -2494,6 +2535,27 @@ function initEvaluationsPageFinal() {
     renderEvaluationPage();
   });
 
+  activityDuplicateButton?.addEventListener("click", () => {
+    const activity = getActivityById(activitySelect.value);
+    if (!activity || !canEditEvaluations) return;
+    const duplicate = hydrateEvaluationActivity({
+      ...activity,
+      id: slugify(`${activity.title}-copie-${Date.now()}`),
+      title: `${activity.title} (copie)`,
+      evaluations: {},
+      indicators: activity.indicators.map((indicator, index) => ({
+        id: slugify(`${activity.title}-copie-${index}-${Date.now()}`),
+        label: indicator.label
+      }))
+    }, app.evaluationActivities.length);
+    app.evaluationActivities.push(duplicate);
+    logAction("SÃ©ance dupliquÃ©e", duplicate.title, `${duplicate.type} // ${getClassById(duplicate.classId)?.name || duplicate.classId}`);
+    persistAppData();
+    sessionClassSelect.value = duplicate.classId;
+    syncSessionActivities(duplicate.id);
+    renderEvaluationPage();
+  });
+
   activityDeleteButton?.addEventListener("click", () => {
     const activity = getActivityById(activitySelect.value);
     if (!activity || !canEditEvaluations) return;
@@ -2503,6 +2565,40 @@ function initEvaluationsPageFinal() {
     persistAppData();
     syncSessionActivities();
     renderEvaluationPage();
+  });
+
+  indicatorBankLoadButton?.addEventListener("click", () => {
+    const bank = getIndicatorBankItem(indicatorBankSelect?.value);
+    if (!bank) {
+      activityFeedback.textContent = "Choisis une banque d'indicateurs.";
+      return;
+    }
+    activityIndicators.value = bank.indicators.join("\n");
+    activityFeedback.textContent = `Banque chargÃ©e : ${bank.name}.`;
+  });
+
+  indicatorBankSaveButton?.addEventListener("click", () => {
+    if (!canEditEvaluations) return;
+    const indicators = activityIndicators.value.split("\n").map((line) => line.trim()).filter(Boolean);
+    if (!indicators.length) {
+      activityFeedback.textContent = "Saisis d'abord des indicateurs Ã  enregistrer.";
+      return;
+    }
+    const name = window.prompt("Nom de la banque d'indicateurs", activityTitle.value.trim() || "Nouvelle banque");
+    if (!name) return;
+    const selectedSkillIds = getSelectedValues(activitySkill);
+    const domains = [...new Set(selectedSkillIds.map((skillId) => getSkillDomain(getSkillById(skillId) || {})).filter(Boolean))];
+    app.indicatorBank.push({
+      id: slugify(`indicator-bank-${name}-${Date.now()}`),
+      name: name.trim(),
+      domain: domains.length === 1 ? domains[0] : "",
+      indicators
+    });
+    logAction("Banque d'indicateurs crÃ©Ã©e", name.trim(), domains.join(" // ") || "Multi-domaines");
+    persistAppData();
+    populateIndicatorBankSelect(indicatorBankSelect, selectedSkillIds);
+    indicatorBankSelect.value = app.indicatorBank[app.indicatorBank.length - 1].id;
+    activityFeedback.textContent = "Banque d'indicateurs enregistrÃ©e.";
   });
 
   activityExportPdfButton?.addEventListener("click", () => {
@@ -2731,10 +2827,8 @@ function initEvaluationsPageFinal() {
     if (!activityDateEnd.value) activityDateEnd.value = activityDateStart.value;
     activityComment.value = template.notes || "";
     activityIndicators.value = (template.indicators || []).join("\n");
-    clearMultiSelect(activitySkill);
-    [...activitySkill.options].forEach((option) => {
-      option.selected = template.skillIds.includes(option.value);
-    });
+    setMultiSelectValues(activitySkill, template.skillIds);
+    populateIndicatorBankSelect(indicatorBankSelect, template.skillIds);
     activityFeedback.textContent = "Modele de seance charge dans le formulaire.";
   }
 }
@@ -2753,6 +2847,7 @@ function initPfmpPageFinal() {
   let searchInput = document.querySelector("#pfmp-search-input");
   let statusFilter = document.querySelector("#pfmp-status-filter");
   let pdfToolbar = document.querySelector("#pfmp-pdf-toolbar");
+  const observedSkillsSelect = document.querySelector("#pfmp-observed-skills");
   const canEditPfmp = hasPermission("edit_pfmp");
   const inputs = {
     companyName: document.querySelector("#pfmp-company"),
@@ -2812,13 +2907,14 @@ function initPfmpPageFinal() {
   const exportPfmpPdfClassButton = document.querySelector("#export-pfmp-pdf-class");
 
   populateClassSelect(classSelect);
+  populateSkillMultiSelect(observedSkillsSelect);
   const requestedClassId = getRequestedClassId();
   if (requestedClassId) classSelect.value = requestedClassId;
   periodSelect.innerHTML = PFMP_PERIODS.map((period) => `<option value="${period.id}">${period.label}</option>`).join("");
   syncStudents();
   renderPfmpPage();
 
-  enforcePermission("edit_pfmp", ...Object.values(inputs), form.querySelector('button[type="submit"]'));
+  enforcePermission("edit_pfmp", ...Object.values(inputs), observedSkillsSelect, form.querySelector('button[type="submit"]'));
 
   classSelect.addEventListener("change", () => {
     syncStudents();
@@ -2850,7 +2946,10 @@ function initPfmpPageFinal() {
     const student = getStudentById(studentSelect.value);
     if (!student) return;
     const record = getPfmpRecord(student.id);
-    record.periods[periodSelect.value] = hydratePfmpEntry(Object.fromEntries(Object.entries(inputs).map(([key, input]) => [key, input.value.trim()])));
+    record.periods[periodSelect.value] = hydratePfmpEntry({
+      ...Object.fromEntries(Object.entries(inputs).map(([key, input]) => [key, input.value.trim()])),
+      observedSkillIds: getSelectedValues(observedSkillsSelect)
+    });
     logAction("PFMP mise à jour", student.name, PFMP_PERIODS.find((period) => period.id === periodSelect.value)?.label || periodSelect.value);
     persistAppData();
     renderPfmpPage();
@@ -2885,6 +2984,7 @@ function initPfmpPageFinal() {
 
     const selectedRecord = selectedStudent ? getPfmpPeriodEntry(selectedStudent.id, periodSelect.value) : createEmptyPfmpEntry();
     Object.entries(inputs).forEach(([key, input]) => { input.value = selectedRecord[key] || ""; });
+    setMultiSelectValues(observedSkillsSelect, selectedRecord.observedSkillIds || []);
 
     periodsOverview.innerHTML = PFMP_PERIODS.map((period) => {
       const entry = selectedStudent ? getPfmpPeriodEntry(selectedStudent.id, period.id) : createEmptyPfmpEntry();
@@ -2894,6 +2994,7 @@ function initPfmpPageFinal() {
           <p class="muted-copy">${entry.companyName || "Entreprise non renseignée"}</p>
           <div class="pfmp-kpis">
             <span class="badge">${getPfmpCompletion(entry)} champs</span>
+            <span class="badge">${(entry.observedSkillIds || []).length} comp. observees</span>
             <span class="badge">${entry.visitDate ? "Visite OK" : "Visite à planifier"}</span>
           </div>
         </article>
@@ -2926,6 +3027,7 @@ function initPfmpPageFinal() {
         <article class="directory-row compact">
           <div>
             <strong>${student.name}</strong>
+            <p>${PFMP_PERIODS.reduce((sum, period) => sum + (getPfmpPeriodEntry(student.id, period.id).observedSkillIds || []).length, 0)} competences observees</p>
             <p>${filledPeriods}/6 PFMP renseignées</p>
             <p>${PFMP_PERIODS.filter((period) => getPfmpPeriodEntry(student.id, period.id).visitDate).length} visites planifiées</p>
           </div>
@@ -4038,6 +4140,24 @@ function clearMultiSelect(select) {
   [...(select?.options || [])].forEach((option) => {
     option.selected = false;
   });
+}
+
+function setMultiSelectValues(select, values) {
+  const valueSet = new Set(values || []);
+  [...(select?.options || [])].forEach((option) => {
+    option.selected = valueSet.has(option.value);
+  });
+}
+
+function populateIndicatorBankSelect(select, skillIds = []) {
+  if (!select) return;
+  const domains = [...new Set((skillIds || []).map((skillId) => getSkillDomain(getSkillById(skillId) || {})).filter(Boolean))];
+  const banks = (app.indicatorBank || []).filter((item) => !domains.length || !item.domain || domains.includes(item.domain));
+  select.innerHTML = `<option value="">Choisir une banque...</option>${banks.map((item) => `<option value="${item.id}">${item.name}${item.domain ? ` // ${item.domain}` : ""}</option>`).join("")}`;
+}
+
+function getIndicatorBankItem(bankId) {
+  return app.indicatorBank?.find((item) => item.id === bankId);
 }
 
 function parseSkillCodesInput(value) {
@@ -6322,10 +6442,14 @@ function getActivitiesByClass(classId) {
 }
 
 function getPfmpObservationLabels(studentId, skillId) {
+  const periodObservations = PFMP_PERIODS
+    .filter((period) => (getPfmpPeriodEntry(studentId, period.id).observedSkillIds || []).includes(skillId))
+    .map((period) => period.label);
   const booklets = app.pfmpBooklets?.[studentId] || {};
-  return Object.entries(booklets)
+  const bookletObservations = Object.entries(booklets)
     .filter(([, entry]) => entry?.skills?.[skillId] && !["non_evalue", "absent"].includes(entry.skills[skillId]))
     .map(([periodId]) => PFMP_PERIODS.find((period) => period.id === periodId)?.label || periodId);
+  return [...new Set([...periodObservations, ...bookletObservations])];
 }
 
 function getCoverageSnapshot(classId) {

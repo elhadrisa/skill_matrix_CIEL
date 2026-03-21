@@ -71,6 +71,19 @@
             <span>Indicateurs d'évaluation</span>
             <textarea id="activity-indicators" rows="5" placeholder="Un indicateur par ligne"></textarea>
           </label>
+          <div class="mini-grid">
+            <label class="field">
+              <span>Banque d'indicateurs</span>
+              <select id="indicator-bank-select"></select>
+            </label>
+            <div class="field">
+              <span>Actions rapides</span>
+              <div class="student-badges">
+                <button id="indicator-bank-load" class="ghost-button" type="button">Charger la banque</button>
+                <button id="indicator-bank-save" class="ghost-button" type="button">Sauver dans la banque</button>
+              </div>
+            </div>
+          </div>
           <label class="field">
             <span>Commentaire enseignant</span>
             <textarea id="activity-comment" rows="4" placeholder="Consignes, remarques, synthèse de la séance..."></textarea>
@@ -102,6 +115,7 @@
           </label>
         </div>
         <div class="student-badges">
+          <button id="activity-duplicate-button" class="ghost-button" type="button">Dupliquer la seance</button>
           <button id="activity-edit-button" class="ghost-button" type="button">Modifier la sÃ©ance</button>
           <button id="activity-delete-button" class="ghost-button" type="button">Supprimer la sÃ©ance</button>
         </div>
