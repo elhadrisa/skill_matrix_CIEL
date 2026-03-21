@@ -2235,6 +2235,11 @@ function initMappingPageFinal() {
         <p>${relatedActivities.length} seance(s) // ${pfmpHits.length} observation(s) PFMP</p>
         <p class="muted-copy">${relatedActivities.length ? relatedActivities.map((activity) => `${activity.type} ${activity.title}`).join(" | ") : "Aucune seance reliee."}</p>
         <p class="muted-copy">${pfmpHits.length ? pfmpHits.join(" | ") : "Aucune observation PFMP."}</p>
+        <div class="student-badges">
+          <a class="ghost-button button-link" href="evaluations.html?view=session&class=${encodeURIComponent(classId)}">Voir les seances</a>
+          <a class="ghost-button button-link" href="pfmp.html?class=${encodeURIComponent(classId)}">Voir les PFMP</a>
+          <a class="ghost-button button-link" href="evaluations.html?view=create&class=${encodeURIComponent(classId)}&skill=${encodeURIComponent(skill.id)}">Creer une seance</a>
+        </div>
       </article>
     `).join("");
   }
@@ -2254,6 +2259,9 @@ function initLibraryPageFinal() {
   const feedback = document.querySelector("#library-feedback");
   const filterDomain = document.querySelector("#library-filter-domain");
   const filterLevel = document.querySelector("#library-filter-level");
+  const targetClass = document.querySelector("#library-target-class");
+  const targetDateStart = document.querySelector("#library-target-date-start");
+  const targetDateEnd = document.querySelector("#library-target-date-end");
   const list = document.querySelector("#library-list");
   const canEdit = hasPermission("edit_evaluations");
 
@@ -2261,6 +2269,7 @@ function initLibraryPageFinal() {
   filterDomain.innerHTML = [`<option value="all">Tous les domaines</option>`, ...referentialDomains.map((domain) => `<option value="${domain}">${domain}</option>`)].join("");
   levelSelect.innerHTML = [`<option value="2CIEL">2CIEL</option>`, `<option value="1CIEL">1CIEL</option>`, `<option value="TCIEL">TCIEL</option>`].join("");
   filterLevel.innerHTML = [`<option value="all">Tous les niveaux</option>`, `<option value="2CIEL">2CIEL</option>`, `<option value="1CIEL">1CIEL</option>`, `<option value="TCIEL">TCIEL</option>`].join("");
+  populateClassSelect(targetClass);
   populateSkillMultiSelect(skillsSelect);
   enforcePermission("edit_evaluations", titleInput, domainSelect, levelSelect, durationInput, skillsSelect, materialsInput, indicatorsInput, notesInput);
 
@@ -2294,12 +2303,18 @@ function initLibraryPageFinal() {
 
   filterDomain.addEventListener("change", renderLibrary);
   filterLevel.addEventListener("change", renderLibrary);
+  targetClass?.addEventListener("change", renderLibrary);
+  targetDateStart?.addEventListener("change", renderLibrary);
+  targetDateEnd?.addEventListener("change", renderLibrary);
   renderLibrary();
 
   function renderLibrary() {
     const selectedDomain = filterDomain.value || "all";
     const selectedLevel = filterLevel.value || "all";
     const items = (app.lessonLibrary || []).filter((item) => (selectedDomain === "all" || item.domain === selectedDomain) && (selectedLevel === "all" || item.level === selectedLevel));
+    const targetClassId = targetClass?.value || "";
+    const startDate = targetDateStart?.value || "";
+    const endDate = targetDateEnd?.value || startDate || "";
     list.innerHTML = items.length ? items.map((item) => `
       <article class="catalog-card">
         <div class="skill-headline">
@@ -2311,7 +2326,7 @@ function initLibraryPageFinal() {
         <p class="muted-copy">${(item.skillIds || []).map((skillId) => getSkillById(skillId)?.code).filter(Boolean).join(" | ")}</p>
         <p class="muted-copy">${item.materials || "Materiel non renseigne"}</p>
         <div class="student-badges">
-          <a class="ghost-button button-link" href="evaluations.html?view=create&template=${encodeURIComponent(item.id)}">Utiliser</a>
+          <a class="ghost-button button-link" href="evaluations.html?view=create&template=${encodeURIComponent(item.id)}${targetClassId ? `&class=${encodeURIComponent(targetClassId)}` : ""}${startDate ? `&dateStart=${encodeURIComponent(startDate)}` : ""}${endDate ? `&dateEnd=${encodeURIComponent(endDate)}` : ""}">Utiliser</a>
           <button class="ghost-button library-delete" type="button" data-id="${item.id}" ${canEdit ? "" : "disabled"}>Supprimer</button>
         </div>
       </article>
@@ -2356,7 +2371,17 @@ function initRemediationPageFinal() {
     const alerts = getClassAlerts(classId, teacher).filter((item) => severity === "all" || item.level === severity);
     const isPfmpPage = page === "remediation_pfmp";
     const detailItems = (isPfmpPage ? getPfmpRemediationItems(classId, teacher) : getEvaluationRemediationItems(classId, teacher))
-      .filter((item) => severity === "all" || item.level === severity);
+      .filter((item) => severity === "all" || item.level === severity)
+      .map((item) => {
+        if (item.actionHref) return item;
+        if (isPfmpPage) {
+          return { ...item, actionHref: `pfmp.html?class=${encodeURIComponent(classId)}`, actionLabel: "Ouvrir PFMP" };
+        }
+        const matchedSkill = skillCatalog.find((skill) => item.title.startsWith(`${skill.code} //`));
+        return matchedSkill
+          ? { ...item, actionHref: `evaluations.html?view=create&class=${encodeURIComponent(classId)}&skill=${encodeURIComponent(matchedSkill.id)}`, actionLabel: "Creer une seance de remediation" }
+          : { ...item, actionHref: `evaluations.html?view=session&class=${encodeURIComponent(classId)}`, actionLabel: "Ouvrir les evaluations" };
+      });
 
     if (scopeTitle) scopeTitle.textContent = isPfmpPage ? "Vue remediation PFMP" : "Vue remediation competences";
     if (detailTitle) detailTitle.textContent = isPfmpPage ? "Remediation PFMP" : "Remediation competences";
@@ -2372,6 +2397,7 @@ function renderRemediationCard(item) {
       <h3>${item.title}</h3>
       <p class="muted-copy">${item.detail}</p>
       <p class="muted-copy">${item.action || ""}</p>
+      ${item.actionHref ? `<div class="student-badges"><a class="ghost-button button-link" href="${item.actionHref}">${item.actionLabel || "Ouvrir"}</a></div>` : ""}
     </article>
   `;
 }
@@ -2393,6 +2419,7 @@ function initEvaluationsPageFinal() {
   const activityDateStart = document.querySelector("#activity-date-start");
   const activityDateEnd = document.querySelector("#activity-date-end");
   const activityIndicators = document.querySelector("#activity-indicators");
+  const indicatorBankDomain = document.querySelector("#indicator-bank-domain");
   const indicatorBankSelect = document.querySelector("#indicator-bank-select");
   const indicatorBankLoadButton = document.querySelector("#indicator-bank-load");
   const indicatorBankSaveButton = document.querySelector("#indicator-bank-save");
@@ -2434,12 +2461,16 @@ function initEvaluationsPageFinal() {
 
   populateClassSelect(activityClass);
   populateSkillMultiSelect(activitySkill);
-  populateIndicatorBankSelect(indicatorBankSelect);
+  if (indicatorBankDomain) {
+    indicatorBankDomain.innerHTML = [`<option value="all">Tous les domaines</option>`, ...referentialDomains.map((domain) => `<option value="${domain}">${domain}</option>`)].join("");
+  }
+  populateIndicatorBankSelect(indicatorBankSelect, [], indicatorBankDomain?.value || "all");
   populateClassSelect(sessionClassSelect);
   populateClassSelect(evalClassSelect);
   const requestedClassId = getRequestedClassId();
   const requestedTemplateId = getRequestedTemplateId();
   const requestedDates = getRequestedActivityDates();
+  const requestedRemediationSkillId = getRequestedRemediationSkillId();
   if (requestedClassId) {
     activityClass.value = requestedClassId;
     sessionClassSelect.value = requestedClassId;
@@ -2452,9 +2483,21 @@ function initEvaluationsPageFinal() {
 
   if (requestedDates.startDate) activityDateStart.value = requestedDates.startDate;
   if (requestedDates.endDate) activityDateEnd.value = requestedDates.endDate;
+  if (requestedRemediationSkillId) {
+    setMultiSelectValues(activitySkill, [requestedRemediationSkillId]);
+    populateIndicatorBankSelect(indicatorBankSelect, [requestedRemediationSkillId], indicatorBankDomain?.value || "all");
+    if (!activityTitle.value.trim()) {
+      const skill = getSkillById(requestedRemediationSkillId);
+      activityTitle.value = `Remediation ${skill?.code || ""}`.trim();
+    }
+    if (!activityComment.value.trim()) {
+      const skill = getSkillById(requestedRemediationSkillId);
+      activityComment.value = `Seance ciblee de remediation sur ${skill?.title || "la competence selectionnee"}.`;
+    }
+  }
 
   enforcePermission("edit_evaluations", activityType, activityTitle, activityClass, activitySkill, activityDateStart, activityDateEnd, activityIndicators, activityComment, activityEditButton, activityDeleteButton);
-  enforcePermission("edit_evaluations", indicatorBankSelect, indicatorBankLoadButton, indicatorBankSaveButton, activityDuplicateButton);
+  enforcePermission("edit_evaluations", indicatorBankDomain, indicatorBankSelect, indicatorBankLoadButton, indicatorBankSaveButton, activityDuplicateButton);
 
   activityForm.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -2495,7 +2538,10 @@ function initEvaluationsPageFinal() {
     renderEvaluationPage();
   });
   activitySkill.addEventListener("change", () => {
-    populateIndicatorBankSelect(indicatorBankSelect, getSelectedValues(activitySkill));
+    populateIndicatorBankSelect(indicatorBankSelect, getSelectedValues(activitySkill), indicatorBankDomain?.value || "all");
+  });
+  indicatorBankDomain?.addEventListener("change", () => {
+    populateIndicatorBankSelect(indicatorBankSelect, getSelectedValues(activitySkill), indicatorBankDomain.value || "all");
   });
   activitySelect.addEventListener("change", renderEvaluationPage);
   activitySearchInput?.addEventListener("input", () => {
@@ -2596,7 +2642,7 @@ function initEvaluationsPageFinal() {
     });
     logAction("Banque d'indicateurs crÃ©Ã©e", name.trim(), domains.join(" // ") || "Multi-domaines");
     persistAppData();
-    populateIndicatorBankSelect(indicatorBankSelect, selectedSkillIds);
+    populateIndicatorBankSelect(indicatorBankSelect, selectedSkillIds, indicatorBankDomain?.value || "all");
     indicatorBankSelect.value = app.indicatorBank[app.indicatorBank.length - 1].id;
     activityFeedback.textContent = "Banque d'indicateurs enregistrÃ©e.";
   });
@@ -2828,7 +2874,7 @@ function initEvaluationsPageFinal() {
     activityComment.value = template.notes || "";
     activityIndicators.value = (template.indicators || []).join("\n");
     setMultiSelectValues(activitySkill, template.skillIds);
-    populateIndicatorBankSelect(indicatorBankSelect, template.skillIds);
+    populateIndicatorBankSelect(indicatorBankSelect, template.skillIds, indicatorBankDomain?.value || "all");
     activityFeedback.textContent = "Modele de seance charge dans le formulaire.";
   }
 }
@@ -2926,7 +2972,7 @@ function initPfmpPageFinal() {
   statusFilter?.addEventListener("change", renderPfmpPage);
   exportPfmpButton.addEventListener("click", () => {
     const classItem = getClassById(classSelect.value || app.classes[0]?.id || "");
-    exportPfmpWorkbook(classItem, getStudentsByClass(classItem?.id || ""));
+    exportPfmpWorkbookEnhanced(classItem, getStudentsByClass(classItem?.id || ""));
   });
   exportPfmpPdfStudentButton?.addEventListener("click", () => {
     const student = getStudentById(studentSelect.value);
@@ -4149,10 +4195,14 @@ function setMultiSelectValues(select, values) {
   });
 }
 
-function populateIndicatorBankSelect(select, skillIds = []) {
+function populateIndicatorBankSelect(select, skillIds = [], domain = "all") {
   if (!select) return;
   const domains = [...new Set((skillIds || []).map((skillId) => getSkillDomain(getSkillById(skillId) || {})).filter(Boolean))];
-  const banks = (app.indicatorBank || []).filter((item) => !domains.length || !item.domain || domains.includes(item.domain));
+  const banks = (app.indicatorBank || []).filter((item) => {
+    const matchesSkills = !domains.length || !item.domain || domains.includes(item.domain);
+    const matchesDomain = domain === "all" || !domain || item.domain === domain;
+    return matchesSkills && matchesDomain;
+  });
   select.innerHTML = `<option value="">Choisir une banque...</option>${banks.map((item) => `<option value="${item.id}">${item.name}${item.domain ? ` // ${item.domain}` : ""}</option>`).join("")}`;
 }
 
@@ -6421,6 +6471,16 @@ function getRequestedActivityDates() {
   }
 }
 
+function getRequestedRemediationSkillId() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const skillId = params.get("skill") || "";
+    return getSkillById(skillId) ? skillId : "";
+  } catch {
+    return "";
+  }
+}
+
 function getClassNavLabel(classItem) {
   const name = normalizeText(classItem?.name || "");
   if (name.includes("term")) return "TCIEL";
@@ -6715,6 +6775,42 @@ function exportPfmpWorkbook(classItem, students) {
         entry.reportDate,
         entry.bookletDate,
         entry.attendanceDate
+      ];
+    })
+  );
+  downloadExcelTable(`${classItem.name} - suivi PFMP.xls`, "Suivi PFMP", headers, rows);
+}
+
+function exportPfmpWorkbookEnhanced(classItem, students) {
+  if (!classItem) return;
+  const headers = [
+    "Classe", "Eleve", "Periode", "Entreprise", "Commentaire", "Adresse", "Tuteur", "Mail tuteur", "Telephone tuteur",
+    "Convention transmise", "Convention signee entreprise", "Convention signee parents", "Convention signee lycee",
+    "Professeur referent", "Date de visite", "Rapport rendu", "Livret d'evaluation", "Fiche de presence", "Competences observees"
+  ];
+  const rows = students.flatMap((student) =>
+    PFMP_PERIODS.map((period) => {
+      const entry = getPfmpPeriodEntry(student.id, period.id);
+      return [
+        classItem.name,
+        student.name,
+        period.label,
+        entry.companyName,
+        entry.comment,
+        entry.address,
+        entry.tutorName,
+        entry.tutorEmail,
+        entry.tutorPhone,
+        entry.conventionSent,
+        entry.conventionSignedCompany,
+        entry.conventionSignedParents,
+        entry.conventionSignedSchool,
+        entry.teacher,
+        entry.visitDate,
+        entry.reportDate,
+        entry.bookletDate,
+        entry.attendanceDate,
+        (entry.observedSkillIds || []).map((skillId) => getSkillById(skillId)?.code).filter(Boolean).join(" | ")
       ];
     })
   );
