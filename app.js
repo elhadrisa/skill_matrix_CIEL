@@ -479,6 +479,7 @@ function hydrateAppData(data) {
     id: student.id || `student-${index + 1}`,
     name: student.name || `Élève ${index + 1}`,
     classId: classes.some((classItem) => classItem.id === student.classId) ? student.classId : fallbackClassId,
+    portfolioKey: student.portfolioKey || slugify(student.name || `eleve-${index + 1}`),
     skills: buildSkillState(student.skills || {}),
     attendance: hydrateAttendanceEntries(student.attendance || []),
     notes: hydrateStudentNotes(student.notes || [])
@@ -2233,6 +2234,20 @@ function initMappingPageFinal() {
         </div>
         <h3>${skill.title}</h3>
         <p>${relatedActivities.length} seance(s) // ${pfmpHits.length} observation(s) PFMP</p>
+        <div class="heatmap-row">
+          <div class="heatmap-cell">
+            <span>Seances</span>
+            <strong style="background:${getHeatmapColor(Math.min(relatedActivities.length / 4, 1))}">${relatedActivities.length}</strong>
+          </div>
+          <div class="heatmap-cell">
+            <span>PFMP</span>
+            <strong style="background:${getHeatmapColor(Math.min(pfmpHits.length / 6, 1))}">${pfmpHits.length}</strong>
+          </div>
+          <div class="heatmap-cell">
+            <span>Couverture</span>
+            <strong style="background:${getHeatmapColor(Math.min((relatedActivities.length + pfmpHits.length) / 8, 1))}">${relatedActivities.length + pfmpHits.length}</strong>
+          </div>
+        </div>
         <p class="muted-copy">${relatedActivities.length ? relatedActivities.map((activity) => `${activity.type} ${activity.title}`).join(" | ") : "Aucune seance reliee."}</p>
         <p class="muted-copy">${pfmpHits.length ? pfmpHits.join(" | ") : "Aucune observation PFMP."}</p>
         <div class="student-badges">
@@ -4389,10 +4404,18 @@ function printHtmlDocument(title, html) {
   printWindow.document.open();
   printWindow.document.write(html);
   printWindow.document.close();
-  printWindow.focus();
-  setTimeout(() => {
-    printWindow.print();
-  }, 250);
+  const triggerPrint = () => {
+    try {
+      printWindow.focus();
+      printWindow.print();
+    } catch {}
+  };
+  if (printWindow.document.readyState === "complete") {
+    setTimeout(triggerPrint, 350);
+  } else {
+    printWindow.addEventListener("load", () => setTimeout(triggerPrint, 350), { once: true });
+    setTimeout(triggerPrint, 900);
+  }
 }
 
 function buildActivityPdfHtml(activity, classId) {
@@ -4864,6 +4887,26 @@ function initBulletinPage() {
   const sheet = document.querySelector("#bulletin-sheet");
   const printButton = document.querySelector("#print-bulletin-button");
   const exportButton = document.querySelector("#export-bulletin-button");
+  let annualExportButton = document.querySelector("#export-bulletin-annual");
+  let cycleExportButton = document.querySelector("#export-bulletin-cycle");
+
+  if (!annualExportButton && printButton?.parentElement) {
+    annualExportButton = document.createElement("button");
+    annualExportButton.id = "export-bulletin-annual";
+    annualExportButton.className = "ghost-button";
+    annualExportButton.type = "button";
+    annualExportButton.textContent = "Exporter bilan annuel";
+    printButton.parentElement.insertBefore(annualExportButton, printButton);
+  }
+
+  if (!cycleExportButton && printButton?.parentElement) {
+    cycleExportButton = document.createElement("button");
+    cycleExportButton.id = "export-bulletin-cycle";
+    cycleExportButton.className = "ghost-button";
+    cycleExportButton.type = "button";
+    cycleExportButton.textContent = "Exporter synthese 3 ans";
+    printButton.parentElement.insertBefore(cycleExportButton, printButton);
+  }
 
   populateClassSelect(classSelect);
   syncStudents();
@@ -4876,6 +4919,8 @@ function initBulletinPage() {
   studentSelect.addEventListener("change", renderBulletin);
   printButton.addEventListener("click", () => window.print());
   exportButton?.addEventListener("click", exportBulletinPdf);
+  annualExportButton?.addEventListener("click", exportAnnualWorkbook);
+  cycleExportButton?.addEventListener("click", exportCycleWorkbook);
 
   function syncStudents() {
     const classId = classSelect.value || app.classes[0]?.id || "";
@@ -4915,6 +4960,20 @@ function initBulletinPage() {
     popup.document.close();
     popup.focus();
     popup.print();
+  }
+
+  function exportAnnualWorkbook() {
+    const classId = classSelect.value || app.classes[0]?.id || "";
+    const student = getStudentById(studentSelect.value) || getStudentsByClass(classId)[0];
+    if (!student) return;
+    exportStudentAnnualWorkbook(student);
+  }
+
+  function exportCycleWorkbook() {
+    const classId = classSelect.value || app.classes[0]?.id || "";
+    const student = getStudentById(studentSelect.value) || getStudentsByClass(classId)[0];
+    if (!student) return;
+    exportStudentCycleWorkbook(student);
   }
 }
 
@@ -6493,8 +6552,32 @@ function getStudentById(studentId) {
   return app.students.find((student) => student.id === studentId);
 }
 
+function getStudentPortfolioKey(student) {
+  return normalizeText(student?.portfolioKey || student?.name || "");
+}
+
 function getStudentsByClass(classId) {
   return app.students.filter((student) => student.classId === classId);
+}
+
+function getStudentJourney(student) {
+  const portfolioKey = getStudentPortfolioKey(student);
+  if (!portfolioKey) return [student].filter(Boolean);
+  return app.students
+    .filter((item) => getStudentPortfolioKey(item) === portfolioKey)
+    .sort((a, b) => {
+      const order = getClassLevelOrder(a.classId) - getClassLevelOrder(b.classId);
+      if (order !== 0) return order;
+      return String(getClassById(a.classId)?.year || "").localeCompare(String(getClassById(b.classId)?.year || ""));
+    });
+}
+
+function getClassLevelOrder(classId) {
+  const label = normalizeText(getClassById(classId)?.name || "");
+  if (label.includes("2") || label.includes("seconde")) return 1;
+  if (label.includes("1") || label.includes("prem")) return 2;
+  if (label.includes("term")) return 3;
+  return 99;
 }
 
 function getActivitiesByClass(classId) {
@@ -6689,6 +6772,14 @@ function getPfmpSummary(students) {
   };
 }
 
+function getHeatmapColor(ratio) {
+  const safe = Math.max(0, Math.min(1, Number(ratio) || 0));
+  if (safe < 0.2) return "rgba(255, 101, 125, 0.16)";
+  if (safe < 0.45) return "rgba(247, 195, 95, 0.18)";
+  if (safe < 0.7) return "rgba(89, 198, 255, 0.18)";
+  return "rgba(99, 245, 151, 0.2)";
+}
+
 function parseCsv(text) {
   const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n").filter((line) => line.trim());
   if (!lines.length) return [];
@@ -6815,6 +6906,43 @@ function exportPfmpWorkbookEnhanced(classItem, students) {
     })
   );
   downloadExcelTable(`${classItem.name} - suivi PFMP.xls`, "Suivi PFMP", headers, rows);
+}
+
+function exportStudentAnnualWorkbook(student) {
+  const classItem = getClassById(student.classId);
+  if (!classItem) return;
+  const headers = ["Eleve", "Classe", "Annee", "Competence", "Domaine", "Niveau"];
+  const rows = skillCatalog.map((skill) => [
+    student.name,
+    classItem.name,
+    classItem.year || "",
+    `${skill.code} - ${skill.title}`,
+    getSkillDomain(skill),
+    levelLabels[student.skills[skill.id]] || ""
+  ]);
+  rows.push(["", "", "", "Progression annuelle", "", `${getStudentProgress(student)}%`]);
+  downloadExcelTable(`${student.name} - bilan annuel.xls`, "Bilan annuel", headers, rows);
+}
+
+function exportStudentCycleWorkbook(student) {
+  const journey = getStudentJourney(student);
+  const headers = ["Eleve", "Classe", "Annee", ...skillCatalog.map((skill) => skill.code), "Progression"];
+  const rows = journey.map((item) => {
+    const classItem = getClassById(item.classId);
+    return [
+      item.name,
+      classItem?.name || "",
+      classItem?.year || "",
+      ...skillCatalog.map((skill) => levelLabels[item.skills[skill.id]] || ""),
+      `${getStudentProgress(item)}%`
+    ];
+  });
+  const average = journey.length ? Math.round(journey.reduce((sum, item) => sum + getStudentProgress(item), 0) / journey.length) : 0;
+  rows.push(["", "", "", ...skillCatalog.map((skill) => {
+    const statuses = journey.map((item) => item.skills[skill.id]).filter(Boolean);
+    return statuses[statuses.length - 1] ? levelLabels[statuses[statuses.length - 1]] : "";
+  }), `${average}% moyen`]);
+  downloadExcelTable(`${student.name} - synthese 3 ans.xls`, "Synthese 3 ans", headers, rows);
 }
 
 function downloadExcelTable(filename, sheetName, headers, rows) {
