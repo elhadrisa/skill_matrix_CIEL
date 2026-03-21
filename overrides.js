@@ -86,112 +86,7 @@ function overrideClassLabel(classItem) {
 }
 
 function overrideBuildNav() {
-  const page = overrideGetPage();
-  if (!page || page === "home" || page === "login") return;
-  const session = overrideGetSession();
-  document.querySelectorAll(".nav-tabs").forEach((nav) => {
-    nav.innerHTML = "";
-    const addLink = (href, label, active) => {
-      const link = document.createElement("a");
-      link.href = href;
-      link.className = `nav-tab${active ? " active" : ""}`;
-      link.textContent = label;
-      nav.appendChild(link);
-    };
-    const addDropdown = (label, items, active, key) => {
-      const dropdown = document.createElement("details");
-      dropdown.className = `nav-dropdown${active ? " active" : ""}`;
-      dropdown.dataset.key = key;
-      dropdown.innerHTML = `
-        <summary class="nav-tab nav-dropdown-toggle">${label} ▾</summary>
-        <div class="nav-dropdown-menu">
-          ${items.map((item) => item.type === "label"
-            ? `<span class="nav-dropdown-group">${item.label}</span>`
-            : `<a class="nav-dropdown-link" href="${item.href}">${item.label}</a>`).join("")}
-        </div>
-      `;
-      nav.appendChild(dropdown);
-    };
-
-    addLink("index.html", "Accueil", page === "home");
-    addLink("classes.html", "Classes", page === "classes");
-
-    const classItems = overrideSortClasses((typeof app !== "undefined" && Array.isArray(app.classes)) ? app.classes : []);
-    addDropdown("Dashboard", classItems.flatMap((classItem) => ([
-      { type: "label", label: overrideClassLabel(classItem) },
-      { href: `dashboard.html?class=${encodeURIComponent(classItem.id)}&view=skills`, label: "Pilotage competences" },
-      { href: `dashboard.html?class=${encodeURIComponent(classItem.id)}&view=pfmp`, label: "Pilotage PFMP" },
-      { href: `dashboard.html?class=${encodeURIComponent(classItem.id)}&view=calendar`, label: "Calendrier pedagogique" }
-    ])), page === "dashboard", "dashboard-menu");
-
-    addDropdown("Evaluations", classItems.flatMap((classItem) => ([
-      { type: "label", label: overrideClassLabel(classItem) },
-      { href: `evaluations.html?class=${encodeURIComponent(classItem.id)}&view=create`, label: "Creation de seance" },
-      { href: `evaluations.html?class=${encodeURIComponent(classItem.id)}&view=session`, label: "Evaluation seance" },
-      { href: `evaluations.html?class=${encodeURIComponent(classItem.id)}&view=skills`, label: "Competences eleves" }
-    ])), page === "evaluations", "evaluations-menu");
-
-    addDropdown("PFMP", classItems.flatMap((classItem) => ([
-      { type: "label", label: overrideClassLabel(classItem) },
-      { href: `pfmp.html?class=${encodeURIComponent(classItem.id)}`, label: "Infos PFMP" },
-      { href: `pfmp-livret.html?class=${encodeURIComponent(classItem.id)}`, label: "Livret d'evaluation" }
-    ])), page === "pfmp" || page === "pfmp_livret", "pfmp-menu");
-
-    addDropdown("Referentiel", [
-      { href: "coverage.html", label: "Couverture" },
-      { href: "mapping.html", label: "Cartographie" },
-      { href: "library.html", label: "Bibliotheque de seances" }
-    ], page === "coverage" || page === "mapping" || page === "library", "referentiel-menu");
-
-    addDropdown("Remediations", [
-      { href: "remediation-pfmp.html", label: "PFMP" },
-      { href: "remediation-competences.html", label: "Competences" }
-    ], page === "remediation_pfmp" || page === "remediation_competences", "remediation-menu");
-
-    if (session?.role === "admin") {
-      addLink("accounts.html", "Comptes", page === "accounts");
-    }
-
-    const roleBadge = document.createElement("span");
-    roleBadge.id = "session-role";
-    roleBadge.className = "badge accent";
-    roleBadge.textContent = session?.label || "";
-    nav.appendChild(roleBadge);
-
-    const logoutButton = document.createElement("button");
-    logoutButton.id = "logout-button";
-    logoutButton.className = "ghost-button";
-    logoutButton.type = "button";
-    logoutButton.textContent = "Deconnexion";
-    logoutButton.addEventListener("click", async () => {
-      try {
-        await fetch("/api/logout", { method: "POST", credentials: "include" });
-      } catch {}
-      overrideClearSession();
-      window.location.replace("login.html");
-    });
-    nav.appendChild(logoutButton);
-  });
-
-  document.querySelectorAll(".nav-dropdown").forEach((dropdown) => {
-    dropdown.addEventListener("toggle", () => {
-      if (!dropdown.open) return;
-      document.querySelectorAll(".nav-dropdown").forEach((other) => {
-        if (other !== dropdown) other.removeAttribute("open");
-      });
-    });
-  });
-
-  document.addEventListener("click", (event) => {
-    if (event.target.closest(".nav-dropdown")) return;
-    document.querySelectorAll(".nav-dropdown").forEach((dropdown) => dropdown.removeAttribute("open"));
-  });
-
-  document.querySelectorAll(".nav-dropdown-link").forEach((link) => {
-    link.addEventListener("click", () => {
-      document.querySelectorAll(".nav-dropdown").forEach((dropdown) => dropdown.removeAttribute("open"));
-    });
-  });
+  return;
 }
 
 function overrideBindLogin() {
@@ -214,17 +109,21 @@ function overrideBindLogin() {
     feedback.textContent = "Connexion en cours...";
 
     try {
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 1500);
       const response = await fetch("/api/login", {
         method: "POST",
         credentials: "include",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ username, password }),
+        signal: controller.signal
       });
+      window.clearTimeout(timeout);
       const payload = await response.json().catch(() => null);
       if (response.ok && payload?.session) {
         overrideSetSession(payload.session);
         if (typeof replaceAppState === "function") {
-          replaceAppState(payload.data || overrideLoadState() || {});
+          replaceAppState(payload.data || overrideLoadState() || { accounts: overrideLoadAccounts() });
         }
         window.location.replace("dashboard.html");
         return;
@@ -240,7 +139,7 @@ function overrideBindLogin() {
         label: found.label || overrideGetRoleLabel(found.role)
       });
       if (typeof replaceAppState === "function") {
-        replaceAppState(overrideLoadState() || {});
+        replaceAppState(overrideLoadState() || { accounts });
       }
       window.location.replace("dashboard.html");
       return;
@@ -249,7 +148,7 @@ function overrideBindLogin() {
     if (username === "admin" && password === "admin123") {
       overrideSetSession({ username: "admin", role: "admin", label: "Administrateur" });
       if (typeof replaceAppState === "function") {
-        replaceAppState(overrideLoadState() || {});
+        replaceAppState(overrideLoadState() || { accounts: overrideLoadAccounts() });
       }
       window.location.replace("dashboard.html");
       return;
@@ -262,7 +161,10 @@ function overrideBindLogin() {
 function overridePersistAccounts() {
   overrideSaveState();
   if (typeof persistCriticalAppData === "function") {
-    return persistCriticalAppData();
+    return Promise.race([
+      persistCriticalAppData(),
+      new Promise((resolve) => window.setTimeout(() => resolve(false), 1500))
+    ]);
   }
   return Promise.resolve(true);
 }
