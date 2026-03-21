@@ -2093,6 +2093,13 @@ function renderRemediationCard(item) {
 
 function initEvaluationsPageFinal() {
   bindProtectedChrome();
+  const pageTitle = document.querySelector("#evaluations-page-title");
+  const creationPanel = document.querySelector("#activity-creation-panel");
+  const selectionPanel = document.querySelector("#activity-selection-panel");
+  const matrixPanel = document.querySelector("#activity-matrix-panel");
+  const reportPanel = document.querySelector("#activity-report-panel");
+  const synthesisPanel = document.querySelector("#activity-synthesis-panel");
+  const studentSkillsPanel = document.querySelector("#student-skills-panel");
   const activityForm = document.querySelector("#activity-form");
   const activityType = document.querySelector("#activity-type");
   const activityTitle = document.querySelector("#activity-title");
@@ -2118,6 +2125,7 @@ function initEvaluationsPageFinal() {
   const skillRowTemplate = document.querySelector("#skill-row-template");
   const canEditEvaluations = hasPermission("edit_evaluations");
   const canEditSkills = hasPermission("edit_skills");
+  const currentView = getRequestedEvaluationsView();
   let exportBar = document.querySelector("#activity-export-bar");
 
   if (!exportBar && activityReport) {
@@ -2144,6 +2152,7 @@ function initEvaluationsPageFinal() {
     sessionClassSelect.value = requestedClassId;
     evalClassSelect.value = requestedClassId;
   }
+  applyEvaluationsView(currentView);
   syncSessionActivities();
   syncEvalStudents();
 
@@ -2402,6 +2411,47 @@ function initEvaluationsPageFinal() {
       });
       studentSkillsEditor.appendChild(fragment);
     });
+  }
+
+  function applyEvaluationsView(view) {
+    const viewConfig = {
+      create: {
+        title: "Creation de seance",
+        showCreation: true,
+        showSelection: false,
+        showMatrix: false,
+        showReport: false,
+        showSynthesis: false,
+        showStudentSkills: false
+      },
+      session: {
+        title: "Evaluation seance",
+        showCreation: false,
+        showSelection: true,
+        showMatrix: true,
+        showReport: true,
+        showSynthesis: true,
+        showStudentSkills: false
+      },
+      skills: {
+        title: "Competences eleves",
+        showCreation: false,
+        showSelection: false,
+        showMatrix: false,
+        showReport: false,
+        showSynthesis: false,
+        showStudentSkills: true
+      }
+    }[view] || null;
+
+    if (!viewConfig) return;
+    if (pageTitle) pageTitle.textContent = viewConfig.title;
+    if (creationPanel) creationPanel.style.display = viewConfig.showCreation ? "" : "none";
+    if (selectionPanel) selectionPanel.style.display = viewConfig.showSelection ? "" : "none";
+    if (matrixPanel) matrixPanel.style.display = viewConfig.showMatrix ? "" : "none";
+    if (reportPanel) reportPanel.style.display = viewConfig.showReport ? "" : "none";
+    if (synthesisPanel) synthesisPanel.style.display = viewConfig.showSynthesis ? "" : "none";
+    if (studentSkillsPanel) studentSkillsPanel.style.display = viewConfig.showStudentSkills ? "" : "none";
   }
 }
 
@@ -5095,7 +5145,7 @@ function bindProtectedChrome() {
   }
   navs.forEach((nav) => {
     upsertDashboardDropdown(nav);
-    upsertClassDropdown(nav, "evaluations.html", "Evaluations");
+    upsertEvaluationsDropdown(nav);
     upsertPfmpDropdown(nav);
     upsertStaticDropdown(nav, "Remediations", [
       { href: "remediation-pfmp.html", label: "PFMP" },
@@ -5171,6 +5221,17 @@ function upsertDashboardDropdown(nav) {
     { href: `dashboard.html?class=${encodeURIComponent(classItem.id)}&view=calendar`, label: "Calendrier pedagogique" }
   ]));
   upsertStaticDropdown(nav, "Dashboard", links, page === "dashboard", "dashboard-menu");
+}
+
+function upsertEvaluationsDropdown(nav) {
+  nav.querySelector('a[href="evaluations.html"]')?.remove();
+  const links = app.classes.flatMap((classItem) => ([
+    { type: "label", label: getClassNavLabel(classItem) },
+    { href: `evaluations.html?class=${encodeURIComponent(classItem.id)}&view=create`, label: "Creation de seance" },
+    { href: `evaluations.html?class=${encodeURIComponent(classItem.id)}&view=session`, label: "Evaluation seance" },
+    { href: `evaluations.html?class=${encodeURIComponent(classItem.id)}&view=skills`, label: "Competences eleves" }
+  ]));
+  upsertStaticDropdown(nav, "Evaluations", links, page === "evaluations", "evaluations-menu");
 }
 
 function upsertPfmpDropdown(nav) {
@@ -5907,6 +5968,16 @@ function getRequestedDashboardView() {
     return ["skills", "pfmp", "calendar"].includes(view) ? view : "skills";
   } catch {
     return "skills";
+  }
+}
+
+function getRequestedEvaluationsView() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const view = params.get("view");
+    return ["create", "session", "skills"].includes(view) ? view : "create";
+  } catch {
+    return "create";
   }
 }
 
