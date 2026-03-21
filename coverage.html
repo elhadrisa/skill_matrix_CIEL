@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CIEL // Couverture</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="coverage">
+  <div class="noise"></div>
+  <div class="page-shell">
+    <header class="topbar panel">
+      <div>
+        <p class="eyebrow">Bac Pro CIEL // Skill Matrix</p>
+        <h1 class="topbar-title">Couverture</h1>
+      </div>
+      <nav class="nav-tabs app-nav">
+        <a class="nav-tab" href="index.html">Accueil</a>
+        <span id="session-role" class="badge accent"></span>
+        <button id="logout-button" class="ghost-button" type="button">Déconnexion</button>
+      </nav>
+    </header>
+
+    <section class="hero panel">
+      <div class="hero-copy">
+        <p class="eyebrow">Referentiel</p>
+        <h2 class="hero-title">Couverture du referentiel</h2>
+        <p class="hero-text">Mesure la couverture reelle des competences par classe sur les trois domaines : Réseau Informatique, Cybersécurité et Electronique.</p>
+        <div class="hero-tags">
+          <span class="tag">Réseau Informatique</span>
+          <span class="tag">Cybersécurité</span>
+          <span class="tag">Electronique</span>
+        </div>
+      </div>
+      <section class="hero-side">
+        <div class="hero-side-head">
+          <div>
+            <h2>Classe analysee</h2>
+            <p id="coverage-meta" class="results-count"></p>
+          </div>
+        </div>
+        <label class="field">
+          <span>Choisir la classe</span>
+          <select id="coverage-class-select"></select>
+        </label>
+        <div id="coverage-stats" class="stats-grid"></div>
+      </section>
+    </section>
+
+    <main class="dashboard-layout">
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Domaines</p>
+            <h2>Equilibre pedagogique</h2>
+          </div>
+        </div>
+        <div id="coverage-domains" class="class-cards"></div>
+      </section>
+
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Points de vigilance</p>
+            <h2>Competences peu ou pas couvertes</h2>
+          </div>
+        </div>
+        <div id="coverage-weak-skills" class="student-directory"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

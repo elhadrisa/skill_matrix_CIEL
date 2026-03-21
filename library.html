@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CIEL // Bibliothèque</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="library">
+  <div class="noise"></div>
+  <div class="page-shell">
+    <header class="topbar panel">
+      <div>
+        <p class="eyebrow">Bac Pro CIEL // Skill Matrix</p>
+        <h1 class="topbar-title">Bibliothèque</h1>
+      </div>
+      <nav class="nav-tabs app-nav">
+        <a class="nav-tab" href="index.html">Accueil</a>
+        <span id="session-role" class="badge accent"></span>
+        <button id="logout-button" class="ghost-button" type="button">Déconnexion</button>
+      </nav>
+    </header>
+
+    <section class="hero panel">
+      <div class="hero-copy">
+        <p class="eyebrow">Seances types</p>
+        <h2 class="hero-title">Bibliotheque de seances CIEL</h2>
+        <p class="hero-text">Construit une base reutilisable de TP et TD par domaine, niveau et competences, puis injecte-les directement dans les evaluations.</p>
+      </div>
+    </section>
+
+    <main class="evaluation-layout">
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Creation</p>
+            <h2>Ajouter un modele</h2>
+          </div>
+        </div>
+        <form id="library-form" class="stack-form">
+          <label class="field">
+            <span>Titre</span>
+            <input id="library-title" type="text" required>
+          </label>
+          <div class="mini-grid">
+            <label class="field">
+              <span>Domaine</span>
+              <select id="library-domain"></select>
+            </label>
+            <label class="field">
+              <span>Niveau</span>
+              <select id="library-level"></select>
+            </label>
+          </div>
+          <label class="field">
+            <span>Duree</span>
+            <input id="library-duration" type="text" placeholder="Ex. 4h">
+          </label>
+          <label class="field">
+            <span>Competences</span>
+            <select id="library-skills" multiple size="6"></select>
+          </label>
+          <label class="field">
+            <span>Materiel</span>
+            <textarea id="library-materials" rows="3"></textarea>
+          </label>
+          <label class="field">
+            <span>Indicateurs</span>
+            <textarea id="library-indicators" rows="5" placeholder="Un indicateur par ligne"></textarea>
+          </label>
+          <label class="field">
+            <span>Notes</span>
+            <textarea id="library-notes" rows="4"></textarea>
+          </label>
+          <button class="primary-button" type="submit">Enregistrer le modele</button>
+          <p id="library-feedback" class="results-count"></p>
+        </form>
+      </section>
+
+      <section class="panel wide-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Catalogue</p>
+            <h2>Modeles disponibles</h2>
+          </div>
+        </div>
+        <div class="mini-grid">
+          <label class="field">
+            <span>Filtre domaine</span>
+            <select id="library-filter-domain"></select>
+          </label>
+          <label class="field">
+            <span>Filtre niveau</span>
+            <select id="library-filter-level"></select>
+          </label>
+        </div>
+        <div id="library-list" class="catalog-grid"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

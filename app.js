@@ -35,6 +35,41 @@ const defaultPfmpRecords = {
 
 const defaultEvaluationActivities = [];
 const defaultPfmpBooklets = {};
+const defaultLessonLibrary = [
+  {
+    id: "tpl-vlan-supervision",
+    title: "Segmentation VLAN et supervision",
+    domain: "Réseau Informatique",
+    level: "TCIEL",
+    duration: "4h",
+    skillIds: ["c5", "c10", "c11"],
+    materials: "Switch manageable, PC, Wireshark, outil de supervision",
+    indicators: ["Configurer un VLAN fonctionnel", "Verifier la connectivite inter-VLAN", "Superviser les flux et tracer les resultats"],
+    notes: "TP reseau complet avec validation d'architecture et exploitation."
+  },
+  {
+    id: "tpl-durcissement-poste",
+    title: "Durcissement d'un poste et controles de securite",
+    domain: "Cybersécurité",
+    level: "1CIEL",
+    duration: "3h",
+    skillIds: ["c2", "c3", "c8"],
+    materials: "Machine virtuelle, checklist SSI, scripts de verification",
+    indicators: ["Appliquer un plan de durcissement", "Verifier les services exposes", "Documenter les ecarts et corrections"],
+    notes: "Seance orientee bonnes pratiques et automatisation de controle."
+  },
+  {
+    id: "tpl-prototype-capteur",
+    title: "Prototype electronique et acquisition",
+    domain: "Electronique",
+    level: "2CIEL",
+    duration: "4h",
+    skillIds: ["c7", "c9"],
+    materials: "Carte microcontroleur, capteur, alimentation, logiciel de mesure",
+    indicators: ["Cablage conforme", "Acquisition stable", "Validation fonctionnelle du prototype"],
+    notes: "TP electronique introductif avec prototypage et tests."
+  }
+];
 const defaultAccounts = [
   { id: "admin-account", username: "admin", password: "admin123", role: "admin", label: "Administrateur" },
   { id: "teacher-account-1", username: "prof", password: "prof123", role: "professeur", label: "Professeur" }
@@ -77,7 +112,20 @@ const statusColors = {
   partiellement_acquis: "#59c6ff",
   acquis: "#63f597"
 };
-const referentialDomains = [...new Set(skillCatalog.map((skill) => skill.domain))];
+const skillDomainOverrides = {
+  c1: "Cybersécurité",
+  c2: "Cybersécurité",
+  c3: "Cybersécurité",
+  c4: "Réseau Informatique",
+  c5: "Réseau Informatique",
+  c6: "Réseau Informatique",
+  c7: "Electronique",
+  c8: "Cybersécurité",
+  c9: "Electronique",
+  c10: "Réseau Informatique",
+  c11: "Réseau Informatique"
+};
+const referentialDomains = [...new Set(skillCatalog.map((skill) => skillDomainOverrides[skill.id] || skill.domain))];
 const pfmpFields = ["companyName", "comment", "address", "tutorName", "tutorEmail", "tutorPhone", "conventionSent", "conventionSignedCompany", "conventionSignedParents", "conventionSignedSchool", "teacher", "visitDate", "reportDate", "bookletDate", "attendanceDate"];
 const PFMP_PERIODS = [
   { id: "seconde_1", label: "2nde - PFMP 1", cycle: "Seconde" },
@@ -89,7 +137,7 @@ const PFMP_PERIODS = [
 ];
 
 const page = document.body.dataset.page;
-const PROTECTED_PAGES = new Set(["dashboard", "classes", "evaluations", "pfmp", "pfmp_livret", "accounts", "bulletin", "remediation_pfmp", "remediation_competences"]);
+const PROTECTED_PAGES = new Set(["dashboard", "classes", "evaluations", "pfmp", "pfmp_livret", "accounts", "bulletin", "remediation_pfmp", "remediation_competences", "coverage", "mapping", "library"]);
 const ADMIN_ONLY_PAGES = new Set(["accounts"]);
 const app = createEmptyApp();
 let persistTimeout = null;
@@ -97,7 +145,7 @@ let persistTimeout = null;
 initializeApp();
 
 function createEmptyApp() {
-  return hydrateAppData({ classes: defaultClasses, students: defaultStudents, pfmpRecords: defaultPfmpRecords, pfmpBooklets: defaultPfmpBooklets, evaluationActivities: defaultEvaluationActivities, accounts: defaultAccounts, activityLog: defaultActivityLog });
+  return hydrateAppData({ classes: defaultClasses, students: defaultStudents, pfmpRecords: defaultPfmpRecords, pfmpBooklets: defaultPfmpBooklets, evaluationActivities: defaultEvaluationActivities, lessonLibrary: defaultLessonLibrary, accounts: defaultAccounts, activityLog: defaultActivityLog });
 }
 
 async function initializeApp() {
@@ -146,6 +194,9 @@ async function initializeApp() {
       if (page === "pfmp_livret") initPfmpLivretPageFinal();
       if (page === "accounts") initAccountsPageFinal();
       if (page === "bulletin") initBulletinPage();
+      if (page === "coverage") initCoveragePageFinal();
+      if (page === "mapping") initMappingPageFinal();
+      if (page === "library") initLibraryPageFinal();
       if (page === "remediation_pfmp" || page === "remediation_competences") initRemediationPageFinal();
       return;
     }
@@ -171,6 +222,9 @@ async function initializeApp() {
     if (page === "pfmp_livret") initPfmpLivretPageFinal();
     if (page === "accounts") initAccountsPageFinal();
     if (page === "bulletin") initBulletinPage();
+    if (page === "coverage") initCoveragePageFinal();
+    if (page === "mapping") initMappingPageFinal();
+    if (page === "library") initLibraryPageFinal();
     if (page === "remediation_pfmp" || page === "remediation_competences") initRemediationPageFinal();
 }
 }
@@ -416,9 +470,10 @@ function hydrateAppData(data) {
     pfmpBooklets[student.id] = hydratePfmpBookletRecord(data.pfmpBooklets?.[student.id] || {});
   });
   const evaluationActivities = (data.evaluationActivities || defaultEvaluationActivities).map((activity, index) => hydrateEvaluationActivity(activity, index));
+  const lessonLibrary = hydrateLessonLibrary(data.lessonLibrary || defaultLessonLibrary);
   const accounts = hydrateAccounts(data.accounts || defaultAccounts);
   const activityLog = hydrateActivityLog(data.activityLog || defaultActivityLog);
-  return { classes, students, pfmpRecords, pfmpBooklets, evaluationActivities, accounts, activityLog };
+  return { classes, students, pfmpRecords, pfmpBooklets, evaluationActivities, lessonLibrary, accounts, activityLog };
 }
 
 function hydrateAccounts(accounts) {
@@ -445,6 +500,20 @@ function hydrateActivityLog(items) {
     target: item.target || "",
     detail: item.detail || ""
   })).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+}
+
+function hydrateLessonLibrary(items) {
+  return (items || []).map((item, index) => ({
+    id: item.id || `library-${index + 1}`,
+    title: item.title || `Seance ${index + 1}`,
+    domain: referentialDomains.includes(item.domain) ? item.domain : referentialDomains[0],
+    level: item.level || "TCIEL",
+    duration: item.duration || "2h",
+    skillIds: Array.isArray(item.skillIds) ? item.skillIds.filter((skillId) => getSkillById(skillId)) : [],
+    materials: item.materials || "",
+    indicators: Array.isArray(item.indicators) ? item.indicators.filter(Boolean) : [],
+    notes: item.notes || ""
+  }));
 }
 
 function hydrateAttendanceEntries(items) {
@@ -1757,7 +1826,7 @@ function initDashboardPageFinal() {
       <article class="catalog-card">
         <div class="skill-headline">
           <span class="skill-code">${skill.code}</span>
-          <span class="skill-domain">${skill.domain}</span>
+          <span class="skill-domain">${getSkillDomain(skill)}</span>
         </div>
         <h3>${skill.title}</h3>
         <p>${skill.description}</p>
@@ -2017,7 +2086,7 @@ function initPfmpLivretPageFinal() {
         <div class="skill-main">
           <div class="skill-headline">
             <span class="skill-code">${skill.code}</span>
-            <span class="skill-domain">${skill.domain}</span>
+            <span class="skill-domain">${getSkillDomain(skill)}</span>
           </div>
           <h3 class="skill-title">${skill.title}</h3>
           <p class="skill-description">${skill.description}</p>
@@ -2038,6 +2107,180 @@ function initPfmpLivretPageFinal() {
         if (!canEditPfmp) return;
         bookletEntry.skills[event.target.dataset.skillId] = event.target.value;
         persistAppData();
+      });
+    });
+  }
+}
+
+function initCoveragePageFinal() {
+  bindProtectedChrome();
+  const classSelect = document.querySelector("#coverage-class-select");
+  const meta = document.querySelector("#coverage-meta");
+  const stats = document.querySelector("#coverage-stats");
+  const domains = document.querySelector("#coverage-domains");
+  const weak = document.querySelector("#coverage-weak-skills");
+
+  populateClassSelect(classSelect);
+  const requestedClassId = getRequestedClassId();
+  if (requestedClassId) classSelect.value = requestedClassId;
+  classSelect.addEventListener("change", renderCoverage);
+  renderCoverage();
+
+  function renderCoverage() {
+    const classId = classSelect.value || app.classes[0]?.id || "";
+    const classItem = getClassById(classId);
+    const students = getStudentsByClass(classId);
+    const snapshot = getCoverageSnapshot(classId);
+    meta.textContent = `${classItem?.name || ""} // ${students.length} eleves // ${snapshot.coveredSkills}/${skillCatalog.length} competences activees`;
+    stats.innerHTML = [
+      { label: "Competences actives", value: `${snapshot.coveredSkills}/${skillCatalog.length}`, trace: "seances ou PFMP" },
+      { label: "Seances liees", value: snapshot.activitiesCount, trace: "TP/TD relies au referentiel" },
+      { label: "Observations PFMP", value: snapshot.pfmpObserved, trace: "competences observees en livret" },
+      { label: "Couverture moyenne", value: `${snapshot.coverageRate}%`, trace: "sur les 3 domaines" }
+    ].map(renderStatCard).join("");
+    domains.innerHTML = snapshot.domains.map((domain) => `
+      <article class="summary-card">
+        <h3>${domain.domain}</h3>
+        <p class="muted-copy">${domain.coveredSkills}/${domain.totalSkills} competences couvertes</p>
+        <p class="muted-copy">${domain.activitiesCount} seance(s) // ${domain.pfmpCount} observation(s) PFMP</p>
+      </article>
+    `).join("");
+    weak.innerHTML = snapshot.weakSkills.length ? snapshot.weakSkills.map((skill) => `
+      <article class="directory-row compact">
+        <div>
+          <strong>${skill.code} // ${skill.title}</strong>
+          <p>${getSkillDomain(skill)} // ${skill.activitiesCount} seance(s) // ${skill.pfmpCount} PFMP</p>
+        </div>
+      </article>
+    `).join("") : `<article class="summary-card"><h3>Aucune faiblesse majeure</h3><p class="muted-copy">Toutes les competences ont une trace pedagogique.</p></article>`;
+  }
+}
+
+function initMappingPageFinal() {
+  bindProtectedChrome();
+  const classSelect = document.querySelector("#mapping-class-select");
+  const domainSelect = document.querySelector("#mapping-domain-select");
+  const meta = document.querySelector("#mapping-meta");
+  const grid = document.querySelector("#mapping-grid");
+
+  populateClassSelect(classSelect);
+  domainSelect.innerHTML = [`<option value="all">Tous les domaines</option>`, ...referentialDomains.map((domain) => `<option value="${domain}">${domain}</option>`)].join("");
+  const requestedClassId = getRequestedClassId();
+  if (requestedClassId) classSelect.value = requestedClassId;
+  classSelect.addEventListener("change", renderMapping);
+  domainSelect.addEventListener("change", renderMapping);
+  renderMapping();
+
+  function renderMapping() {
+    const classId = classSelect.value || app.classes[0]?.id || "";
+    const classItem = getClassById(classId);
+    const selectedDomain = domainSelect.value || "all";
+    const cards = skillCatalog
+      .filter((skill) => selectedDomain === "all" || getSkillDomain(skill) === selectedDomain)
+      .map((skill) => {
+        const relatedActivities = getActivitiesByClass(classId).filter((activity) => getActivitySkillIds(activity).includes(skill.id));
+        const pfmpHits = getStudentsByClass(classId).flatMap((student) => getPfmpObservationLabels(student.id, skill.id));
+        return { skill, relatedActivities, pfmpHits };
+      });
+    meta.textContent = `${classItem?.name || ""} // ${selectedDomain === "all" ? "tous les domaines" : selectedDomain}`;
+    grid.innerHTML = cards.map(({ skill, relatedActivities, pfmpHits }) => `
+      <article class="catalog-card">
+        <div class="skill-headline">
+          <span class="skill-code">${skill.code}</span>
+          <span class="skill-domain">${getSkillDomain(skill)}</span>
+        </div>
+        <h3>${skill.title}</h3>
+        <p>${relatedActivities.length} seance(s) // ${pfmpHits.length} observation(s) PFMP</p>
+        <p class="muted-copy">${relatedActivities.length ? relatedActivities.map((activity) => `${activity.type} ${activity.title}`).join(" | ") : "Aucune seance reliee."}</p>
+        <p class="muted-copy">${pfmpHits.length ? pfmpHits.join(" | ") : "Aucune observation PFMP."}</p>
+      </article>
+    `).join("");
+  }
+}
+
+function initLibraryPageFinal() {
+  bindProtectedChrome();
+  const form = document.querySelector("#library-form");
+  const titleInput = document.querySelector("#library-title");
+  const domainSelect = document.querySelector("#library-domain");
+  const levelSelect = document.querySelector("#library-level");
+  const durationInput = document.querySelector("#library-duration");
+  const skillsSelect = document.querySelector("#library-skills");
+  const materialsInput = document.querySelector("#library-materials");
+  const indicatorsInput = document.querySelector("#library-indicators");
+  const notesInput = document.querySelector("#library-notes");
+  const feedback = document.querySelector("#library-feedback");
+  const filterDomain = document.querySelector("#library-filter-domain");
+  const filterLevel = document.querySelector("#library-filter-level");
+  const list = document.querySelector("#library-list");
+  const canEdit = hasPermission("edit_evaluations");
+
+  domainSelect.innerHTML = referentialDomains.map((domain) => `<option value="${domain}">${domain}</option>`).join("");
+  filterDomain.innerHTML = [`<option value="all">Tous les domaines</option>`, ...referentialDomains.map((domain) => `<option value="${domain}">${domain}</option>`)].join("");
+  levelSelect.innerHTML = [`<option value="2CIEL">2CIEL</option>`, `<option value="1CIEL">1CIEL</option>`, `<option value="TCIEL">TCIEL</option>`].join("");
+  filterLevel.innerHTML = [`<option value="all">Tous les niveaux</option>`, `<option value="2CIEL">2CIEL</option>`, `<option value="1CIEL">1CIEL</option>`, `<option value="TCIEL">TCIEL</option>`].join("");
+  populateSkillMultiSelect(skillsSelect);
+  enforcePermission("edit_evaluations", titleInput, domainSelect, levelSelect, durationInput, skillsSelect, materialsInput, indicatorsInput, notesInput);
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!canEdit) return;
+    const skillIds = getSelectedValues(skillsSelect);
+    const indicators = indicatorsInput.value.split("\n").map((line) => line.trim()).filter(Boolean);
+    if (!titleInput.value.trim() || !skillIds.length) {
+      feedback.textContent = "Renseigne un titre et au moins une competence.";
+      return;
+    }
+    app.lessonLibrary.push({
+      id: slugify(`library-${titleInput.value}-${Date.now()}`),
+      title: titleInput.value.trim(),
+      domain: domainSelect.value,
+      level: levelSelect.value,
+      duration: durationInput.value.trim(),
+      skillIds,
+      materials: materialsInput.value.trim(),
+      indicators,
+      notes: notesInput.value.trim()
+    });
+    logAction("Modele ajoute", titleInput.value.trim(), domainSelect.value);
+    persistAppData();
+    form.reset();
+    clearMultiSelect(skillsSelect);
+    feedback.textContent = "Modele enregistre.";
+    renderLibrary();
+  });
+
+  filterDomain.addEventListener("change", renderLibrary);
+  filterLevel.addEventListener("change", renderLibrary);
+  renderLibrary();
+
+  function renderLibrary() {
+    const selectedDomain = filterDomain.value || "all";
+    const selectedLevel = filterLevel.value || "all";
+    const items = (app.lessonLibrary || []).filter((item) => (selectedDomain === "all" || item.domain === selectedDomain) && (selectedLevel === "all" || item.level === selectedLevel));
+    list.innerHTML = items.length ? items.map((item) => `
+      <article class="catalog-card">
+        <div class="skill-headline">
+          <span class="skill-code">${item.level}</span>
+          <span class="skill-domain">${item.domain}</span>
+        </div>
+        <h3>${item.title}</h3>
+        <p>${item.duration || "Duree non renseignee"} // ${(item.indicators || []).length} indicateur(s)</p>
+        <p class="muted-copy">${(item.skillIds || []).map((skillId) => getSkillById(skillId)?.code).filter(Boolean).join(" | ")}</p>
+        <p class="muted-copy">${item.materials || "Materiel non renseigne"}</p>
+        <div class="student-badges">
+          <a class="ghost-button button-link" href="evaluations.html?view=create&template=${encodeURIComponent(item.id)}">Utiliser</a>
+          <button class="ghost-button library-delete" type="button" data-id="${item.id}" ${canEdit ? "" : "disabled"}>Supprimer</button>
+        </div>
+      </article>
+    `).join("") : `<article class="summary-card"><h3>Aucun modele</h3><p class="muted-copy">Ajoute une seance type pour constituer ta bibliotheque CIEL.</p></article>`;
+
+    list.querySelectorAll(".library-delete").forEach((button) => {
+      button.addEventListener("click", () => {
+        if (!canEdit) return;
+        app.lessonLibrary = app.lessonLibrary.filter((item) => item.id !== button.dataset.id);
+        persistAppData();
+        renderLibrary();
       });
     });
   }
@@ -2147,11 +2390,13 @@ function initEvaluationsPageFinal() {
   populateClassSelect(sessionClassSelect);
   populateClassSelect(evalClassSelect);
   const requestedClassId = getRequestedClassId();
+  const requestedTemplateId = getRequestedTemplateId();
   if (requestedClassId) {
     activityClass.value = requestedClassId;
     sessionClassSelect.value = requestedClassId;
     evalClassSelect.value = requestedClassId;
   }
+  applyLessonTemplate(requestedTemplateId);
   applyEvaluationsView(currentView);
   syncSessionActivities();
   syncEvalStudents();
@@ -2396,7 +2641,7 @@ function initEvaluationsPageFinal() {
     skillCatalog.forEach((skill) => {
       const fragment = skillRowTemplate.content.cloneNode(true);
       fragment.querySelector(".skill-code").textContent = skill.code;
-      fragment.querySelector(".skill-domain").textContent = skill.domain;
+      fragment.querySelector(".skill-domain").textContent = getSkillDomain(skill);
       fragment.querySelector(".skill-title").textContent = skill.title;
       fragment.querySelector(".skill-description").textContent = skill.description;
       const select = fragment.querySelector(".skill-select");
@@ -2452,6 +2697,23 @@ function initEvaluationsPageFinal() {
     if (reportPanel) reportPanel.style.display = viewConfig.showReport ? "" : "none";
     if (synthesisPanel) synthesisPanel.style.display = viewConfig.showSynthesis ? "" : "none";
     if (studentSkillsPanel) studentSkillsPanel.style.display = viewConfig.showStudentSkills ? "" : "none";
+  }
+
+  function applyLessonTemplate(templateId) {
+    if (!templateId) return;
+    const template = app.lessonLibrary?.find((item) => item.id === templateId);
+    if (!template) return;
+    activityType.value = "TP";
+    activityTitle.value = template.title;
+    if (requestedClassId) activityClass.value = requestedClassId;
+    activityDate.value = "";
+    activityComment.value = template.notes || "";
+    activityIndicators.value = (template.indicators || []).join("\n");
+    clearMultiSelect(activitySkill);
+    [...activitySkill.options].forEach((option) => {
+      option.selected = template.skillIds.includes(option.value);
+    });
+    activityFeedback.textContent = "Modele de seance charge dans le formulaire.";
   }
 }
 
@@ -3197,7 +3459,7 @@ function initDashboardPage() {
       <article class="catalog-card">
         <div class="skill-headline">
           <span class="skill-code">${skill.code}</span>
-          <span class="skill-domain">${skill.domain}</span>
+          <span class="skill-domain">${getSkillDomain(skill)}</span>
         </div>
         <h3>${skill.title}</h3>
         <p>${skill.description}</p>
@@ -3436,7 +3698,7 @@ function initBulletinPage() {
               <div class="bulletin-skill-row">
                 <div>
                   <strong>${skill.code} // ${skill.title}</strong>
-                  <p class="muted-copy">${skill.domain}</p>
+                  <p class="muted-copy">${getSkillDomain(skill)}</p>
                 </div>
                 ${renderBulletinStatus(student.skills[skill.id])}
               </div>
@@ -4195,7 +4457,7 @@ function initDashboardPage() {
       <article class="catalog-card">
         <div class="skill-headline">
           <span class="skill-code">${skill.code}</span>
-          <span class="skill-domain">${skill.domain}</span>
+          <span class="skill-domain">${getSkillDomain(skill)}</span>
         </div>
         <h3>${skill.title}</h3>
         <p>${skill.description}</p>
@@ -4486,7 +4748,7 @@ function buildBulletinMarkup(student, classItem, studentActivities, pfmpSummary,
             <div class="bulletin-skill-row">
               <div>
                 <strong>${skill.code} // ${skill.title}</strong>
-                <p class="muted-copy">${skill.domain}</p>
+                <p class="muted-copy">${getSkillDomain(skill)}</p>
               </div>
               ${renderBulletinStatus(student.skills[skill.id])}
             </div>
@@ -4984,7 +5246,7 @@ function initEvaluationsPage() {
     skillCatalog.forEach((skill) => {
       const fragment = skillRowTemplate.content.cloneNode(true);
       fragment.querySelector(".skill-code").textContent = skill.code;
-      fragment.querySelector(".skill-domain").textContent = skill.domain;
+      fragment.querySelector(".skill-domain").textContent = getSkillDomain(skill);
       fragment.querySelector(".skill-title").textContent = skill.title;
       fragment.querySelector(".skill-description").textContent = skill.description;
       const select = fragment.querySelector(".skill-select");
@@ -5147,6 +5409,11 @@ function bindProtectedChrome() {
     upsertDashboardDropdown(nav);
     upsertEvaluationsDropdown(nav);
     upsertPfmpDropdown(nav);
+    upsertStaticDropdown(nav, "Referentiel", [
+      { href: "coverage.html", label: "Couverture" },
+      { href: "mapping.html", label: "Cartographie" },
+      { href: "library.html", label: "Bibliotheque de seances" }
+    ], page === "coverage" || page === "mapping" || page === "library", "referential-menu");
     upsertStaticDropdown(nav, "Remediations", [
       { href: "remediation-pfmp.html", label: "PFMP" },
       { href: "remediation-competences.html", label: "Competences" }
@@ -5370,7 +5637,7 @@ function initDashboardPage() {
       <article class="catalog-card">
         <div class="skill-headline">
           <span class="skill-code">${skill.code}</span>
-          <span class="skill-domain">${skill.domain}</span>
+          <span class="skill-domain">${getSkillDomain(skill)}</span>
         </div>
         <h3>${skill.title}</h3>
         <p>${skill.description}</p>
@@ -5718,7 +5985,7 @@ function initEvaluationsPage() {
     skillCatalog.forEach((skill) => {
       const fragment = skillRowTemplate.content.cloneNode(true);
       fragment.querySelector(".skill-code").textContent = skill.code;
-      fragment.querySelector(".skill-domain").textContent = skill.domain;
+      fragment.querySelector(".skill-domain").textContent = getSkillDomain(skill);
       fragment.querySelector(".skill-title").textContent = skill.title;
       fragment.querySelector(".skill-description").textContent = skill.description;
       const select = fragment.querySelector(".skill-select");
@@ -5932,6 +6199,11 @@ function getSkillById(skillId) {
   return skillCatalog.find((skill) => skill.id === skillId);
 }
 
+function getSkillDomain(skill) {
+  if (!skill) return referentialDomains[0];
+  return skillDomainOverrides[skill.id] || skill.domain;
+}
+
 function getActivitySkillIds(activity) {
   if (!activity) return [];
   const ids = Array.isArray(activity.skillIds) && activity.skillIds.length
@@ -5981,6 +6253,15 @@ function getRequestedEvaluationsView() {
   }
 }
 
+function getRequestedTemplateId() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("template") || "";
+  } catch {
+    return "";
+  }
+}
+
 function getClassNavLabel(classItem) {
   const name = normalizeText(classItem?.name || "");
   if (name.includes("term")) return "TCIEL";
@@ -5999,6 +6280,48 @@ function getStudentsByClass(classId) {
 
 function getActivitiesByClass(classId) {
   return app.evaluationActivities.filter((activity) => activity.classId === classId);
+}
+
+function getPfmpObservationLabels(studentId, skillId) {
+  const booklets = app.pfmpBooklets?.[studentId] || {};
+  return Object.entries(booklets)
+    .filter(([, entry]) => entry?.skills?.[skillId] && !["non_evalue", "absent"].includes(entry.skills[skillId]))
+    .map(([periodId]) => PFMP_PERIODS.find((period) => period.id === periodId)?.label || periodId);
+}
+
+function getCoverageSnapshot(classId) {
+  const students = getStudentsByClass(classId);
+  const activities = getActivitiesByClass(classId);
+  const coverageBySkill = skillCatalog.map((skill) => {
+    const activitiesCount = activities.filter((activity) => getActivitySkillIds(activity).includes(skill.id)).length;
+    const pfmpLabels = students.flatMap((student) => getPfmpObservationLabels(student.id, skill.id));
+    return {
+      ...skill,
+      domain: getSkillDomain(skill),
+      activitiesCount,
+      pfmpCount: pfmpLabels.length,
+      covered: activitiesCount > 0 || pfmpLabels.length > 0
+    };
+  });
+  const domains = referentialDomains.map((domain) => {
+    const skills = coverageBySkill.filter((skill) => skill.domain === domain);
+    return {
+      domain,
+      totalSkills: skills.length,
+      coveredSkills: skills.filter((skill) => skill.covered).length,
+      activitiesCount: skills.reduce((sum, skill) => sum + skill.activitiesCount, 0),
+      pfmpCount: skills.reduce((sum, skill) => sum + skill.pfmpCount, 0)
+    };
+  });
+  const coveredSkills = coverageBySkill.filter((skill) => skill.covered).length;
+  return {
+    coveredSkills,
+    activitiesCount: activities.length,
+    pfmpObserved: coverageBySkill.reduce((sum, skill) => sum + skill.pfmpCount, 0),
+    coverageRate: skillCatalog.length ? Math.round((coveredSkills / skillCatalog.length) * 100) : 0,
+    domains,
+    weakSkills: coverageBySkill.filter((skill) => skill.activitiesCount === 0 && skill.pfmpCount === 0)
+  };
 }
 
 function getActivityById(activityId) {
@@ -6060,7 +6383,7 @@ function getStatusCounts(students) {
 
 function getBlockAverages(students) {
   return referentialDomains.map((domain) => {
-    const domainSkills = skillCatalog.filter((skill) => skill.domain === domain);
+    const domainSkills = skillCatalog.filter((skill) => getSkillDomain(skill) === domain);
     const totalPossible = domainSkills.length * students.length * 4 || 1;
     const totalScore = students.reduce((sum, student) => sum + domainSkills.reduce((sub, skill) => sub + levelScores[student.skills[skill.id]], 0), 0);
     const validated = students.reduce((sum, student) => sum + domainSkills.filter((skill) => ["partiellement_acquis", "acquis"].includes(student.skills[skill.id])).length, 0);
