@@ -10544,6 +10544,8 @@ function initCertificationPageFinal() {
         </div>
         <div class="student-badges archive-action-row">
           <button class="ghost-button" type="button" data-archive-restore="${archive.id}">Restaurer la session</button>
+          <button class="ghost-button" type="button" data-archive-export-json="${archive.id}">Exporter JSON</button>
+          <button class="ghost-button" type="button" data-archive-export-pdf="${archive.id}">Exporter PDF</button>
         </div>
       </article>
       <article class="summary-card">
@@ -10570,6 +10572,12 @@ function initCertificationPageFinal() {
       const feedback = document.querySelector("#archive-session-feedback");
       if (feedback) feedback.textContent = result.message;
       renderArchiveEnhancementSafe();
+    });
+    target.querySelector(`[data-archive-export-json="${archive.id}"]`)?.addEventListener("click", () => {
+      exportArchiveSessionJsonSafe(archive.id);
+    });
+    target.querySelector(`[data-archive-export-pdf="${archive.id}"]`)?.addEventListener("click", () => {
+      exportArchiveSessionPdfSafe(archive.id);
     });
     target.querySelectorAll("[data-archive-restore-student]").forEach((button) => {
       button.addEventListener("click", async () => {
@@ -10765,6 +10773,8 @@ function initCertificationPageFinal() {
       classSelect.addEventListener("change", render);
       exportButton.addEventListener("click", () => {
         const classItem = getClassById(classSelect.value);
+        const domainsHtml = document.querySelector("#reports-domains-content")?.innerHTML || "";
+        const archivesHtml = document.querySelector("#reports-archives-content")?.innerHTML || "";
         const html = buildPrintShell(
           `Rapport premium - ${classItem?.name || ""}`,
           `${classItem?.name || ""} // ${new Date().toLocaleDateString("fr-FR")}`,
@@ -10775,10 +10785,261 @@ function initCertificationPageFinal() {
               <p><strong>Indicateurs :</strong> ${kpis.textContent.replace(/\s+/g, " ").trim()}</p>
             </div>
             ${alerts.innerHTML}
+            ${domainsHtml ? `<div class="grid"><section class="card"><h2>Equilibre pedagogique</h2>${domainsHtml}</section></div>` : ""}
+            ${archivesHtml ? `<div class="grid"><section class="card"><h2>Archives recentes</h2>${archivesHtml}</section></div>` : ""}
           `
         );
         printHtmlDocument(`Rapport premium ${classItem?.name || ""}`, html);
       });
+    }
+  }
+
+  function renderEvidenceFiltersSafe() {
+    if (document.body?.dataset?.page !== "evaluations") return;
+    const classSelect = document.querySelector("#eval-class-select");
+    const studentSelect = document.querySelector("#eval-student-select");
+    const list = document.querySelector("#evidence-list");
+    const addButton = document.querySelector("#evidence-add-button");
+    if (!classSelect || !studentSelect || !list || !addButton) return;
+
+    let toolbar = document.querySelector("#evidence-filter-toolbar");
+    if (!toolbar) {
+      toolbar = document.createElement("div");
+      toolbar.id = "evidence-filter-toolbar";
+      toolbar.className = "mini-grid evidence-filter-toolbar";
+      toolbar.innerHTML = `
+        <label class="field">
+          <span>Filtre competence</span>
+          <select id="evidence-filter-skill">
+            <option value="all">Toutes</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Filtre type</span>
+          <select id="evidence-filter-type">
+            <option value="all">Tous</option>
+            <option value="Production">Production</option>
+            <option value="Observation">Observation</option>
+            <option value="Document">Document</option>
+            <option value="PFMP">PFMP</option>
+            <option value="Commentaire">Commentaire</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Recherche</span>
+          <input id="evidence-filter-search" type="text" placeholder="Titre ou note">
+        </label>
+        <div class="student-badges filter-actions">
+          <button id="evidence-export-pdf" class="ghost-button" type="button">Exporter PDF preuves</button>
+        </div>
+      `;
+      list.insertAdjacentElement("beforebegin", toolbar);
+    }
+
+    const skillFilter = document.querySelector("#evidence-filter-skill");
+    const typeFilter = document.querySelector("#evidence-filter-type");
+    const searchFilter = document.querySelector("#evidence-filter-search");
+    const exportButton = document.querySelector("#evidence-export-pdf");
+    if (!skillFilter || !typeFilter || !searchFilter || !exportButton) return;
+
+    skillFilter.innerHTML = `<option value="all">Toutes</option>${skillCatalog.map((skill) => `<option value="${skill.id}">${skill.code} // ${skill.title}</option>`).join("")}`;
+
+    const render = () => {
+      const classId = classSelect.value || app.classes[0]?.id || "";
+      const student = getStudentById(studentSelect.value) || getStudentsByClass(classId)[0] || null;
+      if (!student) {
+        list.innerHTML = `<article class="directory-row"><div><strong>Aucune preuve</strong><p>Aucun eleve selectionne.</p></div></article>`;
+        return;
+      }
+      let entries = (app.evidencePortfolio || []).filter((entry) => entry.studentId === student.id);
+      if (skillFilter.value !== "all") entries = entries.filter((entry) => entry.skillId === skillFilter.value);
+      if (typeFilter.value !== "all") entries = entries.filter((entry) => entry.type === typeFilter.value);
+      if (searchFilter.value.trim()) {
+        const needle = normalizeText(searchFilter.value);
+        entries = entries.filter((entry) => normalizeText(`${entry.title} ${entry.note} ${entry.url}`).includes(needle));
+      }
+      entries.sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+      list.innerHTML = entries.length ? entries.map((entry) => {
+        const skill = getSkillById(entry.skillId);
+        return `
+          <article class="directory-row">
+            <div>
+              <strong>${escapeHtml(entry.title || "Preuve")}</strong>
+              <p>${escapeHtml(skill?.code || entry.skillId || "-")} // ${escapeHtml(skill?.title || "Competence")} // ${escapeHtml(entry.type || "-")}</p>
+              <p>${escapeHtml(entry.date || "-")} // ${escapeHtml(entry.note || "Sans commentaire")}</p>
+              ${entry.url ? `<p><a href="${escapeHtml(entry.url)}" target="_blank" rel="noreferrer">Ouvrir la preuve</a></p>` : ""}
+            </div>
+            <div class="student-badges">
+              <button class="ghost-button evidence-delete-button" type="button" data-id="${entry.id}">Supprimer</button>
+            </div>
+          </article>
+        `;
+      }).join("") : `<article class="directory-row"><div><strong>Aucune preuve</strong><p>Aucune preuve ne correspond aux filtres actifs.</p></div></article>`;
+      list.querySelectorAll(".evidence-delete-button").forEach((button) => {
+        button.addEventListener("click", () => {
+          app.evidencePortfolio = (app.evidencePortfolio || []).filter((entry) => entry.id !== button.dataset.id);
+          persistAppData();
+          window.setTimeout(render, 0);
+        });
+      });
+    };
+
+    if (!classSelect.dataset.evidenceFilterBound) {
+      classSelect.dataset.evidenceFilterBound = "true";
+      classSelect.addEventListener("change", () => window.setTimeout(render, 0));
+    }
+    if (!studentSelect.dataset.evidenceFilterBound) {
+      studentSelect.dataset.evidenceFilterBound = "true";
+      studentSelect.addEventListener("change", () => window.setTimeout(render, 0));
+    }
+    [skillFilter, typeFilter, searchFilter].forEach((input) => {
+      if (input.dataset.evidenceFilterBound) return;
+      input.dataset.evidenceFilterBound = "true";
+      input.addEventListener("input", render);
+      input.addEventListener("change", render);
+    });
+    if (!addButton.dataset.evidenceFilterBound) {
+      addButton.dataset.evidenceFilterBound = "true";
+      addButton.addEventListener("click", () => window.setTimeout(render, 0));
+    }
+    if (!exportButton.dataset.evidenceFilterBound) {
+      exportButton.dataset.evidenceFilterBound = "true";
+      exportButton.addEventListener("click", () => {
+        const classId = classSelect.value || app.classes[0]?.id || "";
+        const student = getStudentById(studentSelect.value) || getStudentsByClass(classId)[0] || null;
+        if (!student) return;
+        const html = buildPrintShell(
+          `Portefeuille de preuves - ${student.name}`,
+          `${getClassById(student.classId)?.name || ""} // ${student.name}`,
+          list.innerHTML
+        );
+        printHtmlDocument(`Preuves ${student.name}`, html);
+      });
+    }
+    render();
+  }
+
+  function exportArchiveSessionJsonSafe(archiveId) {
+    const archive = (app.archives || []).find((entry) => entry.id === archiveId);
+    if (!archive) return;
+    const blob = new Blob([JSON.stringify(archive, null, 2)], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${slugify(archive.label || "archive")}.json`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function exportArchiveSessionPdfSafe(archiveId) {
+    const archive = (app.archives || []).find((entry) => entry.id === archiveId);
+    if (!archive) return;
+    const html = buildPrintShell(
+      `Archive - ${archive.label}`,
+      `${archive.sessionYear || ""} // ${new Date(archive.archivedAt).toLocaleDateString("fr-FR")}`,
+      `
+        <div class="card">
+          <p><strong>Session :</strong> ${escapeHtml(archive.label || "-")}</p>
+          <p><strong>Note :</strong> ${escapeHtml(archive.summary || "-")}</p>
+          <p><strong>Classes :</strong> ${archive.classes.length}</p>
+          <p><strong>Eleves :</strong> ${archive.students.length}</p>
+          <p><strong>Seances :</strong> ${archive.evaluationActivities.length}</p>
+          <p><strong>Preuves :</strong> ${(archive.evidencePortfolio || []).length}</p>
+        </div>
+        <table>
+          <thead><tr><th>Eleve</th><th>Classe</th><th>Progression</th></tr></thead>
+          <tbody>
+            ${(archive.students || []).map((student) => `<tr><td>${escapeHtml(student.name)}</td><td>${escapeHtml(archive.classes.find((item) => item.id === student.classId)?.name || "-")}</td><td>${getStudentProgress(student)}%</td></tr>`).join("")}
+          </tbody>
+        </table>
+      `
+    );
+    printHtmlDocument(`Archive ${archive.label}`, html);
+  }
+
+  function enrichReportsPageSafe() {
+    if (document.body?.dataset?.page !== "reports") return;
+    const main = document.querySelector("main.dashboard-layout");
+    const classSelect = document.querySelector("#reports-class-select");
+    if (!main || !classSelect) return;
+
+    let domainsPanel = document.querySelector("#reports-domains-panel");
+    if (!domainsPanel) {
+      domainsPanel = document.createElement("section");
+      domainsPanel.id = "reports-domains-panel";
+      domainsPanel.className = "panel";
+      domainsPanel.innerHTML = `
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Domaines</p>
+            <h2>Equilibre pedagogique</h2>
+          </div>
+        </div>
+        <div id="reports-domains-content" class="class-cards"></div>
+      `;
+      main.appendChild(domainsPanel);
+    }
+
+    let archivesPanel = document.querySelector("#reports-archives-panel");
+    if (!archivesPanel) {
+      archivesPanel = document.createElement("section");
+      archivesPanel.id = "reports-archives-panel";
+      archivesPanel.className = "panel";
+      archivesPanel.innerHTML = `
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Session</p>
+            <h2>Resume archivage</h2>
+          </div>
+        </div>
+        <div id="reports-archives-content" class="student-directory"></div>
+      `;
+      main.appendChild(archivesPanel);
+    }
+
+    const domainsContent = document.querySelector("#reports-domains-content");
+    const archivesContent = document.querySelector("#reports-archives-content");
+    if (!domainsContent || !archivesContent) return;
+
+    const render = () => {
+      const classId = classSelect.value || app.classes[0]?.id || "";
+      const students = getStudentsByClass(classId);
+      domainsContent.innerHTML = referentialDomains.map((domain) => {
+        const domainSkills = skillCatalog.filter((skill) => getSkillDomain(skill) === domain);
+        const progress = students.length
+          ? Math.round(students.reduce((sum, student) => {
+              const score = domainSkills.reduce((skillSum, skill) => skillSum + (levelScores[student.skills?.[skill.id]] || 0), 0);
+              const max = Math.max(domainSkills.length * (levelScores.acquis || 1), 1);
+              return sum + Math.round((score / max) * 100);
+            }, 0) / students.length)
+          : 0;
+        return `
+          <article class="summary-card">
+            <h3>${escapeHtml(domain)}</h3>
+            <p class="muted-copy">${domainSkills.length} competence(s)</p>
+            <div class="pfmp-kpis">
+              <span class="badge">${progress}%</span>
+            </div>
+          </article>
+        `;
+      }).join("");
+
+      const latestArchives = (app.archives || []).slice(0, 3);
+      archivesContent.innerHTML = latestArchives.length ? latestArchives.map((archive) => `
+        <article class="directory-row compact">
+          <div>
+            <strong>${escapeHtml(archive.label)}</strong>
+            <p>${escapeHtml(archive.summary || "-")}</p>
+            <p>${archive.students.length} eleve(s) // ${archive.classes.length} classe(s)</p>
+          </div>
+        </article>
+      `).join("") : `<article class="summary-card"><h3>Aucune archive</h3><p class="muted-copy">Les sessions archivees apparaitront ici.</p></article>`;
+    };
+
+    render();
+    if (!classSelect.dataset.reportsEnrichedBound) {
+      classSelect.dataset.reportsEnrichedBound = "true";
+      classSelect.addEventListener("change", render);
     }
   }
 
@@ -10822,11 +11083,21 @@ function initCertificationPageFinal() {
     });
   };
 
+  const originalInitEvaluationsPageSafeLot = initEvaluationsPageFinal;
+  initEvaluationsPageFinal = function () {
+    originalInitEvaluationsPageSafeLot();
+    window.setTimeout(renderEvidenceFiltersSafe, 0);
+  };
+
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
-      if (document.body?.dataset?.page === "reports") initReportsPageFinalSafe();
+      if (document.body?.dataset?.page === "reports") {
+        initReportsPageFinalSafe();
+        window.setTimeout(enrichReportsPageSafe, 0);
+      }
     }, { once: true });
   } else if (document.body?.dataset?.page === "reports") {
     initReportsPageFinalSafe();
+    window.setTimeout(enrichReportsPageSafe, 0);
   }
 })();

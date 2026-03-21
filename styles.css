@@ -738,6 +738,15 @@ body:not([data-page="home"]) .nav-tabs {
   background: rgba(7, 18, 28, 0.72);
 }
 
+.evidence-filter-toolbar {
+  margin-bottom: 16px;
+}
+
+.filter-actions {
+  align-items: end;
+  justify-content: flex-start;
+}
+
 .check-ok {
   color: #98f5a6;
   border-color: rgba(152, 245, 166, 0.24) !important;
