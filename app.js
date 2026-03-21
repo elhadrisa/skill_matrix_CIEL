@@ -8639,6 +8639,12 @@ function initAccountsPage() {
 
 ;(function () {
   const EXAM_GRID_STORAGE_KEY = "ciel-exam-grid-settings";
+  const EXAM_GRID_DEFAULT_MODEL_PATH = "18722-grilles-nationales-e2-e31-e32-bac-pro-ciel-finale-cellules-bloquees-2.xlsx";
+  const EXAM_GRID_DEFAULTS = {
+    academy: "Creteil",
+    school: "Lycée",
+    date: new Date().toISOString().slice(0, 10)
+  };
   const EXAM_SHEET_MAP = {
     "Bac Pro CIEL Grille E2_": { skillRows: { c3: 19, c7: 32, c11: 50 }, fields: { academy: "C7", school: "C8", lastName: "C9", firstName: "C10", candidateNumber: "C11", date: "C12" } },
     "BAC PRO CIEL Grille E31": { skillRows: { c6: 19, c9: 31, c10: 47 }, fields: { academy: "C7", school: "C8", lastName: "C9", firstName: "C10", candidateNumber: "C11", date: "C12" } },
@@ -8665,9 +8671,9 @@ function initAccountsPage() {
   function getExamGridSettings() {
     try {
       const raw = localStorage.getItem(EXAM_GRID_STORAGE_KEY);
-      return raw ? JSON.parse(raw) : {};
+      return raw ? { ...EXAM_GRID_DEFAULTS, ...JSON.parse(raw) } : { ...EXAM_GRID_DEFAULTS };
     } catch {
-      return {};
+      return { ...EXAM_GRID_DEFAULTS };
     }
   }
 
@@ -8725,8 +8731,10 @@ function initAccountsPage() {
   }
 
   function buildExamGridFilename(student) {
-    const safeName = slugify(student?.name || "eleve").replace(/-/g, "_");
-    return `grille_nationale_${safeName}.xlsx`;
+    const identity = splitStudentIdentity(student);
+    const lastName = slugify(identity.lastName || student?.name || "eleve").replace(/-/g, "_").toUpperCase();
+    const firstName = slugify(identity.firstName || "prenom").replace(/-/g, "_");
+    return `CIEL_${lastName}_${firstName}_grilles_nationales.xlsx`;
   }
 
   function bindExamGridExporter() {
@@ -8737,6 +8745,7 @@ function initAccountsPage() {
     const schoolInput = document.querySelector("#exam-grid-school");
     const dateInput = document.querySelector("#exam-grid-date");
     const exportButton = document.querySelector("#exam-grid-export");
+    const useDefaultButton = document.querySelector("#exam-grid-use-default");
     const feedback = document.querySelector("#exam-grid-feedback");
     const classSelect = document.querySelector("#eval-class-select");
     const studentSelect = document.querySelector("#eval-student-select");
@@ -8760,6 +8769,24 @@ function initAccountsPage() {
         });
       });
     });
+
+    if (useDefaultButton && !useDefaultButton.dataset.examBound) {
+      useDefaultButton.dataset.examBound = "true";
+      useDefaultButton.addEventListener("click", async () => {
+        try {
+          const response = await fetch(EXAM_GRID_DEFAULT_MODEL_PATH);
+          if (!response.ok) throw new Error("model");
+          const blob = await response.blob();
+          const file = new File([blob], EXAM_GRID_DEFAULT_MODEL_PATH, { type: blob.type || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+          const transfer = new DataTransfer();
+          transfer.items.add(file);
+          fileInput.files = transfer.files;
+          feedback.textContent = "Modèle officiel chargé automatiquement.";
+        } catch {
+          feedback.textContent = "Impossible de charger le modèle officiel automatiquement. Charge le fichier manuellement.";
+        }
+      });
+    }
 
     if (exportButton.dataset.examBound) return;
     exportButton.dataset.examBound = "true";
