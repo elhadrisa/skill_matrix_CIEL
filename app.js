@@ -1610,6 +1610,10 @@ function initAccountsPage() {
 
 function initDashboardPageFinal() {
   bindProtectedChrome();
+  const pageTitle = document.querySelector("#dashboard-page-title");
+  const heroTitle = document.querySelector("#dashboard-hero-title");
+  const heroText = document.querySelector("#dashboard-hero-text");
+  const heroTags = document.querySelector("#dashboard-hero-tags");
   const statsGrid = document.querySelector("#stats-grid");
   const statusChart = document.querySelector("#status-chart");
   const blockChart = document.querySelector("#block-chart");
@@ -1623,6 +1627,7 @@ function initDashboardPageFinal() {
   const classMeta = document.querySelector("#dashboard-class-meta");
   const heroSide = document.querySelector(".hero-side");
   const dashboardLayout = document.querySelector(".dashboard-layout");
+  const dashboardGrid = document.querySelector(".dashboard-grid");
   let searchInput = document.querySelector("#global-search-input");
   let searchResults = document.querySelector("#global-search-results");
   let teacherFilter = document.querySelector("#teacher-filter-select");
@@ -1630,6 +1635,13 @@ function initDashboardPageFinal() {
   let agendaPanel = document.querySelector("#agenda-panel");
   let calendarGrid = document.querySelector("#calendar-grid");
   const alertsPanel = document.querySelector("#alerts-grid")?.closest(".panel");
+  const statusPanel = document.querySelector("#status-panel");
+  const blockPanel = document.querySelector("#block-panel");
+  const pfmpPanel = document.querySelector("#pfmp-panel");
+  const studentPanel = document.querySelector("#student-panel");
+  const catalogPanel = document.querySelector("#catalog-panel");
+  let calendarPanel = document.querySelector("#calendar-panel");
+  const currentView = getRequestedDashboardView();
 
   if (alertsPanel) alertsPanel.style.display = "none";
 
@@ -1673,7 +1685,10 @@ function initDashboardPageFinal() {
     `;
     dashboardLayout.insertBefore(calendarSection, dashboardLayout.children[1] || null);
     calendarGrid = calendarSection.querySelector("#calendar-grid");
+    calendarPanel = calendarSection;
   }
+
+  applyDashboardView(currentView);
 
   populateTeacherFilter(teacherFilter);
   populateClassSelect(classSelect);
@@ -1796,6 +1811,88 @@ function initDashboardPageFinal() {
           `;
         }).join("")}
       `;
+    }
+  }
+
+  function applyDashboardView(view) {
+    const viewConfig = {
+      skills: {
+        pageTitle: "Pilotage competences",
+        heroTitle: "Pilotage des competences par classe",
+        heroText: "Vue centree sur la progression, les blocs du referentiel et le comparatif eleves pour la classe selectionnee.",
+        tags: ["Filtre classe", "Competences C1 a C11", "Synthese eleves"],
+        showExport: true,
+        showStats: true,
+        showSearch: true,
+        showDeadlines: false,
+        showAgenda: false,
+        showStatus: true,
+        showBlock: true,
+        showPfmp: false,
+        showStudent: true,
+        showCatalog: true,
+        showCalendar: false
+      },
+      pfmp: {
+        pageTitle: "Pilotage PFMP",
+        heroTitle: "Pilotage PFMP par classe",
+        heroText: "Vue dediee au suivi PFMP, aux conventions et aux echeances prioritaires pour la classe selectionnee.",
+        tags: ["Suivi entreprise", "Conventions", "Etat PFMP"],
+        showExport: false,
+        showStats: true,
+        showSearch: true,
+        showDeadlines: true,
+        showAgenda: false,
+        showStatus: false,
+        showBlock: false,
+        showPfmp: true,
+        showStudent: false,
+        showCatalog: false,
+        showCalendar: false
+      },
+      calendar: {
+        pageTitle: "Calendrier pedagogique",
+        heroTitle: "Calendrier pedagogique par classe",
+        heroText: "Vue calendrier pour suivre les seances, visites et reperes temporels de la classe selectionnee.",
+        tags: ["Agenda de classe", "Seances TP TD", "Visites PFMP"],
+        showExport: false,
+        showStats: false,
+        showSearch: false,
+        showDeadlines: false,
+        showAgenda: true,
+        showStatus: false,
+        showBlock: false,
+        showPfmp: false,
+        showStudent: false,
+        showCatalog: false,
+        showCalendar: true
+      }
+    }[view] || null;
+
+    if (!viewConfig) return;
+    if (pageTitle) pageTitle.textContent = viewConfig.pageTitle;
+    if (heroTitle) heroTitle.textContent = viewConfig.heroTitle;
+    if (heroText) heroText.textContent = viewConfig.heroText;
+    if (heroTags) {
+      heroTags.innerHTML = viewConfig.tags.map((tag) => `<span class="tag">${tag}</span>`).join("");
+    }
+    const exportSkillsButton = document.querySelector("#export-skills-button");
+    if (exportSkillsButton) exportSkillsButton.style.display = viewConfig.showExport ? "" : "none";
+    if (statsGrid) statsGrid.style.display = viewConfig.showStats ? "" : "none";
+    if (searchInput?.closest(".field")) searchInput.closest(".field").style.display = viewConfig.showSearch ? "" : "none";
+    if (searchResults) searchResults.style.display = viewConfig.showSearch ? "" : "none";
+    if (teacherFilter?.closest(".field")) teacherFilter.closest(".field").style.display = viewConfig.showSearch ? "" : "none";
+    if (deadlinesPanel) deadlinesPanel.style.display = viewConfig.showDeadlines ? "" : "none";
+    if (agendaPanel) agendaPanel.style.display = viewConfig.showAgenda ? "" : "none";
+    if (statusPanel) statusPanel.style.display = viewConfig.showStatus ? "" : "none";
+    if (blockPanel) blockPanel.style.display = viewConfig.showBlock ? "" : "none";
+    if (pfmpPanel) pfmpPanel.style.display = viewConfig.showPfmp ? "" : "none";
+    if (studentPanel) studentPanel.style.display = viewConfig.showStudent ? "" : "none";
+    if (catalogPanel) catalogPanel.style.display = viewConfig.showCatalog ? "" : "none";
+    if (calendarPanel) calendarPanel.style.display = viewConfig.showCalendar ? "" : "none";
+    if (dashboardGrid) {
+      const hasChartContent = viewConfig.showStatus || viewConfig.showBlock || viewConfig.showPfmp || viewConfig.showStudent;
+      dashboardGrid.style.display = hasChartContent ? "" : "none";
     }
   }
 
@@ -4997,7 +5094,7 @@ function bindProtectedChrome() {
     roleBadge.textContent = session.label;
   }
   navs.forEach((nav) => {
-    upsertClassDropdown(nav, "dashboard.html", "Dashboard");
+    upsertDashboardDropdown(nav);
     upsertClassDropdown(nav, "evaluations.html", "Evaluations");
     upsertPfmpDropdown(nav);
     upsertStaticDropdown(nav, "Remediations", [
@@ -5063,6 +5160,17 @@ function upsertClassDropdown(nav, href, label) {
     || (href === "evaluations.html" && page === "evaluations")
     || (href === "pfmp.html" && page === "pfmp");
   upsertStaticDropdown(nav, label, classLinks, isActive, href);
+}
+
+function upsertDashboardDropdown(nav) {
+  nav.querySelector('a[href="dashboard.html"]')?.remove();
+  const links = app.classes.flatMap((classItem) => ([
+    { type: "label", label: getClassNavLabel(classItem) },
+    { href: `dashboard.html?class=${encodeURIComponent(classItem.id)}&view=skills`, label: "Pilotage competences" },
+    { href: `dashboard.html?class=${encodeURIComponent(classItem.id)}&view=pfmp`, label: "Pilotage PFMP" },
+    { href: `dashboard.html?class=${encodeURIComponent(classItem.id)}&view=calendar`, label: "Calendrier pedagogique" }
+  ]));
+  upsertStaticDropdown(nav, "Dashboard", links, page === "dashboard", "dashboard-menu");
 }
 
 function upsertPfmpDropdown(nav) {
@@ -5789,6 +5897,16 @@ function getRequestedClassId() {
     return classId && getClassById(classId) ? classId : "";
   } catch {
     return "";
+  }
+}
+
+function getRequestedDashboardView() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const view = params.get("view");
+    return ["skills", "pfmp", "calendar"].includes(view) ? view : "skills";
+  } catch {
+    return "skills";
   }
 }
 

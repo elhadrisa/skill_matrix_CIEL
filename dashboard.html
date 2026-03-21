@@ -15,7 +15,7 @@
     <header class="topbar panel">
       <div>
         <p class="eyebrow">Bac Pro CIEL // Skill Matrix</p>
-        <h1 class="topbar-title">Dashboard par classe</h1>
+        <h1 id="dashboard-page-title" class="topbar-title">Dashboard par classe</h1>
       </div>
       <nav class="nav-tabs app-nav">
         <a class="nav-tab" href="index.html">Accueil</a>
@@ -31,12 +31,12 @@
     <section class="hero panel">
       <div class="hero-copy">
         <p class="eyebrow">Control Room</p>
-        <h2 class="hero-title">Pilotage ciblé d'une classe</h2>
-        <p class="hero-text">
+        <h2 id="dashboard-hero-title" class="hero-title">Pilotage ciblé d'une classe</h2>
+        <p id="dashboard-hero-text" class="hero-text">
           Le dashboard est désormais focalisé sur la classe sélectionnée pour éviter une lecture trop globale
           et mieux piloter les compétences ainsi que le suivi PFMP.
         </p>
-        <div class="hero-tags">
+        <div id="dashboard-hero-tags" class="hero-tags">
           <span class="tag">Filtre classe</span>
           <span class="tag">Compétences C1 à C11</span>
           <span class="tag">PFMP intégré</span>
@@ -61,7 +61,7 @@
 
     <main class="dashboard-layout">
       <section class="dashboard-grid">
-        <article class="panel chart-panel">
+        <article id="status-panel" class="panel chart-panel">
           <div class="section-head">
             <div>
               <p class="eyebrow">Status Map</p>
@@ -71,7 +71,7 @@
           <div id="status-chart" class="chart-box"></div>
         </article>
 
-        <article class="panel chart-panel">
+        <article id="block-panel" class="panel chart-panel">
           <div class="section-head">
             <div>
               <p class="eyebrow">Block Scan</p>
@@ -81,7 +81,7 @@
           <div id="block-chart" class="chart-box"></div>
         </article>
 
-        <article class="panel chart-panel">
+        <article id="pfmp-panel" class="panel chart-panel">
           <div class="section-head">
             <div>
               <p class="eyebrow">PFMP Monitor</p>
@@ -91,7 +91,7 @@
           <div id="pfmp-chart" class="chart-box"></div>
         </article>
 
-        <article class="panel chart-panel">
+        <article id="student-panel" class="panel chart-panel">
           <div class="section-head">
             <div>
               <p class="eyebrow">Student Ranking</p>
@@ -102,7 +102,7 @@
         </article>
       </section>
 
-      <section class="panel">
+      <section id="alerts-panel" class="panel">
         <div class="section-head">
           <div>
             <p class="eyebrow">Alert Center</p>
@@ -121,7 +121,7 @@
         <div id="alerts-grid" class="class-cards"></div>
       </section>
 
-      <section class="panel">
+      <section id="catalog-panel" class="panel">
         <div class="section-head">
           <div>
             <p class="eyebrow">Référentiel</p>
