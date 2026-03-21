@@ -8936,6 +8936,175 @@ function initAccountsPage() {
   }
 })();
 
+(() => {
+  function getActivityGlobalGradeUltraSafe(activity, studentId) {
+    return normalizeGrade(activity?.evaluations?.[studentId]?.__globalGrade);
+  }
+
+  function applyActivityGlobalGradeUltraSafe(activity, studentId, grade) {
+    const student = getStudentById(studentId);
+    if (!activity || !student) return;
+    const normalized = normalizeGrade(grade);
+    if (!activity.evaluations[studentId]) activity.evaluations[studentId] = {};
+    if (normalized === "") {
+      delete activity.evaluations[studentId].__globalGrade;
+      return;
+    }
+    activity.evaluations[studentId].__globalGrade = normalized;
+    const autoStatus = mapGradeToStatus(normalized);
+    (activity.indicators || []).forEach((indicator) => {
+      activity.evaluations[studentId][indicator.id] = autoStatus;
+    });
+    student.skillGrades = hydrateSkillGrades(student.skillGrades || {});
+    getActivitySkillIds(activity).forEach((skillId) => {
+      student.skillGrades[skillId] = normalized;
+      student.skills[skillId] = autoStatus;
+    });
+    logAction("Note de séance appliquée", student.name, `${activity.title} // ${normalized}/20 // ${levelLabels[autoStatus] || autoStatus}`);
+  }
+
+  function getActivityIndicatorGroupsUltraSafe(activity) {
+    const groups = [];
+    const pushGroup = (skillId, indicators) => {
+      if (!indicators.length) return;
+      const skill = skillId ? getSkillById(skillId) : null;
+      groups.push({
+        id: skillId || "common",
+        title: skill ? `${skill.code} // ${skill.title}` : "Indicateurs transversaux",
+        domain: skill ? getSkillDomain(skill) : "Séance",
+        indicators
+      });
+    };
+
+    const groupedSkillIds = getActivitySkillIds(activity);
+    groupedSkillIds.forEach((skillId) => {
+      pushGroup(skillId, (activity.indicators || []).filter((indicator) => indicator.skillId === skillId));
+    });
+    pushGroup("", (activity.indicators || []).filter((indicator) => !indicator.skillId));
+    if (!groups.length) {
+      pushGroup("", activity.indicators || []);
+    }
+    return groups;
+  }
+
+  function renderActivityCardsLayoutUltraSafe() {
+    if (document.body?.dataset?.page !== "evaluations") return;
+    const matrix = document.querySelector("#activity-matrix");
+    const legend = document.querySelector("#activity-indicator-legend");
+    const classId = document.querySelector("#session-class-select")?.value || app.classes[0]?.id || "";
+    const activity = getActivityById(document.querySelector("#activity-select")?.value) || getActivitiesByClass(classId)[0];
+    if (!matrix) return;
+    if (legend) legend.remove();
+    if (!activity) {
+      matrix.className = "activity-cards-layout";
+      matrix.innerHTML = "";
+      return;
+    }
+
+    const students = getStudentsByClass(classId);
+    const groups = getActivityIndicatorGroupsUltraSafe(activity);
+    matrix.className = "activity-cards-layout";
+    matrix.innerHTML = students.map((student) => {
+      const globalGrade = getActivityGlobalGradeUltraSafe(activity, student.id);
+      return `
+        <article class="activity-student-card panel">
+          <div class="activity-student-card-head">
+            <div>
+              <h3>${escapeHtml(student.name)}</h3>
+              <p class="muted-copy">${getStudentProgress(student)}% validé // ${escapeHtml(getClassById(student.classId)?.name || "")}</p>
+            </div>
+            <div class="activity-student-card-grade">
+              <label class="field compact-field">
+                <span>Note globale /20</span>
+                <input class="activity-student-global-grade" type="number" min="0" max="20" step="0.5" data-activity-id="${activity.id}" data-student-id="${student.id}" value="${globalGrade === "" ? "" : globalGrade}" placeholder="Ex. 13.5">
+                <small>${escapeHtml(levelLabels[mapGradeToStatus(globalGrade)] || "Non évalué")}</small>
+              </label>
+            </div>
+          </div>
+          <div class="activity-student-groups">
+            ${groups.map((group) => `
+              <section class="activity-skill-group">
+                <div class="activity-skill-group-head">
+                  <div>
+                    <strong>${escapeHtml(group.title)}</strong>
+                    <p class="muted-copy">${escapeHtml(group.domain)} // ${group.indicators.length} indicateur(s)</p>
+                  </div>
+                </div>
+                <div class="activity-indicator-card-grid">
+                  ${group.indicators.map((indicator) => `
+                    <label class="activity-indicator-card">
+                      <span class="activity-indicator-card-label">${escapeHtml(indicator.label)}</span>
+                      <select data-activity-id="${activity.id}" data-student-id="${student.id}" data-indicator-id="${indicator.id}" class="activity-status-select"${hasPermission("edit_evaluations") ? "" : " disabled"}>
+                        ${renderStatusOptions(getActivityIndicatorStatus(activity, student.id, indicator.id))}
+                      </select>
+                    </label>
+                  `).join("")}
+                </div>
+              </section>
+            `).join("")}
+          </div>
+        </article>
+      `;
+    }).join("");
+
+    matrix.querySelectorAll(".activity-status-select").forEach((select) => {
+      if (select.dataset.ultraBound === "true") return;
+      select.dataset.ultraBound = "true";
+      select.addEventListener("change", (event) => {
+        const target = event.target;
+        if (!hasPermission("edit_evaluations")) return;
+        setActivityIndicatorStatus(target.dataset.activityId, target.dataset.studentId, target.dataset.indicatorId, target.value);
+        persistAppData();
+        window.setTimeout(() => {
+          document.querySelector("#activity-select")?.dispatchEvent(new Event("change"));
+          document.querySelector("#eval-student-select")?.dispatchEvent(new Event("change"));
+        }, 0);
+      });
+    });
+
+    matrix.querySelectorAll(".activity-student-global-grade").forEach((input) => {
+      if (input.dataset.ultraBound === "true") return;
+      input.dataset.ultraBound = "true";
+      input.addEventListener("change", (event) => {
+        const target = event.target;
+        if (!hasPermission("edit_evaluations")) return;
+        applyActivityGlobalGradeUltraSafe(activity, target.dataset.studentId, target.value);
+        persistAppData();
+        window.setTimeout(() => {
+          document.querySelector("#activity-select")?.dispatchEvent(new Event("change"));
+          document.querySelector("#eval-student-select")?.dispatchEvent(new Event("change"));
+        }, 0);
+      });
+    });
+  }
+
+  const originalInitEvaluationsPageCardsUltraSafe = initEvaluationsPageFinal;
+  initEvaluationsPageFinal = function () {
+    originalInitEvaluationsPageCardsUltraSafe();
+    window.setTimeout(renderActivityCardsLayoutUltraSafe, 0);
+    window.setTimeout(renderActivityCardsLayoutUltraSafe, 160);
+  };
+
+  function bindActivityCardsObserverUltraSafe() {
+    if (document.body?.dataset?.page !== "evaluations") return;
+    const matrix = document.querySelector("#activity-matrix");
+    if (!matrix || matrix.dataset.ultraCardsObserverBound === "true") return;
+    matrix.dataset.ultraCardsObserverBound = "true";
+    const observer = new MutationObserver(() => window.setTimeout(renderActivityCardsLayoutUltraSafe, 0));
+    observer.observe(matrix, { childList: true, subtree: true });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => {
+      bindActivityCardsObserverUltraSafe();
+      window.setTimeout(renderActivityCardsLayoutUltraSafe, 0);
+    }, { once: true });
+  } else {
+    bindActivityCardsObserverUltraSafe();
+    window.setTimeout(renderActivityCardsLayoutUltraSafe, 0);
+  }
+})();
+
 ;(function () {
   function populateActivityEditorFromSelectionSafe() {
     if (document.body?.dataset?.page !== "evaluations") return;
