@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CIEL Matrix // Candidat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="candidate">
+  <div class="noise"></div>
+  <div class="page-shell">
+    <header class="topbar panel">
+      <div>
+        <p class="eyebrow">Bac Pro CIEL // Skill Matrix</p>
+        <h1 class="topbar-title">Dossier candidat</h1>
+      </div>
+      <nav class="nav-tabs app-nav">
+        <a class="nav-tab" href="index.html">Accueil</a>
+        <a class="nav-tab" href="classes.html">Classes</a>
+        <a class="nav-tab" href="dashboard.html">Dashboard</a>
+        <a class="nav-tab" href="evaluations.html">Evaluations</a>
+        <a class="nav-tab" href="pfmp.html">PFMP</a>
+        <a class="nav-tab" href="candidate.html">Candidat</a>
+        <span id="session-role" class="badge accent"></span>
+        <button id="logout-button" class="ghost-button" type="button">Déconnexion</button>
+      </nav>
+      <a class="topbar-brandmark" href="index.html" aria-label="CIEL Matrix"><img src="ciel-matrix-logo.svg" alt="CIEL Matrix"></a>
+    </header>
+
+    <section class="hero panel">
+      <div class="hero-copy">
+        <p class="eyebrow">Maison des examens</p>
+        <h2 class="hero-title">Prépare le dossier officiel du candidat</h2>
+        <p class="hero-text">
+          Sélectionne un élève, contrôle l'état des épreuves E2 / E31 / E32, puis exporte la grille nationale complétée et le récapitulatif PDF.
+        </p>
+      </div>
+      <section class="hero-side">
+        <div class="hero-side-head">
+          <div>
+            <h2>Paramètres candidat</h2>
+            <p id="candidate-meta" class="results-count"></p>
+          </div>
+          <div class="student-badges">
+            <button id="candidate-use-default" class="ghost-button" type="button">Utiliser le modèle officiel</button>
+            <button id="candidate-export-pdf" class="ghost-button" type="button">Exporter le récap PDF</button>
+            <button id="candidate-export-grid" class="primary-button" type="button">Télécharger la grille complétée</button>
+          </div>
+        </div>
+        <div class="mini-grid">
+          <label class="field">
+            <span>Classe</span>
+            <select id="candidate-class-select"></select>
+          </label>
+          <label class="field">
+            <span>Élève</span>
+            <select id="candidate-student-select"></select>
+          </label>
+          <label class="field">
+            <span>Numéro candidat</span>
+            <input id="candidate-number" type="text" placeholder="Ex. 2457812A">
+          </label>
+          <label class="field">
+            <span>Date</span>
+            <input id="candidate-date" type="date">
+          </label>
+          <label class="field">
+            <span>Académie</span>
+            <input id="candidate-academy" type="text" placeholder="Ex. Créteil">
+          </label>
+          <label class="field">
+            <span>Établissement</span>
+            <input id="candidate-school" type="text" placeholder="Ex. Lycée ...">
+          </label>
+          <label class="field wide-field">
+            <span>Grille nationale (.xlsx)</span>
+            <input id="candidate-grid-file" type="file" accept=".xlsx,.xlsm,.xls">
+          </label>
+        </div>
+        <p id="candidate-feedback" class="results-count"></p>
+      </section>
+    </section>
+
+    <main class="dashboard-layout">
+      <section class="panel">
+        <div class="hero-side-head">
+          <div>
+            <h2>État global du dossier</h2>
+            <p class="results-count">Vision synthétique du candidat avant envoi à la Maison des examens.</p>
+          </div>
+        </div>
+        <div id="candidate-overview" class="class-cards"></div>
+      </section>
+
+      <section class="panel">
+        <div class="hero-side-head">
+          <div>
+            <h2>Détail des épreuves</h2>
+            <p class="results-count">Compétences mobilisées, niveau actuel, note estimative et statut.</p>
+          </div>
+        </div>
+        <div id="candidate-exam-preview" class="class-cards"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

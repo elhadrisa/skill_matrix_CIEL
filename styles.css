@@ -212,7 +212,7 @@ body:not([data-page="home"]) .hero-side {
 .nav-tabs {
   display: flex;
   flex-wrap: nowrap;
-  gap: 6px;
+  gap: 5px;
   align-items: center;
   justify-content: center;
   min-width: 0;
@@ -248,8 +248,8 @@ body:not([data-page="home"]) .nav-tabs {
 .nav-tab, .tag, .counter-pill, .meta-pill, .skill-code, .skill-domain, .badge {
   display: inline-flex;
   align-items: center;
-  min-height: 36px;
-  padding: 0 10px;
+  min-height: 35px;
+  padding: 0 9px;
   border-radius: 999px;
   border: 1px solid var(--line);
   background: rgba(8,24,34,0.88);
@@ -258,7 +258,7 @@ body:not([data-page="home"]) .nav-tabs {
   white-space: nowrap;
   flex: 0 0 auto;
 }
-.nav-tab, .nav-dropdown-toggle, .nav-dropdown-link { font-size: 0.81rem; letter-spacing: 0.01em; }
+.nav-tab, .nav-dropdown-toggle, .nav-dropdown-link { font-size: 0.79rem; letter-spacing: 0.01em; }
 .nav-dropdown { position: relative; flex: 0 0 auto; }
 .nav-dropdown-toggle { min-height: 36px; list-style: none; cursor: pointer; }
 .nav-dropdown-toggle::-webkit-details-marker { display: none; }
@@ -648,6 +648,11 @@ body:not([data-page="home"]) .nav-tabs {
   margin-top: 10px;
   color: var(--muted);
   line-height: 1.6;
+}
+
+#candidate-overview .summary-card,
+#candidate-exam-preview .summary-card {
+  min-height: 100%;
 }
 
 .progress-track { fill: rgba(255,255,255,0.04); }

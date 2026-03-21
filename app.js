@@ -157,7 +157,7 @@ const PFMP_PERIODS = [
 ];
 
 const page = document.body.dataset.page;
-const PROTECTED_PAGES = new Set(["dashboard", "classes", "evaluations", "pfmp", "pfmp_livret", "accounts", "bulletin", "remediation_pfmp", "remediation_competences", "coverage", "mapping", "library"]);
+const PROTECTED_PAGES = new Set(["dashboard", "classes", "evaluations", "pfmp", "pfmp_livret", "accounts", "bulletin", "candidate", "remediation_pfmp", "remediation_competences", "coverage", "mapping", "library"]);
 const ADMIN_ONLY_PAGES = new Set(["accounts"]);
 const app = createEmptyApp();
 let persistTimeout = null;
@@ -219,6 +219,7 @@ async function initializeApp() {
       if (page === "coverage") initCoveragePageFinal();
       if (page === "mapping") initMappingPageFinal();
       if (page === "library") initLibraryPageFinal();
+      if (page === "candidate") initCandidatePageFinal();
       if (page === "remediation_pfmp" || page === "remediation_competences") initRemediationPageFinal();
       return;
     }
@@ -247,6 +248,7 @@ async function initializeApp() {
     if (page === "coverage") initCoveragePageFinal();
     if (page === "mapping") initMappingPageFinal();
     if (page === "library") initLibraryPageFinal();
+    if (page === "candidate") initCandidatePageFinal();
     if (page === "remediation_pfmp" || page === "remediation_competences") initRemediationPageFinal();
 }
 }
@@ -6124,6 +6126,7 @@ function bindProtectedChrome() {
     upsertDashboardDropdown(nav);
     upsertEvaluationsDropdown(nav);
     upsertPfmpDropdown(nav);
+    upsertNavLink(nav, "candidate.html", "Candidat", page === "candidate");
     upsertStaticDropdown(nav, "Referentiel", [
       { href: "coverage.html", label: "Couverture" },
       { href: "mapping.html", label: "Cartographie" },
@@ -8151,6 +8154,344 @@ function initAccountsPage() {
     }, 0);
   };
 })();
+
+function initCandidatePageFinal() {
+  bindProtectedChrome();
+
+  const classSelect = document.querySelector("#candidate-class-select");
+  const studentSelect = document.querySelector("#candidate-student-select");
+  const candidateNumberInput = document.querySelector("#candidate-number");
+  const dateInput = document.querySelector("#candidate-date");
+  const academyInput = document.querySelector("#candidate-academy");
+  const schoolInput = document.querySelector("#candidate-school");
+  const fileInput = document.querySelector("#candidate-grid-file");
+  const useDefaultButton = document.querySelector("#candidate-use-default");
+  const exportGridButton = document.querySelector("#candidate-export-grid");
+  const exportPdfButton = document.querySelector("#candidate-export-pdf");
+  const feedback = document.querySelector("#candidate-feedback");
+  const meta = document.querySelector("#candidate-meta");
+  const overview = document.querySelector("#candidate-overview");
+  const preview = document.querySelector("#candidate-exam-preview");
+  if (!classSelect || !studentSelect || !candidateNumberInput || !dateInput || !academyInput || !schoolInput || !fileInput || !useDefaultButton || !exportGridButton || !exportPdfButton || !overview || !preview) return;
+
+  const EXAM_GRID_STORAGE_KEY = "ciel-exam-grid-settings";
+  const EXAM_CENTER_SETTINGS_KEY = "ciel-exam-center-settings";
+  const EXAM_GRID_DEFAULT_MODEL_PATH = "18722-grilles-nationales-e2-e31-e32-bac-pro-ciel-finale-cellules-bloquees-2.xlsx";
+  const EXAM_SHEET_MAP = {
+    "Bac Pro CIEL Grille E2_": {
+      skillRows: { c3: 19, c7: 32, c11: 50 },
+      fields: { academy: "C7", school: "C8", lastName: "C9", firstName: "C10", candidateNumber: "C11", date: "C12" }
+    },
+    "BAC PRO CIEL Grille E31": {
+      skillRows: { c6: 19, c9: 31, c10: 47 },
+      fields: { academy: "C7", school: "C8", lastName: "C9", firstName: "C10", candidateNumber: "C11", date: "C12" }
+    },
+    "BAC PRO CIEL Grille E32": {
+      skillRows: { c1: 19, c4: 31, c8: 47 },
+      fields: { academy: "C7", school: "C8", lastName: "C9", firstName: "C10", candidateNumber: "C11", date: "C12" }
+    },
+    "FICHE RECAPITULATIVE": {
+      fields: { academy: "C21", school: "C22", lastName: "C23", firstName: "C24", candidateNumber: "C25", date: "C26" }
+    }
+  };
+  const STATUS_TO_EXAM_COLUMN = {
+    non_acquis: "C",
+    en_cours_acquisition: "D",
+    partiellement_acquis: "E",
+    acquis: "F"
+  };
+  const EXAM_GROUPS = [
+    { exam: "E2", skillIds: ["c3", "c7", "c11"] },
+    { exam: "E31", skillIds: ["c6", "c9", "c10"] },
+    { exam: "E32", skillIds: ["c1", "c4", "c8"] }
+  ];
+
+  function safeJsonParse(raw, fallback = {}) {
+    try {
+      return JSON.parse(raw || JSON.stringify(fallback));
+    } catch {
+      return { ...fallback };
+    }
+  }
+
+  function getStoredCandidateSettings() {
+    const center = safeJsonParse(localStorage.getItem(EXAM_CENTER_SETTINGS_KEY), {});
+    const exam = safeJsonParse(localStorage.getItem(EXAM_GRID_STORAGE_KEY), {});
+    return {
+      academy: exam.academy || center.academy || "",
+      school: exam.school || center.school || "",
+      candidateNumber: exam.candidateNumber || "",
+      date: exam.date || new Date().toISOString().slice(0, 10)
+    };
+  }
+
+  function saveStoredCandidateSettings() {
+    const current = safeJsonParse(localStorage.getItem(EXAM_GRID_STORAGE_KEY), {});
+    localStorage.setItem(EXAM_GRID_STORAGE_KEY, JSON.stringify({
+      ...current,
+      academy: academyInput.value.trim(),
+      school: schoolInput.value.trim(),
+      candidateNumber: candidateNumberInput.value.trim(),
+      date: dateInput.value || new Date().toISOString().slice(0, 10)
+    }));
+  }
+
+  function splitStudentIdentitySafe(student) {
+    const tokens = String(student?.name || "").trim().split(/\s+/).filter(Boolean);
+    return {
+      firstName: tokens[0] || "",
+      lastName: tokens.slice(1).join(" ") || tokens[0] || ""
+    };
+  }
+
+  function computeExamPreview(student) {
+    return EXAM_GROUPS.map((item) => {
+      const lines = item.skillIds.map((skillId) => {
+        const skill = getSkillById(skillId);
+        const status = student?.skills?.[skillId] || "non_evalue";
+        return {
+          code: skill?.code || skillId.toUpperCase(),
+          title: skill?.title || skillId,
+          status,
+          label: levelLabels[status] || status
+        };
+      });
+      const validated = lines.filter((line) => ["partiellement_acquis", "acquis"].includes(line.status)).length;
+      const score = lines.reduce((sum, line) => sum + (levelScores[line.status] || 0), 0) / (lines.length || 1);
+      const average = Math.round(score * 100);
+      const note = Math.round(score * 20 * 10) / 10;
+      const hasIncomplete = lines.some((line) => ["absent", "non_evalue", "non_acquis"].includes(line.status));
+      const ready = lines.every((line) => ["partiellement_acquis", "acquis"].includes(line.status));
+      const status = ready ? "Pret" : (hasIncomplete ? "Incomplet" : "A verifier");
+      return { exam: item.exam, lines, validated, average, note, status };
+    });
+  }
+
+  function computeOverallExamStatus(previewItems) {
+    if (!previewItems.length) return { label: "A verifier", note: 0, ready: 0, progress: 0 };
+    const progress = Math.round(previewItems.reduce((sum, item) => sum + item.average, 0) / previewItems.length);
+    const note = Math.round(previewItems.reduce((sum, item) => sum + item.note, 0) / previewItems.length * 10) / 10;
+    const ready = previewItems.filter((item) => item.status === "Pret").length;
+    const label = ready === previewItems.length ? "Pret a envoyer" : (previewItems.some((item) => item.status === "Incomplet") ? "Incomplet" : "A verifier");
+    return { label, note, ready, progress };
+  }
+
+  function renderCandidateOverview(student) {
+    if (!student) {
+      overview.innerHTML = "";
+      preview.innerHTML = "";
+      meta.textContent = "";
+      return;
+    }
+    const classItem = getClassById(student.classId);
+    const examPreview = computeExamPreview(student);
+    const overall = computeOverallExamStatus(examPreview);
+    meta.textContent = `${classItem?.name || ""} // ${student.name} // ${overall.label}`;
+    overview.innerHTML = `
+      <article class="summary-card">
+        <h3>Dossier candidat</h3>
+        <p class="muted-copy">${overall.ready}/${examPreview.length} épreuve(s) prêtes</p>
+        <div class="pfmp-kpis">
+          <span class="badge">${overall.progress}%</span>
+          <span class="badge">${overall.note.toFixed(1)}/20</span>
+          <span class="badge">${overall.label}</span>
+        </div>
+        <div class="directory-row compact">
+          <div>
+            <p><strong>Classe</strong> ${classItem?.name || "-"}</p>
+            <p><strong>Académie</strong> ${academyInput.value.trim() || "-"}</p>
+            <p><strong>Établissement</strong> ${schoolInput.value.trim() || "-"}</p>
+            <p><strong>Numéro candidat</strong> ${candidateNumberInput.value.trim() || "-"}</p>
+          </div>
+        </div>
+      </article>
+    `;
+    preview.innerHTML = examPreview.map((item) => `
+      <article class="summary-card">
+        <h3>${item.exam}</h3>
+        <p class="muted-copy">${item.validated}/${item.lines.length} compétence(s) consolidée(s)</p>
+        <div class="pfmp-kpis">
+          <span class="badge">${item.average}%</span>
+          <span class="badge">${item.note.toFixed(1)}/20</span>
+          <span class="badge">${item.status}</span>
+        </div>
+        <div class="directory-row compact">
+          <div>${item.lines.map((line) => `<p><strong>${line.code}</strong> ${line.title} // ${line.label}</p>`).join("")}</div>
+        </div>
+      </article>
+    `).join("");
+  }
+
+  function buildCandidateRecapHtml(student) {
+    const classItem = getClassById(student.classId);
+    const { firstName, lastName } = splitStudentIdentitySafe(student);
+    const examPreview = computeExamPreview(student);
+    const overall = computeOverallExamStatus(examPreview);
+    return buildPrintShell(
+      `Dossier candidat - ${student.name}`,
+      `${classItem?.name || ""} // ${academyInput.value.trim() || ""} // ${schoolInput.value.trim() || ""}`,
+      `
+        <div class="card">
+          <p><strong>Nom :</strong> ${escapeHtml(lastName)}</p>
+          <p><strong>Prenom :</strong> ${escapeHtml(firstName)}</p>
+          <p><strong>Numero candidat :</strong> ${escapeHtml(candidateNumberInput.value.trim() || "-")}</p>
+          <p><strong>Date :</strong> ${escapeHtml(dateInput.value || "-")}</p>
+          <p><strong>Etat du dossier :</strong> ${escapeHtml(overall.label)}</p>
+          <p><strong>Note estimative globale :</strong> ${overall.note.toFixed(1)}/20</p>
+        </div>
+        <table>
+          <thead><tr><th>Epreuve</th><th>Competence</th><th>Intitule</th><th>Niveau</th><th>Etat</th><th>Note estimative</th></tr></thead>
+          <tbody>
+            ${examPreview.flatMap((item) => item.lines.map((line) => `
+              <tr>
+                <td>${item.exam}</td>
+                <td>${line.code}</td>
+                <td>${escapeHtml(line.title)}</td>
+                <td>${escapeHtml(line.label)}</td>
+                <td>${escapeHtml(item.status)}</td>
+                <td>${item.note.toFixed(1)}/20</td>
+              </tr>
+            `)).join("")}
+          </tbody>
+        </table>
+      `
+    );
+  }
+
+  function setSheetCellSafe(sheet, cellRef, value) {
+    const existing = sheet[cellRef] || {};
+    if (value === undefined || value === null || value === "") {
+      existing.t = "s";
+      existing.v = "";
+      delete existing.w;
+    } else if (typeof value === "number") {
+      existing.t = "n";
+      existing.v = value;
+      delete existing.w;
+    } else {
+      existing.t = "s";
+      existing.v = String(value);
+      delete existing.w;
+    }
+    sheet[cellRef] = existing;
+    if (!sheet["!ref"]) sheet["!ref"] = `${cellRef}:${cellRef}`;
+  }
+
+  function fillCandidateWorkbook(workbook, student) {
+    const { firstName, lastName } = splitStudentIdentitySafe(student);
+    const safeDate = dateInput.value || new Date().toISOString().slice(0, 10);
+    Object.entries(EXAM_SHEET_MAP).forEach(([sheetName, config]) => {
+      const sheet = workbook.Sheets[sheetName];
+      if (!sheet || !config.fields) return;
+      setSheetCellSafe(sheet, config.fields.academy, academyInput.value.trim());
+      setSheetCellSafe(sheet, config.fields.school, schoolInput.value.trim());
+      setSheetCellSafe(sheet, config.fields.lastName, lastName);
+      setSheetCellSafe(sheet, config.fields.firstName, firstName);
+      setSheetCellSafe(sheet, config.fields.candidateNumber, candidateNumberInput.value.trim());
+      setSheetCellSafe(sheet, config.fields.date, safeDate);
+      if (!config.skillRows) return;
+      Object.entries(config.skillRows).forEach(([skillId, row]) => {
+        ["C", "D", "E", "F"].forEach((column) => setSheetCellSafe(sheet, `${column}${row}`, ""));
+        const column = STATUS_TO_EXAM_COLUMN[student.skills?.[skillId]];
+        if (column) setSheetCellSafe(sheet, `${column}${row}`, "X");
+      });
+    });
+  }
+
+  function buildCandidateGridFilename(student) {
+    const { firstName, lastName } = splitStudentIdentitySafe(student);
+    return `CIEL_Matrix_${slugify(lastName || student.name || "eleve").replace(/-/g, "_").toUpperCase()}_${slugify(firstName || "prenom").replace(/-/g, "_")}_grille.xlsx`;
+  }
+
+  function refreshStudentOptions() {
+    const requestedClassId = getRequestedClassId();
+    const availableClasses = [...app.classes].sort((a, b) => getClassNavLabel(a).localeCompare(getClassNavLabel(b), "fr"));
+    classSelect.innerHTML = availableClasses.map((classItem) => `<option value="${classItem.id}">${classItem.name}</option>`).join("");
+    classSelect.value = availableClasses.some((item) => item.id === requestedClassId) ? requestedClassId : (availableClasses[0]?.id || "");
+    renderStudentsForClass();
+  }
+
+  function renderStudentsForClass() {
+    const classId = classSelect.value || app.classes[0]?.id || "";
+    const students = getStudentsByClass(classId);
+    studentSelect.innerHTML = students.map((student) => `<option value="${student.id}">${student.name}</option>`).join("");
+    renderCandidateOverview(getStudentById(studentSelect.value) || students[0] || null);
+  }
+
+  const stored = getStoredCandidateSettings();
+  candidateNumberInput.value = stored.candidateNumber || "";
+  academyInput.value = stored.academy || "";
+  schoolInput.value = stored.school || "";
+  dateInput.value = stored.date || new Date().toISOString().slice(0, 10);
+
+  refreshStudentOptions();
+
+  classSelect.addEventListener("change", renderStudentsForClass);
+  studentSelect.addEventListener("change", () => {
+    renderCandidateOverview(getStudentById(studentSelect.value) || null);
+  });
+  [candidateNumberInput, academyInput, schoolInput, dateInput].forEach((input) => {
+    input.addEventListener("change", () => {
+      saveStoredCandidateSettings();
+      renderCandidateOverview(getStudentById(studentSelect.value) || null);
+    });
+  });
+
+  useDefaultButton.addEventListener("click", async () => {
+    try {
+      const response = await fetch(EXAM_GRID_DEFAULT_MODEL_PATH);
+      if (!response.ok) throw new Error("model");
+      const blob = await response.blob();
+      const file = new File([blob], EXAM_GRID_DEFAULT_MODEL_PATH, { type: blob.type || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const transfer = new DataTransfer();
+      transfer.items.add(file);
+      fileInput.files = transfer.files;
+      feedback.textContent = "Modèle officiel chargé.";
+    } catch {
+      feedback.textContent = "Impossible de charger le modèle officiel automatiquement.";
+    }
+  });
+
+  exportPdfButton.addEventListener("click", () => {
+    const student = getStudentById(studentSelect.value);
+    if (!student) {
+      feedback.textContent = "Aucun élève sélectionné.";
+      return;
+    }
+    printHtmlDocument(`Dossier candidat ${student.name}`, buildCandidateRecapHtml(student));
+  });
+
+  exportGridButton.addEventListener("click", async () => {
+    const student = getStudentById(studentSelect.value);
+    const file = fileInput.files?.[0];
+    if (!student) {
+      feedback.textContent = "Aucun élève sélectionné.";
+      return;
+    }
+    if (!file || typeof XLSX === "undefined") {
+      feedback.textContent = "Charge d'abord le modèle officiel .xlsx.";
+      return;
+    }
+    try {
+      saveStoredCandidateSettings();
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data, {
+        type: "array",
+        cellStyles: true,
+        cellNF: true,
+        cellDates: true
+      });
+      fillCandidateWorkbook(workbook, student);
+      XLSX.writeFile(workbook, buildCandidateGridFilename(student), {
+        cellStyles: true,
+        bookType: "xlsx"
+      });
+      feedback.textContent = "Grille nationale complétée et téléchargée.";
+    } catch {
+      feedback.textContent = "Impossible de générer la grille officielle pour ce candidat.";
+    }
+  });
+}
 
 ;(function () {
   function getJourneyItemForLevel(student, levelOrder) {
