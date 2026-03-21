@@ -7980,8 +7980,13 @@ function initAccountsPage() {
         };
       });
       const validated = lines.filter((line) => ["partiellement_acquis", "acquis"].includes(line.status)).length;
-      const average = Math.round(lines.reduce((sum, line) => sum + (levelScores[line.status] || 0), 0) / (lines.length || 1) * 100);
-      return { exam: item.exam, lines, validated, average };
+      const score = lines.reduce((sum, line) => sum + (levelScores[line.status] || 0), 0) / (lines.length || 1);
+      const average = Math.round(score * 100);
+      const note = Math.round(score * 20 * 10) / 10;
+      const hasIncomplete = lines.some((line) => ["absent", "non_evalue", "non_acquis"].includes(line.status));
+      const ready = lines.every((line) => ["partiellement_acquis", "acquis"].includes(line.status));
+      const status = ready ? "Pret" : (hasIncomplete ? "Incomplet" : "A verifier");
+      return { exam: item.exam, lines, validated, average, note, status };
     });
   }
 
@@ -7996,7 +8001,11 @@ function initAccountsPage() {
       <article class="summary-card">
         <h3>${item.exam}</h3>
         <p class="muted-copy">${item.validated}/${item.lines.length} competence(s) consolidee(s)</p>
-        <div class="pfmp-kpis"><span class="badge">${item.average}%</span></div>
+        <div class="pfmp-kpis">
+          <span class="badge">${item.average}%</span>
+          <span class="badge">${item.note.toFixed(1)}/20</span>
+          <span class="badge">${item.status}</span>
+        </div>
         <div class="directory-row compact">
           <div>${item.lines.map((line) => `<p><strong>${line.code}</strong> ${line.title} // ${line.label}</p>`).join("")}</div>
         </div>
@@ -8021,7 +8030,7 @@ function initAccountsPage() {
           <p><strong>Date :</strong> ${escapeHtml(settings.date || "-")}</p>
         </div>
         <table>
-          <thead><tr><th>Epreuve</th><th>Competence</th><th>Intitule</th><th>Niveau</th></tr></thead>
+          <thead><tr><th>Epreuve</th><th>Competence</th><th>Intitule</th><th>Niveau</th><th>Etat</th><th>Note estimative</th></tr></thead>
           <tbody>
             ${preview.flatMap((item) => item.lines.map((line) => `
               <tr>
@@ -8029,6 +8038,8 @@ function initAccountsPage() {
                 <td>${line.code}</td>
                 <td>${escapeHtml(line.title)}</td>
                 <td>${escapeHtml(line.label)}</td>
+                <td>${escapeHtml(item.status)}</td>
+                <td>${item.note.toFixed(1)}/20</td>
               </tr>
             `)).join("")}
           </tbody>
@@ -8897,11 +8908,21 @@ function initAccountsPage() {
   }
 
   function setSheetCell(sheet, cellRef, value) {
-    sheet[cellRef] = value === undefined || value === null || value === ""
-      ? { t: "z", v: "" }
-      : (typeof value === "number"
-        ? { t: "n", v: value }
-        : { t: "s", v: String(value) });
+    const existing = sheet[cellRef] || {};
+    if (value === undefined || value === null || value === "") {
+      existing.t = "s";
+      existing.v = "";
+      delete existing.w;
+    } else if (typeof value === "number") {
+      existing.t = "n";
+      existing.v = value;
+      delete existing.w;
+    } else {
+      existing.t = "s";
+      existing.v = String(value);
+      delete existing.w;
+    }
+    sheet[cellRef] = existing;
     if (!sheet["!ref"]) {
       sheet["!ref"] = `${cellRef}:${cellRef}`;
     }
@@ -9027,10 +9048,18 @@ function initAccountsPage() {
         };
         saveExamGridSettings(settings);
         const data = await file.arrayBuffer();
-        const workbook = XLSX.read(data, { type: "array" });
+        const workbook = XLSX.read(data, {
+          type: "array",
+          cellStyles: true,
+          cellNF: true,
+          cellDates: true
+        });
         fillExamIdentityCells(workbook, student, settings);
         fillExamSkillCells(workbook, student);
-        XLSX.writeFile(workbook, buildExamGridFilename(student));
+        XLSX.writeFile(workbook, buildExamGridFilename(student), {
+          cellStyles: true,
+          bookType: "xlsx"
+        });
         feedback.textContent = "Grille nationale complétée et téléchargée.";
       } catch (error) {
         feedback.textContent = "Le fichier n'a pas pu être traité. Vérifie que tu charges bien la grille officielle .xlsx.";
