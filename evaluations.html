@@ -57,10 +57,16 @@
             <select id="activity-skill" multiple size="6"></select>
             <small>Utilise `Ctrl` ou `Cmd` pour choisir plusieurs compétences.</small>
           </label>
-          <label class="field">
-            <span>Date</span>
-            <input id="activity-date" type="date">
-          </label>
+          <div class="mini-grid">
+            <label class="field">
+              <span>Date de début</span>
+              <input id="activity-date-start" type="date">
+            </label>
+            <label class="field">
+              <span>Date de fin</span>
+              <input id="activity-date-end" type="date">
+            </label>
+          </div>
           <label class="field">
             <span>Indicateurs d'évaluation</span>
             <textarea id="activity-indicators" rows="5" placeholder="Un indicateur par ligne"></textarea>

@@ -586,7 +586,9 @@ function hydrateEvaluationActivity(activity, index) {
     classId: activity.classId || "",
     skillId: skillIds[0] || skillCatalog[0].id,
     skillIds,
-    date: activity.date || "",
+    date: activity.date || activity.startDate || "",
+    startDate: activity.startDate || activity.date || "",
+    endDate: activity.endDate || activity.startDate || activity.date || "",
     comment: activity.comment || "",
     indicators,
     evaluations: activity.evaluations || {}
@@ -1870,7 +1872,7 @@ function initDashboardPageFinal() {
         ${calendar.days.map((day) => {
           if (!day) return `<article class="calendar-cell is-empty"></article>`;
           return `
-            <article class="calendar-cell${day.isToday ? " is-today" : ""}">
+            <article class="calendar-cell is-actionable${day.isToday ? " is-today" : ""}" data-date="${day.key}">
               <div class="calendar-day">${day.dayNumber}</div>
               <div class="calendar-events">
                 ${day.events.slice(0, 2).map((event) => `<span class="calendar-event">${event.kind} // ${event.title}</span>`).join("")}
@@ -1880,6 +1882,15 @@ function initDashboardPageFinal() {
           `;
         }).join("")}
       `;
+      if (hasPermission("edit_evaluations")) {
+        calendarGrid.querySelectorAll(".calendar-cell.is-actionable").forEach((cell) => {
+          cell.addEventListener("click", () => {
+            const date = cell.dataset.date;
+            if (!date) return;
+            window.location.href = `evaluations.html?class=${encodeURIComponent(classId)}&view=create&dateStart=${encodeURIComponent(date)}&dateEnd=${encodeURIComponent(date)}`;
+          });
+        });
+      }
     }
   }
 
@@ -2348,7 +2359,8 @@ function initEvaluationsPageFinal() {
   const activityTitle = document.querySelector("#activity-title");
   const activityClass = document.querySelector("#activity-class");
   const activitySkill = document.querySelector("#activity-skill");
-  const activityDate = document.querySelector("#activity-date");
+  const activityDateStart = document.querySelector("#activity-date-start");
+  const activityDateEnd = document.querySelector("#activity-date-end");
   const activityIndicators = document.querySelector("#activity-indicators");
   const activityComment = document.querySelector("#activity-comment");
   const activityFeedback = document.querySelector("#activity-feedback");
@@ -2391,6 +2403,7 @@ function initEvaluationsPageFinal() {
   populateClassSelect(evalClassSelect);
   const requestedClassId = getRequestedClassId();
   const requestedTemplateId = getRequestedTemplateId();
+  const requestedDates = getRequestedActivityDates();
   if (requestedClassId) {
     activityClass.value = requestedClassId;
     sessionClassSelect.value = requestedClassId;
@@ -2401,7 +2414,10 @@ function initEvaluationsPageFinal() {
   syncSessionActivities();
   syncEvalStudents();
 
-  enforcePermission("edit_evaluations", activityType, activityTitle, activityClass, activitySkill, activityDate, activityIndicators, activityComment, activityEditButton, activityDeleteButton);
+  if (requestedDates.startDate) activityDateStart.value = requestedDates.startDate;
+  if (requestedDates.endDate) activityDateEnd.value = requestedDates.endDate;
+
+  enforcePermission("edit_evaluations", activityType, activityTitle, activityClass, activitySkill, activityDateStart, activityDateEnd, activityIndicators, activityComment, activityEditButton, activityDeleteButton);
 
   activityForm.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -2419,7 +2435,9 @@ function initEvaluationsPageFinal() {
       classId: activityClass.value,
       skillId: selectedSkillIds[0],
       skillIds: selectedSkillIds,
-      date: activityDate.value,
+      date: activityDateStart.value,
+      startDate: activityDateStart.value,
+      endDate: activityDateEnd.value || activityDateStart.value,
       comment: activityComment?.value.trim() || "",
       indicators,
       evaluations: {}
@@ -2454,7 +2472,8 @@ function initEvaluationsPageFinal() {
     if (!activity || !canEditEvaluations) return;
     const title = window.prompt("Nouveau titre de la séance", activity.title);
     if (!title) return;
-    const date = window.prompt("Nouvelle date", activity.date || "");
+    const startDate = window.prompt("Nouvelle date de debut", activity.startDate || activity.date || "");
+    const endDate = window.prompt("Nouvelle date de fin", activity.endDate || activity.startDate || activity.date || "");
     const skillsValue = window.prompt("CompÃ©tences (codes sÃ©parÃ©s par , ex: C4,C8)", getActivitySkills(activity).map((skill) => skill.code).join(", "));
     const indicators = window.prompt("Indicateurs (séparés par |)", activity.indicators.map((item) => item.label).join(" | "));
     const comment = window.prompt("Commentaire enseignant", activity.comment || "");
@@ -2462,7 +2481,9 @@ function initEvaluationsPageFinal() {
     const skillIds = parseSkillCodesInput(skillsValue);
     if (!skillIds.length) return;
     activity.title = title.trim();
-    activity.date = date.trim();
+    activity.date = startDate.trim();
+    activity.startDate = startDate.trim();
+    activity.endDate = (endDate || startDate || "").trim();
     activity.skillIds = skillIds;
     activity.skillId = skillIds[0];
     activity.comment = (comment || "").trim();
@@ -2511,7 +2532,7 @@ function initEvaluationsPageFinal() {
     const search = activitySearchInput?.value.trim().toLowerCase() || "";
     const activities = getActivitiesByClass(classId).filter((activity) => {
       if (!search) return true;
-      return `${activity.title} ${activity.type} ${activity.date} ${getActivitySkillLabel(activity)} ${(activity.comment || "")}`.toLowerCase().includes(search);
+      return `${activity.title} ${activity.type} ${formatActivityDateRange(activity)} ${getActivitySkillLabel(activity)} ${(activity.comment || "")}`.toLowerCase().includes(search);
     });
     activitySelect.innerHTML = activities.map((activity) => `<option value="${activity.id}">${activity.type} // ${activity.title}</option>`).join("");
     if (selectedId && activities.some((activity) => activity.id === selectedId)) activitySelect.value = selectedId;
@@ -2544,7 +2565,7 @@ function initEvaluationsPageFinal() {
       <article class="summary-card">
         <h3>${activity.type} // ${activity.title}</h3>
         <p class="muted-copy">${classItem?.name || ""} // ${getActivitySkillLabel(activity)}</p>
-        <p class="muted-copy">${activity.date || "Date non renseignée"} // ${activity.indicators.length} indicateur(s)</p>
+        <p class="muted-copy">${formatActivityDateRange(activity)} // ${activity.indicators.length} indicateur(s)</p>
       </article>
     `;
   }
@@ -2618,7 +2639,7 @@ function initEvaluationsPageFinal() {
           <div>
             <strong>${activity.type} // ${activity.title}</strong>
             <p>${getActivitySkillLabel(activity)}</p>
-            <p>${activity.date || "Date non renseignée"}</p>
+            <p>${formatActivityDateRange(activity)}</p>
           </div>
           <div class="student-badges">
             <span class="badge">${activity.indicators.length} indicateurs</span>
@@ -2706,7 +2727,8 @@ function initEvaluationsPageFinal() {
     activityType.value = "TP";
     activityTitle.value = template.title;
     if (requestedClassId) activityClass.value = requestedClassId;
-    activityDate.value = "";
+    if (!activityDateStart.value) activityDateStart.value = "";
+    if (!activityDateEnd.value) activityDateEnd.value = activityDateStart.value;
     activityComment.value = template.notes || "";
     activityIndicators.value = (template.indicators || []).join("\n");
     clearMultiSelect(activitySkill);
@@ -4049,13 +4071,16 @@ function getAgendaEntries(classId, teacher = "all") {
 
   getActivitiesByClass(classId).forEach((activity) => {
     if (teacher !== "all" && !activityTouchesTeacher(activity, teacher)) return;
-    if (!activity.date) return;
+    const startDate = activity.startDate || activity.date;
+    if (!startDate) return;
     entries.push({
-      sortKey: parseSortableDate(activity.date)?.getTime() || Number.MAX_SAFE_INTEGER,
+      sortKey: parseSortableDate(startDate)?.getTime() || Number.MAX_SAFE_INTEGER,
       title: `${activity.type} - ${activity.title}`,
       meta: `${getActivitySkillLabel(activity)} // ${getClassById(classId)?.name || ""}`,
       kind: "Séance",
-      when: formatAgendaDate(activity.date)
+      when: formatActivityDateRange(activity),
+      startDate,
+      endDate: activity.endDate || startDate
     });
   });
 
@@ -4124,11 +4149,13 @@ function getMonthCalendarData(classId, teacher = "all") {
   const eventsByDay = new Map();
 
   agendaItems.forEach((item) => {
-    const parsed = parseSortableDate(item.when);
-    if (!parsed || parsed.getMonth() !== month || parsed.getFullYear() !== year) return;
-    const key = parsed.toISOString().slice(0, 10);
-    if (!eventsByDay.has(key)) eventsByDay.set(key, []);
-    eventsByDay.get(key).push(item);
+    getDateRangeValues(item.startDate || item.when, item.endDate || item.startDate || item.when).forEach((value) => {
+      const parsed = parseSortableDate(value);
+      if (!parsed || parsed.getMonth() !== month || parsed.getFullYear() !== year) return;
+      const key = parsed.toISOString().slice(0, 10);
+      if (!eventsByDay.has(key)) eventsByDay.set(key, []);
+      eventsByDay.get(key).push(item);
+    });
   });
 
   const days = [];
@@ -6262,6 +6289,18 @@ function getRequestedTemplateId() {
   }
 }
 
+function getRequestedActivityDates() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return {
+      startDate: params.get("dateStart") || "",
+      endDate: params.get("dateEnd") || params.get("dateStart") || ""
+    };
+  } catch {
+    return { startDate: "", endDate: "" };
+  }
+}
+
 function getClassNavLabel(classItem) {
   const name = normalizeText(classItem?.name || "");
   if (name.includes("term")) return "TCIEL";
@@ -6322,6 +6361,28 @@ function getCoverageSnapshot(classId) {
     domains,
     weakSkills: coverageBySkill.filter((skill) => skill.activitiesCount === 0 && skill.pfmpCount === 0)
   };
+}
+
+function formatActivityDateRange(activity) {
+  const start = activity?.startDate || activity?.date || "";
+  const end = activity?.endDate || start;
+  if (!start) return "Date non renseignée";
+  if (!end || end === start) return start;
+  return `${start} -> ${end}`;
+}
+
+function getDateRangeValues(startDate, endDate) {
+  const start = parseSortableDate(startDate);
+  const end = parseSortableDate(endDate || startDate);
+  if (!start) return [];
+  const safeEnd = end && end >= start ? end : start;
+  const values = [];
+  const cursor = new Date(start);
+  while (cursor <= safeEnd) {
+    values.push(cursor.toISOString().slice(0, 10));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return values;
 }
 
 function getActivityById(activityId) {
