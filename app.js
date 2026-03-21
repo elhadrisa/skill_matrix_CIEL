@@ -7916,14 +7916,15 @@ function initAccountsPage() {
     return getStudentJourney(student).find((item) => getClassLevelOrder(item.classId) === levelOrder) || null;
   }
 
-  function getJourneyItemsForUpperYears(student) {
+  function getJourneyItemsForCycle(student) {
     return getStudentJourney(student).filter((item) => {
       const levelOrder = getClassLevelOrder(item.classId);
-      return levelOrder === 2 || levelOrder === 3;
+      return levelOrder === 1 || levelOrder === 2 || levelOrder === 3;
     });
   }
 
   function getLevelExportLabel(levelOrder) {
+    if (levelOrder === 1) return "Seconde";
     if (levelOrder === 2) return "Premiere";
     if (levelOrder === 3) return "Terminale";
     return "Annee";
@@ -7969,8 +7970,8 @@ function initAccountsPage() {
     return true;
   }
 
-  function exportStudentSkillsUpperYearsSynthesisWorkbook(student) {
-    const journey = getJourneyItemsForUpperYears(student);
+  function exportStudentSkillsCycleSynthesisWorkbook(student) {
+    const journey = getJourneyItemsForCycle(student);
     if (!journey.length) return false;
 
     const headers = ["Eleve", "Classe", "Annee", ...skillCatalog.map((skill) => skill.code), "Progression"];
@@ -8003,11 +8004,12 @@ function initAccountsPage() {
     rows.push(buildCycleDomainSummaryHeaders(journey));
     getJourneyDomainSummaryRowsFromItems(journey).forEach((row) => rows.push(row));
 
-    downloadExcelTable(`${student.name} - synthese competences 1ere terminale.xls`, "Synthese competences", headers, rows);
+    downloadExcelTable(`${student.name} - synthese competences 3 ans.xls`, "Synthese competences", headers, rows);
     return true;
   }
 
   function getPfmpPeriodsForLevel(levelOrder) {
+    if (levelOrder === 1) return PFMP_PERIODS.filter((period) => period.id.startsWith("seconde_"));
     if (levelOrder === 2) return PFMP_PERIODS.filter((period) => period.id.startsWith("premiere_"));
     if (levelOrder === 3) return PFMP_PERIODS.filter((period) => period.id.startsWith("terminale_"));
     return [];
@@ -8059,8 +8061,8 @@ function initAccountsPage() {
     return true;
   }
 
-  function exportStudentPfmpUpperYearsSynthesisWorkbook(student) {
-    const journey = getJourneyItemsForUpperYears(student);
+  function exportStudentPfmpCycleSynthesisWorkbook(student) {
+    const journey = getJourneyItemsForCycle(student);
     if (!journey.length) return false;
 
     const headers = [
@@ -8069,7 +8071,7 @@ function initAccountsPage() {
       "Professeur referent", "Date de visite", "Rapport rendu", "Livret d'evaluation", "Fiche de presence", "Competences observees"
     ];
     const rows = journey.flatMap((item) => buildPfmpWorkbookRowsForStudent(item, getPfmpPeriodsForLevel(getClassLevelOrder(item.classId))));
-    downloadExcelTable(`${student.name} - synthese pfmp 1ere terminale.xls`, "Synthese PFMP", headers, rows);
+    downloadExcelTable(`${student.name} - synthese pfmp 3 ans.xls`, "Synthese PFMP", headers, rows);
     return true;
   }
 
@@ -8095,9 +8097,19 @@ function initAccountsPage() {
     const meta = document.querySelector("#bulletin-meta");
     if (!printButton?.parentElement || !classSelect || !studentSelect) return;
 
+    let secondeButton = document.querySelector("#export-bulletin-seconde");
     let premiereButton = document.querySelector("#export-bulletin-premiere");
     let terminaleButton = document.querySelector("#export-bulletin-terminale");
     let synthesisButton = document.querySelector("#export-bulletin-synthesis");
+
+    if (!secondeButton) {
+      secondeButton = document.createElement("button");
+      secondeButton.id = "export-bulletin-seconde";
+      secondeButton.className = "ghost-button";
+      secondeButton.type = "button";
+      secondeButton.textContent = "Exporter competences 2nde";
+      printButton.parentElement.insertBefore(secondeButton, printButton);
+    }
 
     if (!premiereButton) {
       premiereButton = document.createElement("button");
@@ -8122,7 +8134,7 @@ function initAccountsPage() {
       synthesisButton.id = "export-bulletin-synthesis";
       synthesisButton.className = "ghost-button";
       synthesisButton.type = "button";
-      synthesisButton.textContent = "Exporter synthese competences";
+      synthesisButton.textContent = "Exporter synthese competences 3 ans";
       printButton.parentElement.insertBefore(synthesisButton, printButton);
     }
 
@@ -8130,6 +8142,15 @@ function initAccountsPage() {
     const legacyCycle = document.querySelector("#export-bulletin-cycle");
     if (legacyAnnual) legacyAnnual.style.display = "none";
     if (legacyCycle) legacyCycle.style.display = "none";
+
+    bindClickWithClone(secondeButton, () => {
+      const classId = classSelect.value || app.classes[0]?.id || "";
+      const student = getStudentById(studentSelect.value) || getStudentsByClass(classId)[0];
+      if (!student) return;
+      if (!exportStudentSkillsYearWorkbook(student, 1)) {
+        updateActionMeta(meta, "Aucune donnee 2nde disponible pour cet eleve.");
+      }
+    });
 
     bindClickWithClone(premiereButton, () => {
       const classId = classSelect.value || app.classes[0]?.id || "";
@@ -8153,8 +8174,8 @@ function initAccountsPage() {
       const classId = classSelect.value || app.classes[0]?.id || "";
       const student = getStudentById(studentSelect.value) || getStudentsByClass(classId)[0];
       if (!student) return;
-      if (!exportStudentSkillsUpperYearsSynthesisWorkbook(student)) {
-        updateActionMeta(meta, "Aucune synthese Premiere / Terminale disponible pour cet eleve.");
+      if (!exportStudentSkillsCycleSynthesisWorkbook(student)) {
+        updateActionMeta(meta, "Aucune synthese 3 ans disponible pour cet eleve.");
       }
     });
   };
@@ -8174,9 +8195,10 @@ function initAccountsPage() {
       yearToolbar.id = "pfmp-year-export-toolbar";
       yearToolbar.className = "student-badges";
       yearToolbar.innerHTML = `
+        <button id="export-pfmp-seconde" class="ghost-button" type="button">Exporter PFMP 2nde</button>
         <button id="export-pfmp-premiere" class="ghost-button" type="button">Exporter PFMP Premiere</button>
         <button id="export-pfmp-terminale" class="ghost-button" type="button">Exporter PFMP Terminale</button>
-        <button id="export-pfmp-synthesis" class="ghost-button" type="button">Exporter synthese PFMP</button>
+        <button id="export-pfmp-synthesis" class="ghost-button" type="button">Exporter synthese PFMP 3 ans</button>
       `;
       const pdfToolbar = document.querySelector("#pfmp-pdf-toolbar");
       if (pdfToolbar) {
@@ -8185,6 +8207,13 @@ function initAccountsPage() {
         exportButton.insertAdjacentElement("afterend", yearToolbar);
       }
     }
+
+    bindClickWithClone(document.querySelector("#export-pfmp-seconde"), () => {
+      const classId = classSelect.value || app.classes[0]?.id || "";
+      const student = getStudentById(studentSelect.value) || getStudentsByClass(classId)[0];
+      if (!student) return;
+      exportStudentPfmpYearWorkbook(student, 1);
+    });
 
     bindClickWithClone(document.querySelector("#export-pfmp-premiere"), () => {
       const classId = classSelect.value || app.classes[0]?.id || "";
@@ -8204,7 +8233,7 @@ function initAccountsPage() {
       const classId = classSelect.value || app.classes[0]?.id || "";
       const student = getStudentById(studentSelect.value) || getStudentsByClass(classId)[0];
       if (!student) return;
-      exportStudentPfmpUpperYearsSynthesisWorkbook(student);
+      exportStudentPfmpCycleSynthesisWorkbook(student);
     });
   };
 })();
