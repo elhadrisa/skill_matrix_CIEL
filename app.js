@@ -529,7 +529,20 @@ function hydrateAppData(data) {
     pfmpRecords: entry.pfmpRecords || {},
     pfmpBooklets: entry.pfmpBooklets || {}
   }));
-  return { classes, students, pfmpRecords, pfmpBooklets, evaluationActivities, indicatorBank, lessonLibrary, accounts, activityLog, evidencePortfolio, archives };
+  return {
+    classes,
+    students,
+    pfmpRecords,
+    pfmpBooklets,
+    evaluationActivities,
+    indicatorBank,
+    lessonLibrary,
+    accounts,
+    activityLog,
+    evidencePortfolio,
+    archives,
+    appMeta: typeof data.appMeta === "object" && data.appMeta ? JSON.parse(JSON.stringify(data.appMeta)) : {}
+  };
 }
 
 function hydrateAccounts(accounts) {
@@ -8092,6 +8105,601 @@ function initAccountsPage() {
       }
     }, 0);
   }
+})();
+
+(() => {
+  const DEFAULT_PREMIUM_SETTINGS_SAFE = {
+    gradePolicy: {
+      nonAcquisMax: 5,
+      enCoursMax: 10,
+      partiellementAcquisMax: 14
+    },
+    skillWeights: Object.fromEntries(skillCatalog.map((skill) => [skill.id, 1]))
+  };
+
+  function sanitizePremiumGradePolicySafe(policy = {}) {
+    const fallback = DEFAULT_PREMIUM_SETTINGS_SAFE.gradePolicy;
+    const values = {
+      nonAcquisMax: Number.parseFloat(policy.nonAcquisMax),
+      enCoursMax: Number.parseFloat(policy.enCoursMax),
+      partiellementAcquisMax: Number.parseFloat(policy.partiellementAcquisMax)
+    };
+    if (!Number.isFinite(values.nonAcquisMax)) values.nonAcquisMax = fallback.nonAcquisMax;
+    if (!Number.isFinite(values.enCoursMax)) values.enCoursMax = fallback.enCoursMax;
+    if (!Number.isFinite(values.partiellementAcquisMax)) values.partiellementAcquisMax = fallback.partiellementAcquisMax;
+
+    values.nonAcquisMax = Math.min(19, Math.max(1, values.nonAcquisMax));
+    values.enCoursMax = Math.min(19.5, Math.max(values.nonAcquisMax + 0.5, values.enCoursMax));
+    values.partiellementAcquisMax = Math.min(20, Math.max(values.enCoursMax + 0.5, values.partiellementAcquisMax));
+
+    return {
+      nonAcquisMax: Math.round(values.nonAcquisMax * 10) / 10,
+      enCoursMax: Math.round(values.enCoursMax * 10) / 10,
+      partiellementAcquisMax: Math.round(values.partiellementAcquisMax * 10) / 10
+    };
+  }
+
+  function sanitizePremiumSkillWeightsSafe(weights = {}) {
+    return Object.fromEntries(skillCatalog.map((skill) => {
+      const numeric = Number.parseFloat(weights?.[skill.id]);
+      const value = Number.isFinite(numeric) && numeric > 0 ? numeric : 1;
+      return [skill.id, Math.round(value * 100) / 100];
+    }));
+  }
+
+  function getPremiumSettingsSafe() {
+    app.appMeta = app.appMeta || {};
+    const premium = app.appMeta.premiumSettings || {};
+    return {
+      gradePolicy: sanitizePremiumGradePolicySafe(premium.gradePolicy || {}),
+      skillWeights: sanitizePremiumSkillWeightsSafe(premium.skillWeights || {})
+    };
+  }
+
+  async function savePremiumSettingsSafe(nextSettings) {
+    const current = getPremiumSettingsSafe();
+    app.appMeta = app.appMeta || {};
+    app.appMeta.premiumSettings = {
+      gradePolicy: sanitizePremiumGradePolicySafe(nextSettings?.gradePolicy || current.gradePolicy),
+      skillWeights: sanitizePremiumSkillWeightsSafe(nextSettings?.skillWeights || current.skillWeights)
+    };
+    if (typeof persistCriticalAppData === "function") {
+      await persistCriticalAppData();
+    } else if (typeof persistAppData === "function") {
+      persistAppData();
+    }
+  }
+
+  mapGradeToStatus = function (grade) {
+    const numeric = normalizeGrade(grade);
+    const policy = getPremiumSettingsSafe().gradePolicy;
+    if (numeric === "") return "non_evalue";
+    if (numeric < policy.nonAcquisMax) return "non_acquis";
+    if (numeric < policy.enCoursMax) return "en_cours_acquisition";
+    if (numeric < policy.partiellementAcquisMax) return "partiellement_acquis";
+    return "acquis";
+  };
+
+  function statusToSyntheticGradeSafe(status) {
+    const policy = getPremiumSettingsSafe().gradePolicy;
+    if (status === "non_evalue" || status === "absent") return null;
+    if (status === "non_acquis") return Math.round((policy.nonAcquisMax / 2) * 10) / 10;
+    if (status === "en_cours_acquisition") return Math.round(((policy.nonAcquisMax + policy.enCoursMax) / 2) * 10) / 10;
+    if (status === "partiellement_acquis") return Math.round(((policy.enCoursMax + policy.partiellementAcquisMax) / 2) * 10) / 10;
+    return Math.round(((policy.partiellementAcquisMax + 20) / 2) * 10) / 10;
+  }
+
+  function getGlobalSkillWeightSafe(skillId) {
+    return getPremiumSettingsSafe().skillWeights?.[skillId] || 1;
+  }
+
+  function getActivitySkillWeightSafe(activity, skillId) {
+    const activityWeight = Number.parseFloat(activity?.skillWeights?.[skillId]);
+    const localWeight = Number.isFinite(activityWeight) && activityWeight > 0 ? activityWeight : 1;
+    return Math.round(localWeight * getGlobalSkillWeightSafe(skillId) * 100) / 100;
+  }
+
+  function getActivityGradeForSkillSafe(activity, studentId, skillId) {
+    const evaluation = activity?.evaluations?.[studentId] || {};
+    const globalGrade = normalizeGrade(evaluation.__globalGrade);
+    if (globalGrade !== "") return globalGrade;
+
+    const relatedIndicators = (activity?.indicators || []).filter((indicator) => !indicator.skillId || indicator.skillId === skillId);
+    const statuses = relatedIndicators
+      .map((indicator) => evaluation[indicator.id])
+      .filter((status) => Object.hasOwn(levelLabels, status));
+    if (statuses.length) {
+      const grades = statuses.map((status) => statusToSyntheticGradeSafe(status)).filter((value) => value !== null);
+      if (grades.length) return Math.round((grades.reduce((sum, value) => sum + value, 0) / grades.length) * 10) / 10;
+    }
+
+    const student = getStudentById(studentId);
+    const direct = normalizeGrade(student?.skillGrades?.[skillId]);
+    return direct === "" ? null : direct;
+  }
+
+  function getWeightedSkillAverageSafe(student, skillId) {
+    const journey = getStudentJourney(student);
+    let total = 0;
+    let totalWeight = 0;
+    let sessionCount = 0;
+
+    journey.forEach((item) => {
+      getActivitiesByClass(item.classId).forEach((activity) => {
+        if (!getActivitySkillIds(activity).includes(skillId)) return;
+        const grade = getActivityGradeForSkillSafe(activity, item.id, skillId);
+        if (grade === null) return;
+        const weight = getActivitySkillWeightSafe(activity, skillId);
+        total += grade * weight;
+        totalWeight += weight;
+        sessionCount += 1;
+      });
+    });
+
+    if (!sessionCount) {
+      const fallbackGrade = normalizeGrade(journey.at(-1)?.skillGrades?.[skillId]);
+      return {
+        average: fallbackGrade === "" ? null : fallbackGrade,
+        sessions: 0,
+        totalWeight: getGlobalSkillWeightSafe(skillId),
+        status: mapGradeToStatus(fallbackGrade),
+        source: fallbackGrade === "" ? "aucune" : "manuel"
+      };
+    }
+
+    const average = Math.round((total / Math.max(totalWeight, 1)) * 10) / 10;
+    return {
+      average,
+      sessions: sessionCount,
+      totalWeight: Math.round(totalWeight * 100) / 100,
+      status: mapGradeToStatus(average),
+      source: "seances"
+    };
+  }
+
+  function getDomainScoreForStudentItemSafe(studentItem, domain) {
+    const domainSkills = skillCatalog.filter((skill) => getSkillDomain(skill) === domain);
+    if (!domainSkills.length) return 0;
+    const total = domainSkills.reduce((sum, skill) => {
+      const grade = normalizeGrade(studentItem?.skillGrades?.[skill.id]);
+      if (grade !== "") return sum + ((grade / 20) * 100);
+      return sum + Math.round(((levelScores[studentItem?.skills?.[skill.id]] || 0) / Math.max(levelScores.acquis || 1, 1)) * 100);
+    }, 0);
+    return Math.round(total / domainSkills.length);
+  }
+
+  function getStudentDomainJourneySafe(student) {
+    return getStudentJourney(student)
+      .filter((item) => {
+        const level = getClassLevelOrder(item.classId);
+        return level >= 1 && level <= 3;
+      })
+      .sort((a, b) => getClassLevelOrder(a.classId) - getClassLevelOrder(b.classId))
+      .map((item) => {
+        const level = getClassLevelOrder(item.classId);
+        return {
+          level,
+          label: level === 1 ? "2nde" : (level === 2 ? "1ère" : "Terminale"),
+          classLabel: getClassById(item.classId)?.name || "",
+          scores: Object.fromEntries(referentialDomains.map((domain) => [domain, getDomainScoreForStudentItemSafe(item, domain)]))
+        };
+      });
+  }
+
+  function getConsolidatedDomainScoresSafe(student) {
+    return Object.fromEntries(referentialDomains.map((domain) => {
+      const skills = skillCatalog.filter((skill) => getSkillDomain(skill) === domain);
+      const grades = skills
+        .map((skill) => getWeightedSkillAverageSafe(student, skill.id).average)
+        .filter((grade) => grade !== null && grade !== "");
+      if (!grades.length) return [domain, 0];
+      const average = grades.reduce((sum, grade) => sum + grade, 0) / grades.length;
+      return [domain, Math.round((average / 20) * 100)];
+    }));
+  }
+
+  function buildLinePathSafe(points) {
+    if (!points.length) return "";
+    return points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+  }
+
+  function buildDomainTrendSvgSafe(student) {
+    const journey = getStudentDomainJourneySafe(student);
+    if (!journey.length) {
+      return `<article class="summary-card"><h3>Aucune donnée</h3><p class="muted-copy">La courbe apparaîtra dès qu'une année sera renseignée.</p></article>`;
+    }
+    const width = 620;
+    const height = 240;
+    const paddingX = 58;
+    const paddingTop = 26;
+    const paddingBottom = 42;
+    const colors = ["#59c6ff", "#63f5d4", "#f7c35f"];
+    const xStep = journey.length === 1 ? 0 : (width - paddingX * 2) / (journey.length - 1);
+    const yForScore = (score) => paddingTop + ((100 - score) / 100) * (height - paddingTop - paddingBottom);
+    const gridLines = [0, 25, 50, 75, 100].map((mark) => {
+      const y = yForScore(mark);
+      return `
+        <line x1="${paddingX}" y1="${y}" x2="${width - paddingX}" y2="${y}" class="premium-chart-grid"></line>
+        <text x="${paddingX - 12}" y="${y + 4}" text-anchor="end" class="premium-chart-axis">${mark}</text>
+      `;
+    }).join("");
+    const domainPaths = referentialDomains.map((domain, index) => {
+      const points = journey.map((item, itemIndex) => ({
+        x: paddingX + (xStep * itemIndex),
+        y: yForScore(item.scores[domain] || 0)
+      }));
+      const circles = points.map((point) => `<circle cx="${point.x}" cy="${point.y}" r="4.5" fill="${colors[index % colors.length]}" class="premium-chart-dot"></circle>`).join("");
+      return `
+        <path d="${buildLinePathSafe(points)}" fill="none" stroke="${colors[index % colors.length]}" stroke-width="3" stroke-linecap="round"></path>
+        ${circles}
+      `;
+    }).join("");
+    const labels = journey.map((item, index) => {
+      const x = paddingX + (xStep * index);
+      return `<text x="${x}" y="${height - 12}" text-anchor="middle" class="premium-chart-axis">${escapeHtml(item.label)}</text>`;
+    }).join("");
+    const legend = referentialDomains.map((domain, index) => `
+      <span class="premium-legend-item"><i style="background:${colors[index % colors.length]}"></i>${escapeHtml(domain)}</span>
+    `).join("");
+
+    return `
+      <div class="premium-chart-shell">
+        <svg class="premium-chart" viewBox="0 0 ${width} ${height}" aria-label="Évolution par domaine">
+          ${gridLines}
+          <line x1="${paddingX}" y1="${height - paddingBottom}" x2="${width - paddingX}" y2="${height - paddingBottom}" class="premium-chart-axis-line"></line>
+          ${domainPaths}
+          ${labels}
+        </svg>
+        <div class="premium-legend">${legend}</div>
+      </div>
+    `;
+  }
+
+  function buildRadarSvgSafe(domainScores) {
+    const entries = referentialDomains.map((domain) => ({ domain, value: Math.max(0, Math.min(100, Number(domainScores?.[domain]) || 0)) }));
+    const width = 320;
+    const height = 300;
+    const centerX = 160;
+    const centerY = 150;
+    const radius = 92;
+    const rings = [25, 50, 75, 100];
+    const toPoint = (index, ratio) => {
+      const angle = (-Math.PI / 2) + ((Math.PI * 2) / entries.length) * index;
+      return {
+        x: centerX + Math.cos(angle) * radius * ratio,
+        y: centerY + Math.sin(angle) * radius * ratio
+      };
+    };
+    const ringSvg = rings.map((ring) => {
+      const points = entries.map((_, index) => {
+        const point = toPoint(index, ring / 100);
+        return `${point.x},${point.y}`;
+      }).join(" ");
+      return `<polygon points="${points}" class="premium-radar-ring"></polygon>`;
+    }).join("");
+    const axisSvg = entries.map((entry, index) => {
+      const point = toPoint(index, 1);
+      return `
+        <line x1="${centerX}" y1="${centerY}" x2="${point.x}" y2="${point.y}" class="premium-radar-axis"></line>
+        <text x="${point.x}" y="${point.y + (point.y < centerY ? -10 : 18)}" text-anchor="middle" class="premium-radar-label">${escapeHtml(entry.domain)}</text>
+      `;
+    }).join("");
+    const polygonPoints = entries.map((entry, index) => {
+      const point = toPoint(index, entry.value / 100);
+      return `${point.x},${point.y}`;
+    }).join(" ");
+    const valueBadges = entries.map((entry) => `<span class="badge">${escapeHtml(entry.domain)} // ${entry.value}%</span>`).join("");
+
+    return `
+      <div class="premium-radar-shell">
+        <svg class="premium-radar" viewBox="0 0 ${width} ${height}" aria-label="Radar domaines">
+          ${ringSvg}
+          ${axisSvg}
+          <polygon points="${polygonPoints}" class="premium-radar-shape"></polygon>
+        </svg>
+        <div class="student-badges">${valueBadges}</div>
+      </div>
+    `;
+  }
+
+  function ensurePremiumSettingsPanelSafe() {
+    if (document.body?.dataset?.page !== "accounts") return;
+    const examCenterPanel = document.querySelector("#exam-center-form")?.closest(".panel");
+    if (!examCenterPanel) return;
+
+    let panel = document.querySelector("#premium-settings-panel");
+    if (!panel) {
+      panel = document.createElement("section");
+      panel.id = "premium-settings-panel";
+      panel.className = "panel wide-panel";
+      panel.innerHTML = `
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Pilotage Premium</p>
+            <h2>Barème et pondération</h2>
+          </div>
+        </div>
+        <form id="premium-settings-form" class="stack-form">
+          <div class="mini-grid premium-grade-grid">
+            <label class="field">
+              <span>Seuil Non acquis</span>
+              <input id="premium-threshold-non-acquis" type="number" min="0" max="20" step="0.5">
+            </label>
+            <label class="field">
+              <span>Seuil En cours</span>
+              <input id="premium-threshold-en-cours" type="number" min="0" max="20" step="0.5">
+            </label>
+            <label class="field">
+              <span>Seuil Partiellement acquis</span>
+              <input id="premium-threshold-partiel" type="number" min="0" max="20" step="0.5">
+            </label>
+          </div>
+          <div id="premium-grade-preview" class="student-badges premium-grade-preview"></div>
+          <div>
+            <p class="eyebrow">Coefficients globaux par compétence</p>
+            <div id="premium-skill-weight-grid" class="premium-weight-grid"></div>
+          </div>
+          <div class="student-badges">
+            <button class="primary-button" type="submit">Enregistrer le barème premium</button>
+            <button id="premium-settings-reset" class="ghost-button" type="button">Rétablir les valeurs par défaut</button>
+          </div>
+          <p id="premium-settings-feedback" class="results-count"></p>
+        </form>
+      `;
+      examCenterPanel.insertAdjacentElement("afterend", panel);
+    }
+
+    const form = document.querySelector("#premium-settings-form");
+    const preview = document.querySelector("#premium-grade-preview");
+    const weightGrid = document.querySelector("#premium-skill-weight-grid");
+    const feedback = document.querySelector("#premium-settings-feedback");
+    const resetButton = document.querySelector("#premium-settings-reset");
+    if (!form || !preview || !weightGrid || !feedback || !resetButton) return;
+
+    const render = () => {
+      const settings = getPremiumSettingsSafe();
+      document.querySelector("#premium-threshold-non-acquis").value = settings.gradePolicy.nonAcquisMax;
+      document.querySelector("#premium-threshold-en-cours").value = settings.gradePolicy.enCoursMax;
+      document.querySelector("#premium-threshold-partiel").value = settings.gradePolicy.partiellementAcquisMax;
+      preview.innerHTML = `
+        <span class="badge badge-danger">Non acquis &lt; ${settings.gradePolicy.nonAcquisMax}</span>
+        <span class="badge badge-warning">En cours &lt; ${settings.gradePolicy.enCoursMax}</span>
+        <span class="badge">Partiellement acquis &lt; ${settings.gradePolicy.partiellementAcquisMax}</span>
+        <span class="badge badge-ready">Acquis ≥ ${settings.gradePolicy.partiellementAcquisMax}</span>
+      `;
+      weightGrid.innerHTML = skillCatalog.map((skill) => `
+        <label class="field premium-weight-card">
+          <span>${escapeHtml(skill.code)} // ${escapeHtml(skill.title)}</span>
+          <small>${escapeHtml(getSkillDomain(skill))}</small>
+          <input type="number" min="0.25" max="5" step="0.25" data-premium-skill-weight="${skill.id}" value="${settings.skillWeights[skill.id] || 1}">
+        </label>
+      `).join("");
+    };
+
+    if (!form.dataset.premiumBound) {
+      form.dataset.premiumBound = "true";
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const nextSettings = {
+          gradePolicy: {
+            nonAcquisMax: document.querySelector("#premium-threshold-non-acquis")?.value,
+            enCoursMax: document.querySelector("#premium-threshold-en-cours")?.value,
+            partiellementAcquisMax: document.querySelector("#premium-threshold-partiel")?.value
+          },
+          skillWeights: Object.fromEntries(skillCatalog.map((skill) => [
+            skill.id,
+            document.querySelector(`[data-premium-skill-weight="${skill.id}"]`)?.value || 1
+          ]))
+        };
+        await savePremiumSettingsSafe(nextSettings);
+        logAction("Paramètres premium", "Barème et pondération", "Mise à jour globale");
+        feedback.textContent = "Barème et coefficients enregistrés.";
+        render();
+      });
+    }
+
+    if (!resetButton.dataset.premiumBound) {
+      resetButton.dataset.premiumBound = "true";
+      resetButton.addEventListener("click", async () => {
+        await savePremiumSettingsSafe(DEFAULT_PREMIUM_SETTINGS_SAFE);
+        logAction("Paramètres premium", "Barème et pondération", "Réinitialisation");
+        feedback.textContent = "Valeurs premium réinitialisées.";
+        render();
+      });
+    }
+
+    render();
+  }
+
+  function ensureBulletinPremiumAnalyticsSafe() {
+    if (document.body?.dataset?.page !== "bulletin") return;
+    const studentSelect = document.querySelector("#bulletin-student-select");
+    const classSelect = document.querySelector("#bulletin-class-select");
+    const journeyPanel = document.querySelector("#bulletin-journey-panel");
+    if (!studentSelect || !classSelect || !journeyPanel) return;
+
+    let panel = document.querySelector("#bulletin-premium-analytics");
+    if (!panel) {
+      panel = document.createElement("section");
+      panel.id = "bulletin-premium-analytics";
+      panel.className = "panel";
+      panel.innerHTML = `
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Pilotage Premium</p>
+            <h2>Moyennes consolidées et évolution par domaine</h2>
+          </div>
+        </div>
+        <div id="bulletin-premium-kpis" class="class-cards"></div>
+        <div class="premium-analytics-grid">
+          <article class="period-card">
+            <h3>Moyennes consolidées par compétence</h3>
+            <div id="bulletin-premium-skill-list" class="premium-skill-average-list"></div>
+          </article>
+          <article class="period-card">
+            <h3>Évolution par domaine</h3>
+            <div id="bulletin-premium-domain-trend"></div>
+            <div id="bulletin-premium-domain-radar"></div>
+          </article>
+        </div>
+      `;
+      journeyPanel.insertAdjacentElement("afterend", panel);
+    }
+
+    const render = () => {
+      const classId = classSelect.value || app.classes[0]?.id || "";
+      const student = getStudentById(studentSelect.value) || getStudentsByClass(classId)[0] || null;
+      const kpis = document.querySelector("#bulletin-premium-kpis");
+      const skillList = document.querySelector("#bulletin-premium-skill-list");
+      const trend = document.querySelector("#bulletin-premium-domain-trend");
+      const radar = document.querySelector("#bulletin-premium-domain-radar");
+      if (!kpis || !skillList || !trend || !radar) return;
+
+      if (!student) {
+        kpis.innerHTML = "";
+        skillList.innerHTML = `<article class="summary-card"><h3>Aucun élève</h3><p class="muted-copy">Sélectionne un élève pour afficher l’analyse premium.</p></article>`;
+        trend.innerHTML = "";
+        radar.innerHTML = "";
+        return;
+      }
+
+      const weightedScores = skillCatalog.map((skill) => ({
+        skill,
+        ...getWeightedSkillAverageSafe(student, skill.id)
+      }));
+      const availableScores = weightedScores.filter((item) => item.average !== null && item.average !== "");
+      const consolidatedAverage = availableScores.length
+        ? Math.round((availableScores.reduce((sum, item) => sum + item.average, 0) / availableScores.length) * 10) / 10
+        : null;
+      const strongest = availableScores.slice().sort((a, b) => b.average - a.average)[0] || null;
+      const weakest = availableScores.slice().sort((a, b) => a.average - b.average)[0] || null;
+      const domainScores = getConsolidatedDomainScoresSafe(student);
+
+      kpis.innerHTML = `
+        <article class="summary-card">
+          <h3>Moyenne consolidée</h3>
+          <p class="score-big">${consolidatedAverage === null ? "-" : `${consolidatedAverage.toFixed(1)}/20`}</p>
+          <p class="muted-copy">Calculée sur ${availableScores.length} compétence(s) avec coefficients.</p>
+        </article>
+        <article class="summary-card">
+          <h3>Compétence la plus solide</h3>
+          <p>${strongest ? `${escapeHtml(strongest.skill.code)} // ${escapeHtml(strongest.skill.title)}` : "-"}</p>
+          <p class="muted-copy">${strongest ? `${strongest.average.toFixed(1)}/20` : "Aucune donnée"}</p>
+        </article>
+        <article class="summary-card">
+          <h3>Compétence prioritaire</h3>
+          <p>${weakest ? `${escapeHtml(weakest.skill.code)} // ${escapeHtml(weakest.skill.title)}` : "-"}</p>
+          <p class="muted-copy">${weakest ? `${weakest.average.toFixed(1)}/20` : "Aucune donnée"}</p>
+        </article>
+      `;
+
+      skillList.innerHTML = weightedScores.map((item) => `
+        <article class="summary-card premium-skill-average-card">
+          <div class="journey-stage-head">
+            <div>
+              <h3>${escapeHtml(item.skill.code)} // ${escapeHtml(item.skill.title)}</h3>
+              <p class="muted-copy">${escapeHtml(getSkillDomain(item.skill))} // coefficient ${getGlobalSkillWeightSafe(item.skill.id)}</p>
+            </div>
+            ${renderBulletinStatus(item.status || "non_evalue")}
+          </div>
+          <p>${item.average === null ? "Non évalué" : `${item.average.toFixed(1)}/20`}</p>
+          <p class="muted-copy">${item.sessions} séance(s) pondérée(s) // poids total ${item.totalWeight}</p>
+        </article>
+      `).join("");
+
+      trend.innerHTML = buildDomainTrendSvgSafe(student);
+      radar.innerHTML = buildRadarSvgSafe(domainScores);
+    };
+
+    render();
+    if (!studentSelect.dataset.premiumAnalyticsBound) {
+      studentSelect.dataset.premiumAnalyticsBound = "true";
+      studentSelect.addEventListener("change", render);
+    }
+    if (!classSelect.dataset.premiumAnalyticsBound) {
+      classSelect.dataset.premiumAnalyticsBound = "true";
+      classSelect.addEventListener("change", () => window.setTimeout(render, 0));
+    }
+  }
+
+  function ensureDashboardPremiumAnalyticsSafe() {
+    if (document.body?.dataset?.page !== "dashboard") return;
+    const classSelect = document.querySelector("#dashboard-class-select");
+    const layout = document.querySelector(".dashboard-layout");
+    if (!classSelect || !layout) return;
+
+    let panel = document.querySelector("#dashboard-premium-domain-panel");
+    if (!panel) {
+      panel = document.createElement("section");
+      panel.id = "dashboard-premium-domain-panel";
+      panel.className = "panel";
+      panel.innerHTML = `
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Domain Radar</p>
+            <h2>Radar de la classe par domaine</h2>
+          </div>
+        </div>
+        <div class="premium-analytics-grid">
+          <article class="period-card">
+            <h3>Radar consolidé</h3>
+            <div id="dashboard-premium-radar"></div>
+          </article>
+          <article class="period-card">
+            <h3>Détails par domaine</h3>
+            <div id="dashboard-premium-domain-breakdown" class="class-cards"></div>
+          </article>
+        </div>
+      `;
+      layout.appendChild(panel);
+    }
+
+    const render = () => {
+      const classId = classSelect.value || app.classes[0]?.id || "";
+      const students = getStudentsByClass(classId);
+      const radarTarget = document.querySelector("#dashboard-premium-radar");
+      const breakdown = document.querySelector("#dashboard-premium-domain-breakdown");
+      if (!radarTarget || !breakdown) return;
+      if (!students.length) {
+        radarTarget.innerHTML = `<article class="summary-card"><h3>Aucune donnée</h3><p class="muted-copy">Ajoute des élèves pour afficher le radar.</p></article>`;
+        breakdown.innerHTML = "";
+        return;
+      }
+      const domainScores = Object.fromEntries(getBlockAverages(students).map((item) => [item.domain, item.progress]));
+      radarTarget.innerHTML = buildRadarSvgSafe(domainScores);
+      breakdown.innerHTML = getBlockAverages(students).map((item) => `
+        <article class="summary-card">
+          <h3>${escapeHtml(item.domain)}</h3>
+          <p class="score-big">${item.progress}%</p>
+          <p class="muted-copy">${item.validated}/${item.total || 0} validations partielles ou acquises</p>
+        </article>
+      `).join("");
+    };
+
+    render();
+    if (!classSelect.dataset.dashboardPremiumBound) {
+      classSelect.dataset.dashboardPremiumBound = "true";
+      classSelect.addEventListener("change", () => window.setTimeout(render, 0));
+    }
+  }
+
+  const originalInitAccountsPageFinalPremiumSafe = initAccountsPageFinal;
+  initAccountsPageFinal = function () {
+    originalInitAccountsPageFinalPremiumSafe();
+    window.setTimeout(ensurePremiumSettingsPanelSafe, 0);
+  };
+
+  const originalInitBulletinPagePremiumSafe = initBulletinPage;
+  initBulletinPage = function () {
+    originalInitBulletinPagePremiumSafe();
+    window.setTimeout(ensureBulletinPremiumAnalyticsSafe, 0);
+  };
+
+  const originalInitDashboardPagePremiumSafe = initDashboardPageFinal;
+  initDashboardPageFinal = function () {
+    originalInitDashboardPagePremiumSafe();
+    window.setTimeout(ensureDashboardPremiumAnalyticsSafe, 0);
+  };
 })();
 
 ;(function () {
