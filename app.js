@@ -479,6 +479,7 @@ function hydrateAppData(data) {
     id: student.id || `student-${index + 1}`,
     name: student.name || `Élève ${index + 1}`,
     classId: classes.some((classItem) => classItem.id === student.classId) ? student.classId : fallbackClassId,
+    permanentId: student.permanentId || generatePermanentStudentId(student.name || `eleve-${index + 1}`, student.classId || fallbackClassId, classes.find((classItem) => classItem.id === (student.classId || fallbackClassId))?.year || ""),
     portfolioKey: student.portfolioKey || slugify(student.name || `eleve-${index + 1}`),
     skills: buildSkillState(student.skills || {}),
     attendance: hydrateAttendanceEntries(student.attendance || []),
@@ -918,6 +919,7 @@ function initClassesPage() {
   const classNoteInput = document.querySelector("#class-note-input");
   const studentForm = document.querySelector("#student-form");
   const studentNameInput = document.querySelector("#student-name-input");
+  const studentRefInput = document.querySelector("#student-ref-input");
   const studentClassInput = document.querySelector("#student-class-input");
   const importClassInput = document.querySelector("#import-class-input");
   const csvInput = document.querySelector("#student-csv-input");
@@ -1030,15 +1032,15 @@ function initClassesPage() {
     }
     const text = await file.text();
     const rows = parseCsv(text);
-    const names = extractStudentNames(rows);
-    if (!names.length) {
+    const records = extractStudentRecords(rows);
+    if (!records.length) {
       importFeedback.textContent = "Aucun nom d'élève détecté dans le CSV.";
       return;
     }
     const existing = new Set(getStudentsByClass(classId).map((student) => student.name.trim().toLowerCase()));
     let imported = 0;
     let skipped = 0;
-    names.forEach((name) => {
+    records.forEach(({ name, permanentId }) => {
       const key = name.trim().toLowerCase();
       if (!key || existing.has(key)) {
         skipped += 1;
@@ -1057,7 +1059,7 @@ function initClassesPage() {
     renderClassesPage();
   });
 
-  enforcePermission("manage_students", classNameInput, classYearInput, classNoteInput, studentNameInput, studentClassInput, importClassInput, csvInput, importButton);
+  enforcePermission("manage_students", classNameInput, classYearInput, classNoteInput, studentNameInput, studentRefInput, studentClassInput, importClassInput, csvInput, importButton);
   if (supportDateInput && !supportDateInput.value) supportDateInput.value = new Date().toISOString().slice(0, 10);
   enforcePermission("manage_students", supportStudentSelect, supportDateInput, supportStatusSelect, supportReasonInput, supportAttendanceSave, supportNoteInput, supportNoteSave);
 
@@ -1133,6 +1135,7 @@ function initClassesPage() {
               </div>
             </div>
             <p>${getClassById(student.classId)?.name || "Sans classe"}</p>
+            <p>ID permanent : ${student.permanentId || "Non defini"}</p>
             <p>${filledPeriods}/6 PFMP renseignées</p>
           </div>
           <div class="student-badges">
@@ -1192,8 +1195,11 @@ function initClassesPage() {
         if (!name) return;
         const classId = window.prompt("Nouvelle classe (id)", student.classId);
         if (!classId || !getClassById(classId.trim())) return;
+        const permanentId = window.prompt("Identifiant eleve permanent", student.permanentId || "");
+        if (!permanentId) return;
         student.name = name.trim();
         student.classId = classId.trim();
+        student.permanentId = permanentId.trim();
         app.pfmpRecords[student.id] = hydratePfmpRecord(app.pfmpRecords[student.id] || {}, student, app.classes);
         logAction("Élève modifié", student.name, getClassById(student.classId)?.name || student.classId);
         persistAppData();
@@ -1397,7 +1403,7 @@ function initClassesPageFinal() {
     const classId = studentClassInput.value;
     if (!name || !classId) return;
     const id = slugify(`${name}-${Date.now()}`);
-    app.students.push({ id, name, classId, skills: buildSkillState({}) });
+    app.students.push({ id, name, classId, permanentId: (studentRefInput?.value || "").trim() || generatePermanentStudentId(name, classId, getClassById(classId)?.year || ""), skills: buildSkillState({}) });
     app.pfmpRecords[id] = hydratePfmpRecord({}, { id, classId }, app.classes);
     logAction("Élève ajouté", name, getClassById(classId)?.name || classId);
     persistAppData();
@@ -1430,7 +1436,7 @@ function initClassesPageFinal() {
         return;
       }
       const id = slugify(`${name}-${Date.now()}-${imported}`);
-      app.students.push({ id, name, classId, skills: buildSkillState({}) });
+      app.students.push({ id, name, classId, permanentId: permanentId || generatePermanentStudentId(name, classId, getClassById(classId)?.year || ""), skills: buildSkillState({}) });
       app.pfmpRecords[id] = hydratePfmpRecord({}, { id, classId }, app.classes);
       existing.add(key);
       imported += 1;
@@ -4466,6 +4472,19 @@ function buildActivityPdfHtml(activity, classId) {
   );
 }
 
+function renderPrintHeatmapRow(label, value, ratio) {
+  const width = Math.max(8, Math.round((Math.max(0, Math.min(1, ratio || 0))) * 100));
+  const color = ratio < 0.2 ? "#ff657d" : ratio < 0.45 ? "#f7c35f" : ratio < 0.7 ? "#59c6ff" : "#63f597";
+  return `
+    <div class="card">
+      <p><strong>${escapeHtml(label)}</strong> : ${escapeHtml(String(value))}</p>
+      <div style="height:12px;background:#e8eef7;border-radius:999px;overflow:hidden;margin-top:8px;">
+        <div style="width:${width}%;height:12px;background:${color};border-radius:999px;"></div>
+      </div>
+    </div>
+  `;
+}
+
 function buildActivitySynthesisPdfHtml(classId) {
   const classItem = getClassById(classId);
   const activities = getActivitiesByClass(classId);
@@ -4487,6 +4506,11 @@ function buildActivitySynthesisPdfHtml(classId) {
     `Synthèse des séances - ${classItem?.name || ""}`,
     `${activities.length} séance(s) enregistrée(s)`,
     `
+      <div class="grid">
+        ${renderPrintHeatmapRow("Entreprises saisies", `${summary.rateWithCompany}%`, summary.rateWithCompany / 100)}
+        ${renderPrintHeatmapRow("Conventions complètes", `${summary.rateFullConvention}%`, summary.rateFullConvention / 100)}
+        ${renderPrintHeatmapRow("Dossiers complets", `${summary.rateCompleteFile}%`, summary.rateCompleteFile / 100)}
+      </div>
       <table>
         <thead>
           <tr>
@@ -4506,6 +4530,8 @@ function buildActivitySynthesisPdfHtml(classId) {
 
 function buildPfmpStudentPdfHtml(student) {
   const classItem = getClassById(student.classId);
+  const pfmpSummary = getStudentPfmpSummary(student.id);
+  const observedCount = PFMP_PERIODS.reduce((sum, period) => sum + (getPfmpPeriodEntry(student.id, period.id).observedSkillIds || []).length, 0);
   const periodsHtml = PFMP_PERIODS.map((period) => {
     const entry = getPfmpPeriodEntry(student.id, period.id);
     return `
@@ -4517,6 +4543,7 @@ function buildPfmpStudentPdfHtml(student) {
         <p><strong>Visite :</strong> ${escapeHtml(entry.visitDate || "À planifier")}</p>
         <p><strong>Convention :</strong> ${hasFullConvention(entry) ? "Complète" : "Incomplète"}</p>
         <p><strong>Dossier final :</strong> ${hasCompleteFile(entry) ? "Complet" : "Incomplet"}</p>
+        <p><strong>Compétences observées :</strong> ${escapeHtml((entry.observedSkillIds || []).map((skillId) => getSkillById(skillId)?.code).filter(Boolean).join(" | ") || "Aucune")}</p>
         <p><strong>Commentaire :</strong> ${escapeHtml(entry.comment || "-")}</p>
       </div>
     `;
@@ -4524,18 +4551,28 @@ function buildPfmpStudentPdfHtml(student) {
   return buildPrintShell(
     `Suivi PFMP - ${student.name}`,
     `${classItem?.name || ""}`,
-    periodsHtml
+    `
+      <div class="grid">
+        ${renderPrintHeatmapRow("PFMP renseignées", `${pfmpSummary.filled}/6`, pfmpSummary.filled / 6)}
+        ${renderPrintHeatmapRow("Compétences observées", observedCount, Math.min(observedCount / 12, 1))}
+        ${renderPrintHeatmapRow("Progression globale", `${getStudentProgress(student)}%`, getStudentProgress(student) / 100)}
+      </div>
+      <h2>Périodes PFMP</h2>
+      ${periodsHtml}
+    `
   );
 }
 
 function buildPfmpClassPdfHtml(classId) {
   const classItem = getClassById(classId);
   const students = getStudentsByClass(classId);
+  const summary = getPfmpSummary(students);
   const rows = students.map((student) => {
     const filled = PFMP_PERIODS.filter((period) => getPfmpPeriodEntry(student.id, period.id).companyName).length;
     const conventions = PFMP_PERIODS.filter((period) => hasFullConvention(getPfmpPeriodEntry(student.id, period.id))).length;
     const visits = PFMP_PERIODS.filter((period) => getPfmpPeriodEntry(student.id, period.id).visitDate).length;
     const files = PFMP_PERIODS.filter((period) => hasCompleteFile(getPfmpPeriodEntry(student.id, period.id))).length;
+    const observed = PFMP_PERIODS.reduce((sum, period) => sum + (getPfmpPeriodEntry(student.id, period.id).observedSkillIds || []).length, 0);
     return `
       <tr>
         <td>${escapeHtml(student.name)}</td>
@@ -4543,6 +4580,7 @@ function buildPfmpClassPdfHtml(classId) {
         <td>${conventions}/6</td>
         <td>${visits}/6</td>
         <td>${files}/6</td>
+        <td>${observed}</td>
       </tr>
     `;
   }).join("");
@@ -4558,9 +4596,10 @@ function buildPfmpClassPdfHtml(classId) {
             <th>Conventions complètes</th>
             <th>Visites planifiées</th>
             <th>Dossiers complets</th>
+            <th>Compétences observées</th>
           </tr>
         </thead>
-        <tbody>${rows || '<tr><td colspan="5">Aucun élève.</td></tr>'}</tbody>
+        <tbody>${rows || '<tr><td colspan="6">Aucun élève.</td></tr>'}</tbody>
       </table>
     `
   );
@@ -5069,6 +5108,11 @@ function buildBulletinMarkup(student, classItem, studentActivities, pfmpSummary,
 }
 
 function buildPrintableBulletinHTML(student, classItem, studentActivities, pfmpSummary, blockAverages) {
+  const journey = getStudentJourney(student);
+  const journeyRows = journey.map((item) => {
+    const itemClass = getClassById(item.classId);
+    return `<div class="row"><div><strong>${itemClass?.name || ""}</strong><br><span class="meta">${itemClass?.year || ""} // ${item.permanentId || ""}</span></div><div>${getStudentProgress(item)}%</div></div>`;
+  }).join("");
   return `
     <!DOCTYPE html>
     <html lang="fr">
@@ -5097,6 +5141,10 @@ function buildPrintableBulletinHTML(student, classItem, studentActivities, pfmpS
         <div class="kpi"><strong>PFMP remplies</strong><div>${pfmpSummary.filled}/6</div></div>
       </div>
       <div class="grid">
+        ${renderPrintHeatmapRow("Progression annuelle", `${getStudentProgress(student)}%`, getStudentProgress(student) / 100)}
+        ${renderPrintHeatmapRow("Parcours 3 ans", `${journey.length} annee(s)`, Math.min(journey.length / 3, 1))}
+      </div>
+      <div class="grid">
         <section class="card">
           <h2>Compétences</h2>
           ${skillCatalog.map((skill) => `<div class="row"><div><strong>${skill.code}</strong> ${skill.title}</div><div class="pill">${levelLabels[student.skills[skill.id]]}</div></div>`).join("")}
@@ -5119,6 +5167,10 @@ function buildPrintableBulletinHTML(student, classItem, studentActivities, pfmpS
           }).join("")}
         </section>
       </div>
+      <section class="card" style="margin-top:16px;">
+        <h2>Parcours 3 ans</h2>
+        ${journeyRows || `<p>Aucun historique disponible.</p>`}
+      </section>
     </body>
     </html>
   `;
@@ -6561,6 +6613,16 @@ function getStudentsByClass(classId) {
 }
 
 function getStudentJourney(student) {
+  const permanentId = String(student?.permanentId || "").trim();
+  if (permanentId) {
+    return app.students
+      .filter((item) => String(item.permanentId || "").trim() === permanentId)
+      .sort((a, b) => {
+        const order = getClassLevelOrder(a.classId) - getClassLevelOrder(b.classId);
+        if (order !== 0) return order;
+        return String(getClassById(a.classId)?.year || "").localeCompare(String(getClassById(b.classId)?.year || ""));
+      });
+  }
   const portfolioKey = getStudentPortfolioKey(student);
   if (!portfolioKey) return [student].filter(Boolean);
   return app.students
@@ -6570,6 +6632,18 @@ function getStudentJourney(student) {
       if (order !== 0) return order;
       return String(getClassById(a.classId)?.year || "").localeCompare(String(getClassById(b.classId)?.year || ""));
     });
+}
+
+function generatePermanentStudentId(name, classId = "", year = "") {
+  const base = `${normalizeText(name).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "eleve"}-${normalizeText(classId).replace(/[^a-z0-9]+/g, "")}-${String(year || "").replace(/[^0-9]/g, "").slice(0, 4) || new Date().getFullYear()}`;
+  let candidate = base.toUpperCase();
+  let index = 1;
+  const existing = new Set(app.students.map((student) => String(student.permanentId || "").toUpperCase()).filter(Boolean));
+  while (existing.has(candidate)) {
+    index += 1;
+    candidate = `${base.toUpperCase()}-${index}`;
+  }
+  return candidate;
 }
 
 function getClassLevelOrder(classId) {
@@ -6823,6 +6897,20 @@ function extractStudentNames(rows) {
     })
     .map((value) => value.trim())
     .filter(Boolean);
+}
+
+function extractStudentRecords(rows) {
+  if (!rows.length) return [];
+  const header = rows[0].map((cell) => normalizeText(cell));
+  const nameIndex = header.findIndex((cell) => ["nom", "name", "eleve", "student"].includes(cell));
+  const idIndex = header.findIndex((cell) => ["identifiant", "reference", "student_id", "id_eleve", "id"].includes(cell));
+  const dataRows = nameIndex >= 0 ? rows.slice(1) : rows;
+  return dataRows
+    .map((row) => ({
+      name: String((nameIndex >= 0 ? row[nameIndex] : row[0]) || "").trim(),
+      permanentId: String((idIndex >= 0 ? row[idIndex] : "") || "").trim()
+    }))
+    .filter((item) => item.name);
 }
 
 function exportSkillsWorkbook(classItem, students) {
