@@ -7968,6 +7968,151 @@ function initAccountsPage() {
   }
 })();
 
+(() => {
+  const displayFixups = [
+    [/Ã©/g, "é"],
+    [/Ã¨/g, "è"],
+    [/Ãª/g, "ê"],
+    [/Ã«/g, "ë"],
+    [/Ã‰/g, "É"],
+    [/Ã€/g, "À"],
+    [/Ã /g, "à"],
+    [/Ã¢/g, "â"],
+    [/Ã´/g, "ô"],
+    [/Ã»/g, "û"],
+    [/Ã¹/g, "ù"],
+    [/Ã§/g, "ç"],
+    [/Ã®/g, "î"],
+    [/Ã¯/g, "ï"],
+    [/CompÃ©tence/g, "Compétence"],
+    [/CompÃ©tences/g, "Compétences"],
+    [/rÃ©seau/g, "réseau"],
+    [/rÃ©seaux/g, "réseaux"],
+    [/RÃ©alisation/g, "Réalisation"],
+    [/sÃ©ance/g, "séance"],
+    [/SÃ©ance/g, "Séance"],
+    [/ClÃ´turer/g, "Clôturer"],
+    [/archivÃ©es/g, "archivées"],
+    [/annÃ©e/g, "année"],
+    [/Ã /g, "à"],
+    [/Ã‰lÃ¨ve/g, "Élève"],
+    [/Ã©lÃ¨ve/g, "élève"],
+    [/Ã©lÃ¨ves/g, "élèves"],
+    [/Ã‰valuations/g, "Évaluations"],
+    [/rÃ©cap/g, "récap"],
+    [/TÃ©lÃ©charger/g, "Télécharger"],
+    [/modÃ¨le/g, "modèle"],
+    [/complÃ©tÃ©e/g, "complétée"],
+    [/PrÃ©remplir/g, "Préremplir"],
+    [/NumÃ©ro/g, "Numéro"],
+    [/AcadÃ©mie/g, "Académie"],
+    [/Ã‰tablissement/g, "Établissement"],
+    [/TÃ©lÃ©phone/g, "Téléphone"],
+    [/rÃ©fÃ©rent/g, "référent"],
+    [/Ã©valuation/g, "évaluation"],
+    [/Ã‰valuer/g, "Évaluer"],
+    [/Ã©valuations/g, "évaluations"],
+    [/prÃ©sence/g, "présence"],
+    [/Livret d'Ã©valuation/g, "Livret d'évaluation"],
+    [/CohÃ©rence/g, "Cohérence"],
+    [/cohÃ©rence/g, "cohérence"],
+    [/liÃ©e/g, "liée"],
+    [/liÃ©es/g, "liées"],
+    [/associÃ©s/g, "associés"],
+    [/associÃ©es/g, "associées"],
+    [/jamais travaillÃ©e/g, "jamais travaillée"],
+    [/\?valuations/g, "Évaluations"],
+    [/\?tablissement/g, "Établissement"],
+    [/\?\?tablissement/g, "Établissement"],
+    [/Acad\?mie/g, "Académie"],
+    [/Cl\?turer/g, "Clôturer"],
+    [/ann\?e/g, "année"],
+    [/Comp\?tence/g, "Compétence"],
+    [/Comp\?tences/g, "Compétences"],
+    [/comp\?tence/g, "compétence"],
+    [/comp\?tences/g, "compétences"],
+    [/\?l\?ve/g, "Élève"],
+    [/\?l\?ves/g, "Élèves"],
+    [/l'\?l\?ve/g, "l'élève"],
+    [/r\?seau/g, "réseau"],
+    [/r\?seaux/g, "réseaux"],
+    [/\?tude/g, "Étude"],
+    [/s\?ance/g, "séance"],
+    [/S\?ance/g, "Séance"],
+    [/r\?cap/g, "récap"],
+    [/mod\?le/g, "modèle"],
+    [/compl\?t\?e/g, "complétée"],
+    [/Acad\?mie/g, "Académie"],
+    [/Pi\?ce/g, "Pièce"],
+    [/R\?alisation/g, "Réalisation"],
+    [/coh\?rence/g, "cohérence"]
+  ];
+
+  function normalizeDisplayText(value) {
+    if (!value) return value;
+    let next = value;
+    displayFixups.forEach(([pattern, replacement]) => {
+      next = next.replace(pattern, replacement);
+    });
+    next = next.replace(/Session à clôturer/g, "Session à clôturer");
+    next = next.replace(/Nouvelle année scolaire/g, "Nouvelle année scolaire");
+    return next;
+  }
+
+  function normalizeElementText(root = document.documentElement) {
+    if (!root) return;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode();
+    while (node) {
+      const fixed = normalizeDisplayText(node.nodeValue);
+      if (fixed !== node.nodeValue) {
+        node.nodeValue = fixed;
+      }
+      node = walker.nextNode();
+    }
+    root.querySelectorAll("input[placeholder], textarea[placeholder], [title], option, button, h1, h2, h3, p, small, span, a, label").forEach((element) => {
+      if (element.hasAttribute("placeholder")) {
+        const fixed = normalizeDisplayText(element.getAttribute("placeholder"));
+        if (fixed !== element.getAttribute("placeholder")) element.setAttribute("placeholder", fixed);
+      }
+      if (element.hasAttribute("title")) {
+        const fixed = normalizeDisplayText(element.getAttribute("title"));
+        if (fixed !== element.getAttribute("title")) element.setAttribute("title", fixed);
+      }
+      if (element.tagName === "OPTION" || element.tagName === "BUTTON") {
+        const fixed = normalizeDisplayText(element.textContent);
+        if (fixed !== element.textContent) element.textContent = fixed;
+      }
+    });
+    document.title = normalizeDisplayText(document.title);
+  }
+
+  let normalizeQueued = false;
+  function scheduleDisplayNormalization() {
+    if (normalizeQueued) return;
+    normalizeQueued = true;
+    window.requestAnimationFrame(() => {
+      normalizeQueued = false;
+      normalizeElementText();
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", scheduleDisplayNormalization, { once: true });
+  } else {
+    scheduleDisplayNormalization();
+  }
+
+  const observer = new MutationObserver(() => scheduleDisplayNormalization());
+  if (document.body) {
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+  } else {
+    document.addEventListener("DOMContentLoaded", () => {
+      observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    }, { once: true });
+  }
+})();
+
 ;(function () {
   const EXAM_CENTER_SETTINGS_KEY = "ciel-exam-center-settings";
   const EXAM_GRID_STORAGE_KEY = "ciel-exam-grid-settings";
