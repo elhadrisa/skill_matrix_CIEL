@@ -8095,6 +8095,104 @@ function initAccountsPage() {
 })();
 
 ;(function () {
+  function populateActivityEditorFromSelectionSafe() {
+    if (document.body?.dataset?.page !== "evaluations") return;
+    const activitySelect = document.querySelector("#activity-select");
+    const activity = getActivityById(activitySelect?.value);
+    const form = document.querySelector("#activity-form");
+    const typeInput = document.querySelector("#activity-type");
+    const titleInput = document.querySelector("#activity-title");
+    const classInput = document.querySelector("#activity-class");
+    const skillInput = document.querySelector("#activity-skill");
+    const startInput = document.querySelector("#activity-date-start");
+    const endInput = document.querySelector("#activity-date-end");
+    const indicatorsInput = document.querySelector("#activity-indicators");
+    const commentInput = document.querySelector("#activity-comment");
+    const submitButton = document.querySelector("#activity-submit-button");
+    const cancelButton = document.querySelector("#activity-cancel-edit");
+    const indicatorSkill = document.querySelector("#activity-indicator-skill");
+    const indicatorList = document.querySelector("#activity-indicator-list");
+    const feedback = document.querySelector("#activity-feedback");
+    if (!activity || !form || !typeInput || !titleInput || !classInput || !skillInput || !startInput || !endInput || !indicatorsInput || !commentInput || !submitButton || !cancelButton) return;
+
+    form.dataset.editingId = activity.id;
+    typeInput.value = activity.type || "TP";
+    titleInput.value = activity.title || "";
+    classInput.value = activity.classId || "";
+    setMultiSelectValues(skillInput, getActivitySkillIds(activity));
+    startInput.value = activity.startDate || activity.date || "";
+    endInput.value = activity.endDate || activity.startDate || activity.date || "";
+    indicatorsInput.value = (activity.indicators || []).map((indicator) => indicator.label).join("\n");
+    commentInput.value = activity.comment || "";
+    submitButton.textContent = "Enregistrer les modifications";
+    cancelButton.hidden = false;
+    if (indicatorSkill) {
+      const selected = getActivitySkillIds(activity).map((id) => getSkillById(id)).filter(Boolean);
+      indicatorSkill.innerHTML = `<option value="">Toutes les competences</option>${selected.map((skill) => `<option value="${skill.id}">${skill.code} // ${skill.title}</option>`).join("")}`;
+    }
+    if (indicatorList) {
+      indicatorList.innerHTML = (activity.indicators || []).length
+        ? activity.indicators.map((indicator) => `
+          <article class="directory-row compact">
+            <div>
+              <strong>${escapeHtml(indicator.label)}</strong>
+              <p>${escapeHtml(indicator.skillId ? getActivitySkillLabel({ skillIds: [indicator.skillId], skillId: indicator.skillId }) : "Toutes les competences de la seance")}</p>
+            </div>
+          </article>
+        `).join("")
+        : `<article class="directory-row"><div><strong>Aucun indicateur structure</strong><p>Utilise la saisie rapide ou ajoute des indicateurs ci-dessus.</p></div></article>`;
+    }
+    if (typeof applyEvaluationsView === "function") applyEvaluationsView("create");
+    if (feedback) feedback.textContent = `Edition de la seance : ${activity.title}`;
+  }
+
+  function resetActivityEditorFallbackSafe() {
+    if (document.body?.dataset?.page !== "evaluations") return;
+    const form = document.querySelector("#activity-form");
+    const submitButton = document.querySelector("#activity-submit-button");
+    const cancelButton = document.querySelector("#activity-cancel-edit");
+    const indicatorList = document.querySelector("#activity-indicator-list");
+    const feedback = document.querySelector("#activity-feedback");
+    const skillInput = document.querySelector("#activity-skill");
+    if (!form || !submitButton || !cancelButton) return;
+    delete form.dataset.editingId;
+    submitButton.textContent = "Créer la séance";
+    cancelButton.hidden = true;
+    if (indicatorList) {
+      indicatorList.innerHTML = `<article class="directory-row"><div><strong>Aucun indicateur structure</strong><p>Ajoute des indicateurs lies a une competence ou utilise la saisie rapide.</p></div></article>`;
+    }
+    if (skillInput) clearMultiSelect(skillInput);
+    if (feedback) feedback.textContent = "Edition annulee.";
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bindSafeEvaluationEditFallback, { once: true });
+  } else {
+    bindSafeEvaluationEditFallback();
+  }
+
+  function bindSafeEvaluationEditFallback() {
+    if (document.body?.dataset?.page !== "evaluations") return;
+    if (document.body.dataset.evalEditFallbackBound) return;
+    document.body.dataset.evalEditFallbackBound = "true";
+    document.addEventListener("click", (event) => {
+      const editButton = event.target.closest("#activity-edit-button");
+      if (editButton) {
+        event.preventDefault();
+        event.stopPropagation();
+        populateActivityEditorFromSelectionSafe();
+        return;
+      }
+      const cancelButton = event.target.closest("#activity-cancel-edit");
+      if (cancelButton) {
+        event.preventDefault();
+        resetActivityEditorFallbackSafe();
+      }
+    }, true);
+  }
+})();
+
+;(function () {
   function getActivityStatusesOnlySafe(activity, studentId) {
     if (!activity?.evaluations?.[studentId]) return [];
     return Object.entries(activity.evaluations[studentId])
