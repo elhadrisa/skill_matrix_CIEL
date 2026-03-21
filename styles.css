@@ -150,6 +150,24 @@ button, input, select { font: inherit; }
   width: 100%;
   margin: 0 auto;
 }
+.topbar-brandmark {
+  position: absolute;
+  top: 18px;
+  right: 22px;
+  width: 156px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+  text-decoration: none;
+  pointer-events: auto;
+}
+.topbar-brandmark img {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 0 16px rgba(98,245,212,0.18));
+}
 
 .topbar-title, .section-head h2, .hero-title, .skill-title {
   margin: 0;
@@ -631,6 +649,11 @@ body:not([data-page="home"]) .nav-tabs {
   .page-shell { width: min(100% - 16px, 1440px); }
   .wide-field { grid-column: auto; }
   .nav-dropdown-menu { left: 0; right: auto; }
+  .topbar-brandmark {
+    width: 122px;
+    top: 16px;
+    right: 16px;
+  }
 }
 
 @media print {

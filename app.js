@@ -171,6 +171,7 @@ function createEmptyApp() {
 async function initializeApp() {
   if (page === "home") {
     initHomePage();
+    injectBrandLogo();
     return;
   }
 
@@ -190,6 +191,7 @@ async function initializeApp() {
     }
     replaceAppState(loadLocalFallbackData());
     initLoginPage();
+    injectBrandLogo();
     return;
   }
 
@@ -1356,6 +1358,18 @@ function initAccountsPage() {
       });
     });
   }
+}
+
+function injectBrandLogo() {
+  document.querySelectorAll(".topbar").forEach((topbar) => {
+    if (topbar.querySelector(".topbar-brandmark")) return;
+    const mark = document.createElement("a");
+    mark.href = "index.html";
+    mark.className = "topbar-brandmark";
+    mark.setAttribute("aria-label", "CIEL Matrix");
+    mark.innerHTML = `<img src="ciel-matrix-logo.svg" alt="CIEL Matrix">`;
+    topbar.appendChild(mark);
+  });
 }
 
 printHtmlDocument = function(title, html) {
@@ -3970,6 +3984,7 @@ function initAccountsPage() {
 }
 
 function bindProtectedChrome() {
+  injectBrandLogo();
   const roleBadge = document.querySelector("#session-role");
   const logoutButton = document.querySelector("#logout-button");
   const navs = [...document.querySelectorAll(".nav-tabs")];
