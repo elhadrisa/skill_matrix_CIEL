@@ -66,11 +66,6 @@
             <input id="student-name-input" type="text" placeholder="Ex. Sarah Dupont" required>
           </label>
           <label class="field">
-            <span>Identifiant eleve permanent</span>
-            <input id="student-ref-input" type="text" placeholder="Ex. CIEL-2026-001">
-            <small>Laisse vide pour une generation automatique. Garde le meme identifiant sur 2CIEL, 1CIEL et TCIEL.</small>
-          </label>
-          <label class="field">
             <span>Classe</span>
             <select id="student-class-input" required></select>
           </label>
@@ -86,7 +81,6 @@
             <span>Fichier CSV</span>
             <input id="student-csv-input" type="file" accept=".csv,text/csv">
           </label>
-          <p class="results-count">Colonnes acceptees : `nom` et optionnellement `identifiant` / `reference` / `student_id`.</p>
           <button id="import-csv-button" class="ghost-button" type="button">Importer les élèves</button>
           <p id="import-feedback" class="results-count"></p>
         </div>
