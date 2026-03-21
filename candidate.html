@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CIEL Matrix // Candidat</title>
+  <title>CIEL Matrix // Examen</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -15,7 +15,7 @@
     <header class="topbar panel">
       <div>
         <p class="eyebrow">Bac Pro CIEL // Skill Matrix</p>
-        <h1 class="topbar-title">Dossier candidat</h1>
+        <h1 class="topbar-title">Module examen</h1>
       </div>
       <nav class="nav-tabs app-nav">
         <a class="nav-tab" href="index.html">Accueil</a>
@@ -23,7 +23,7 @@
         <a class="nav-tab" href="dashboard.html">Dashboard</a>
         <a class="nav-tab" href="evaluations.html">Evaluations</a>
         <a class="nav-tab" href="pfmp.html">PFMP</a>
-        <a class="nav-tab active" href="candidate.html">Candidat</a>
+        <a class="nav-tab active" href="candidate.html">Examen</a>
         <span id="session-role" class="badge accent"></span>
         <button id="logout-button" class="ghost-button" type="button">Deconnexion</button>
       </nav>
@@ -33,15 +33,15 @@
     <section class="hero panel">
       <div class="hero-copy">
         <p class="eyebrow">Maison des examens</p>
-        <h2 class="hero-title">Prepare le dossier officiel du candidat</h2>
+        <h2 class="hero-title">Pilote les epreuves et le dossier officiel</h2>
         <p class="hero-text">
-          Selectionne un eleve, controle l'etat des epreuves E2 / E31 / E32, puis exporte la grille nationale completee et le recapitulatif PDF.
+          Regroupe sur une seule page le pilotage certification de la classe et la preparation du dossier officiel eleve pour E2 / E31 / E32.
         </p>
       </div>
       <section class="hero-side">
         <div class="hero-side-head">
           <div>
-            <h2>Parametres candidat</h2>
+            <h2>Parametres examen</h2>
             <p id="candidate-meta" class="results-count"></p>
           </div>
           <div class="student-badges">
@@ -86,6 +86,26 @@
     </section>
 
     <main class="dashboard-layout">
+      <section class="panel">
+        <div class="hero-side-head">
+          <div>
+            <h2>Vue certification de la classe</h2>
+            <p class="results-count">Etat moyen des epreuves E2 / E31 / E32 pour la classe selectionnee.</p>
+          </div>
+        </div>
+        <div id="candidate-cert-overview" class="class-cards"></div>
+      </section>
+
+      <section class="panel">
+        <div class="hero-side-head">
+          <div>
+            <h2>Eleves a suivre</h2>
+            <p class="results-count">Repere les dossiers prets, a verifier ou incomplets avant envoi.</p>
+          </div>
+        </div>
+        <div id="candidate-cert-students" class="class-cards"></div>
+      </section>
+
       <section class="panel">
         <div class="hero-side-head">
           <div>

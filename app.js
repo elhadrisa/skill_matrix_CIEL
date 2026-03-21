@@ -8185,7 +8185,9 @@ function initCandidatePageFinal() {
   const meta = document.querySelector("#candidate-meta");
   const overview = document.querySelector("#candidate-overview");
   const preview = document.querySelector("#candidate-exam-preview");
-  if (!classSelect || !studentSelect || !candidateNumberInput || !dateInput || !academyInput || !schoolInput || !fileInput || !useDefaultButton || !exportPackButton || !exportGridButton || !exportPdfButton || !overview || !preview) return;
+  const certificationOverview = document.querySelector("#candidate-cert-overview");
+  const certificationStudents = document.querySelector("#candidate-cert-students");
+  if (!classSelect || !studentSelect || !candidateNumberInput || !dateInput || !academyInput || !schoolInput || !fileInput || !useDefaultButton || !exportPackButton || !exportGridButton || !exportPdfButton || !overview || !preview || !certificationOverview || !certificationStudents) return;
 
   const EXAM_GRID_STORAGE_KEY = "ciel-exam-grid-settings";
   const EXAM_CENTER_SETTINGS_KEY = "ciel-exam-center-settings";
@@ -8341,6 +8343,53 @@ function initCandidatePageFinal() {
     `).join("");
   }
 
+  function renderCertificationSnapshot(classId) {
+    const classItem = getClassById(classId);
+    const students = getStudentsByClass(classId);
+    const examStats = EXAM_GROUPS.map((group) => {
+      const previews = students.map((student) => computeExamPreview(student).find((item) => item.exam === group.exam)).filter(Boolean);
+      const average = previews.length ? Math.round(previews.reduce((sum, item) => sum + item.note, 0) / previews.length * 10) / 10 : 0;
+      const ready = previews.filter((item) => item.status === "Pret").length;
+      const incomplete = previews.filter((item) => item.status === "Incomplet").length;
+      return {
+        exam: group.exam,
+        average,
+        ready,
+        incomplete,
+        status: ready === previews.length && previews.length ? "Pret a envoyer" : (incomplete ? "Incomplet" : "A verifier")
+      };
+    });
+
+    certificationOverview.innerHTML = examStats.map((item) => `
+      <article class="summary-card">
+        <h3>${item.exam}</h3>
+        <p class="muted-copy">${item.ready}/${students.length} dossier(s) prets</p>
+        <div class="pfmp-kpis">
+          <span class="badge">${item.average.toFixed(1)}/20</span>
+          <span class="badge">${item.incomplete} incomplet(s)</span>
+          <span class="badge ${getExamStatusClass(item.status)}">${item.status}</span>
+        </div>
+      </article>
+    `).join("");
+
+    certificationStudents.innerHTML = students.map((student) => {
+      const previews = computeExamPreview(student);
+      const ready = previews.filter((item) => item.status === "Pret").length;
+      const hasIncomplete = previews.some((item) => item.status === "Incomplet");
+      const status = ready === previews.length ? "Pret a envoyer" : (hasIncomplete ? "Incomplet" : "A verifier");
+      return `
+        <article class="summary-card">
+          <h3>${student.name}</h3>
+          <p class="muted-copy">${classItem?.name || ""}</p>
+          <div class="pfmp-kpis">
+            ${previews.map((item) => `<span class="badge ${getExamStatusClass(item.status)}">${item.exam} ${item.note.toFixed(1)}/20</span>`).join("")}
+            <span class="badge ${getExamStatusClass(status)}">${status}</span>
+          </div>
+        </article>
+      `;
+    }).join("");
+  }
+
   function buildCandidateRecapHtml(student) {
     const classItem = getClassById(student.classId);
     const { firstName, lastName } = splitStudentIdentitySafe(student);
@@ -8434,6 +8483,7 @@ function initCandidatePageFinal() {
     const classId = classSelect.value || app.classes[0]?.id || "";
     const students = getStudentsByClass(classId);
     studentSelect.innerHTML = students.map((student) => `<option value="${student.id}">${student.name}</option>`).join("");
+    renderCertificationSnapshot(classId);
     renderCandidateOverview(getStudentById(studentSelect.value) || students[0] || null);
   }
 
