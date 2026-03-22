@@ -3353,7 +3353,7 @@ function initEvaluationsPageFinal() {
       activityFeedback.textContent = "Renseigne un titre, une classe, une compétence et au moins un indicateur.";
       return;
     }
-    app.evaluationActivities.push({
+    const newActivity = hydrateEvaluationActivity({
       id: slugify(`${activityTitle.value}-${Date.now()}`),
       title: activityTitle.value.trim(),
       type: activityType.value,
@@ -3366,7 +3366,8 @@ function initEvaluationsPageFinal() {
       comment: activityComment?.value.trim() || "",
       indicators,
       evaluations: {}
-    });
+    }, app.evaluationActivities.length);
+    app.evaluationActivities.push(newActivity);
     logAction("Séance créée", activityTitle.value.trim(), `${activityType.value} // ${getClassById(activityClass.value)?.name || ""}`);
     persistAppData();
     activityForm.reset();
@@ -3377,7 +3378,7 @@ function initEvaluationsPageFinal() {
     populateIndicatorBankSelect(indicatorBankSelect);
     activityFeedback.textContent = "Séance créée.";
     sessionClassSelect.value = activityClass.value;
-    syncSessionActivities();
+    syncSessionActivities(newActivity.id);
     renderEvaluationPage();
   });
 
@@ -10201,6 +10202,7 @@ function initAccountsPage() {
         return;
       }
       const editingId = activityForm.dataset.editingId;
+      let targetActivityId = editingId || "";
       if (editingId) {
         const activity = getActivityById(editingId);
         if (!activity) {
@@ -10217,10 +10219,11 @@ function initAccountsPage() {
         activity.endDate = activityDateEnd.value || activityDateStart.value;
         activity.comment = activityComment.value.trim();
         activity.indicators = indicators;
+        Object.assign(activity, hydrateEvaluationActivity(activity, app.evaluationActivities.findIndex((item) => item.id === activity.id)));
         logAction("Séance modifiée", activity.title, `${activity.type} // ${getClassById(activity.classId)?.name || ""}`);
         activityFeedback.textContent = "Séance mise à jour.";
       } else {
-        app.evaluationActivities.push({
+        const newActivity = hydrateEvaluationActivity({
           id: slugify(`${activityTitle.value.trim()}-${Date.now()}`),
           title: activityTitle.value.trim(),
           type: activityType.value,
@@ -10233,15 +10236,20 @@ function initAccountsPage() {
           comment: activityComment.value.trim(),
           indicators,
           evaluations: {}
-        });
+        }, app.evaluationActivities.length);
+        app.evaluationActivities.push(newActivity);
+        targetActivityId = newActivity.id;
         logAction("Séance créée", activityTitle.value.trim(), `${activityType.value} // ${getClassById(activityClass.value)?.name || ""}`);
         activityFeedback.textContent = "Séance créée.";
       }
       persistAppData();
       sessionClassSelect.value = activityClass.value;
+      evalClassSelect.value = activityClass.value;
       resetActivityEditorSafe();
-      sessionClassSelect.dispatchEvent(new Event("change"));
-      evalStudentSelect.dispatchEvent(new Event("change"));
+      syncSessionActivities(targetActivityId);
+      syncEvalStudents();
+      renderEvaluationPage();
+      window.__cielScheduleActivityCardsLayoutSafe?.();
     }
 
     function enhanceStudentSkillRowsSafe() {
