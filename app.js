@@ -10281,6 +10281,7 @@ function initAccountsPage() {
       }
       persistAppData();
       resetActivityEditorSafe();
+      window.__cielSyncEvaluationSelectorsSafe?.(targetClassId, targetActivityId);
       sessionClassSelect.value = targetClassId;
       evalClassSelect.value = targetClassId;
       syncSessionActivities(targetActivityId);
@@ -14584,6 +14585,51 @@ function initCertificationPageFinal() {
     return normalizeGrade(activity?.evaluations?.[studentId]?.__globalGrade);
   }
 
+  function syncAuthoritativeEvaluationSelectorsFinalSafe(targetClassId = "", targetActivityId = "", targetStudentId = "") {
+    if (document.body?.dataset?.page !== "evaluations") return;
+    const sessionClassSelect = document.querySelector("#session-class-select");
+    const evalClassSelect = document.querySelector("#eval-class-select");
+    const activitySelect = document.querySelector("#activity-select");
+    const evalStudentSelect = document.querySelector("#eval-student-select");
+
+    const classId = targetClassId || sessionClassSelect?.value || evalClassSelect?.value || app.classes[0]?.id || "";
+    const classOptions = app.classes.map((classItem) => `<option value="${classItem.id}">${escapeHtml(classItem.name)}</option>`).join("");
+    if (sessionClassSelect) {
+      sessionClassSelect.innerHTML = classOptions;
+      if ([...(sessionClassSelect.options || [])].some((option) => option.value === classId)) {
+        sessionClassSelect.value = classId;
+      }
+    }
+    if (evalClassSelect) {
+      evalClassSelect.innerHTML = classOptions;
+      if ([...(evalClassSelect.options || [])].some((option) => option.value === classId)) {
+        evalClassSelect.value = classId;
+      }
+    }
+
+    const activities = getActivitiesByClass(classId);
+    if (activitySelect) {
+      activitySelect.innerHTML = activities.map((activity) => `<option value="${activity.id}">${escapeHtml(`${activity.type} // ${activity.title}`)}</option>`).join("");
+      const effectiveActivityId = targetActivityId && activities.some((activity) => activity.id === targetActivityId)
+        ? targetActivityId
+        : (activities[0]?.id || "");
+      if (effectiveActivityId) {
+        activitySelect.value = effectiveActivityId;
+      }
+    }
+
+    const students = getStudentsByClass(classId);
+    if (evalStudentSelect) {
+      evalStudentSelect.innerHTML = students.map((student) => `<option value="${student.id}">${escapeHtml(repairEvalTextFinalSafe(student.name))}</option>`).join("");
+      const effectiveStudentId = targetStudentId && students.some((student) => student.id === targetStudentId)
+        ? targetStudentId
+        : (students[0]?.id || "");
+      if (effectiveStudentId) {
+        evalStudentSelect.value = effectiveStudentId;
+      }
+    }
+  }
+
   function getEvalDistributedStatusesFinalSafe(grade, count) {
     const total = Math.max(0, Number.parseInt(count, 10) || 0);
     if (!total) return [];
@@ -14659,6 +14705,7 @@ function initCertificationPageFinal() {
 
     const explicitActivityId = matrix.dataset.renderActivityId || activitySelect?.value || "";
     const explicitClassId = matrix.dataset.renderClassId || "";
+    syncAuthoritativeEvaluationSelectorsFinalSafe(explicitClassId || sessionClassSelect?.value || evalClassSelect?.value || "", explicitActivityId);
     let activity = getActivityById(explicitActivityId);
 
     const classCandidates = [
@@ -14897,7 +14944,15 @@ function initCertificationPageFinal() {
     ["#activity-select", "#session-class-select", "#eval-class-select", "#eval-student-select", "#activity-search-input"].forEach((selector) => {
       const element = document.querySelector(selector);
       if (!element) return;
-      element.addEventListener("change", () => scheduleAuthoritativeEvaluationCardsFinalSafe(0), true);
+      element.addEventListener("change", () => {
+        if (selector === "#session-class-select" || selector === "#eval-class-select") {
+          syncAuthoritativeEvaluationSelectorsFinalSafe(element.value || "", document.querySelector("#activity-select")?.value || "", document.querySelector("#eval-student-select")?.value || "");
+        } else if (selector === "#activity-select") {
+          const activity = getActivityById(element.value || "");
+          syncAuthoritativeEvaluationSelectorsFinalSafe(activity?.classId || document.querySelector("#session-class-select")?.value || "", element.value || "", document.querySelector("#eval-student-select")?.value || "");
+        }
+        scheduleAuthoritativeEvaluationCardsFinalSafe(0);
+      }, true);
       if (selector === "#activity-search-input") {
         element.addEventListener("input", () => scheduleAuthoritativeEvaluationCardsFinalSafe(0), true);
       }
@@ -14952,6 +15007,7 @@ function initCertificationPageFinal() {
 
   window.__cielRenderActivityCardsLayoutSafe = renderAuthoritativeEvaluationCardsFinalSafe;
   window.__cielScheduleActivityCardsLayoutSafe = scheduleAuthoritativeEvaluationCardsFinalSafe;
+  window.__cielSyncEvaluationSelectorsSafe = syncAuthoritativeEvaluationSelectorsFinalSafe;
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
