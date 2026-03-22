@@ -805,15 +805,49 @@ function createEmptyPfmpEntry() {
   return hydratePfmpEntry({});
 }
 
-function hydrateEvaluationActivity(activity, index) {
-  const indicators = Array.isArray(activity.indicators) ? activity.indicators.map((indicator, indicatorIndex) => ({
-    id: indicator.id || `indicator-${index + 1}-${indicatorIndex + 1}`,
-    label: indicator.label || `Indicateur ${indicatorIndex + 1}`,
-    skillId: indicator.skillId && getSkillById(indicator.skillId) ? indicator.skillId : ""
+function normalizeActivityIndicatorsBySkillSafe(indicators, skillIds = []) {
+  const normalizedSkillIds = (Array.isArray(skillIds) ? skillIds : []).filter((skillId, index, source) => getSkillById(skillId) && source.indexOf(skillId) === index);
+  const normalizedIndicators = Array.isArray(indicators) ? indicators.map((indicator) => ({
+    ...indicator,
+    skillId: indicator.skillId && normalizedSkillIds.includes(indicator.skillId) ? indicator.skillId : ""
   })) : [];
+
+  if (!normalizedSkillIds.length) return normalizedIndicators;
+  if (normalizedSkillIds.length === 1) {
+    return normalizedIndicators.map((indicator) => ({
+      ...indicator,
+      skillId: indicator.skillId || normalizedSkillIds[0]
+    }));
+  }
+
+  const assignedCountBySkill = new Map(normalizedSkillIds.map((skillId) => [skillId, 0]));
+  normalizedIndicators.forEach((indicator) => {
+    if (!indicator.skillId) return;
+    assignedCountBySkill.set(indicator.skillId, (assignedCountBySkill.get(indicator.skillId) || 0) + 1);
+  });
+
+  let nextSkillIndex = 0;
+  return normalizedIndicators.map((indicator) => {
+    if (indicator.skillId) return indicator;
+    const skillId = normalizedSkillIds[nextSkillIndex % normalizedSkillIds.length];
+    nextSkillIndex += 1;
+    assignedCountBySkill.set(skillId, (assignedCountBySkill.get(skillId) || 0) + 1);
+    return {
+      ...indicator,
+      skillId
+    };
+  });
+}
+
+function hydrateEvaluationActivity(activity, index) {
   const skillIds = Array.isArray(activity.skillIds) && activity.skillIds.length
     ? activity.skillIds.filter((skillId) => getSkillById(skillId))
     : [activity.skillId || skillCatalog[0].id].filter((skillId) => getSkillById(skillId));
+  const indicators = normalizeActivityIndicatorsBySkillSafe(Array.isArray(activity.indicators) ? activity.indicators.map((indicator, indicatorIndex) => ({
+    id: indicator.id || `indicator-${index + 1}-${indicatorIndex + 1}`,
+    label: indicator.label || `Indicateur ${indicatorIndex + 1}`,
+    skillId: indicator.skillId && getSkillById(indicator.skillId) ? indicator.skillId : ""
+  })) : [], skillIds);
   return {
     id: activity.id || `activity-${index + 1}`,
     title: activity.title || `SÃ©ance ${index + 1}`,
@@ -3310,11 +3344,11 @@ function initEvaluationsPageFinal() {
     event.preventDefault();
     if (!canEditEvaluations) return;
     const selectedSkillIds = getActivitySkillIdsForIndicatorPickerSafe(activitySkill, activityForm);
-    const indicators = (activityIndicatorDraft.length ? activityIndicatorDraft : buildIndicatorsFromTextarea()).map((indicator, index) => ({
+    const indicators = normalizeActivityIndicatorsBySkillSafe((activityIndicatorDraft.length ? activityIndicatorDraft : buildIndicatorsFromTextarea()).map((indicator, index) => ({
       id: indicator.id || slugify(`${activityTitle.value}-${index}-${Date.now()}`),
       label: indicator.label,
       skillId: indicator.skillId || ""
-    }));
+    })), selectedSkillIds);
     if (!activityTitle.value.trim() || !activityClass.value || !selectedSkillIds.length || !indicators.length) {
       activityFeedback.textContent = "Renseigne un titre, une classe, une compétence et au moins un indicateur.";
       return;
@@ -3391,7 +3425,14 @@ function initEvaluationsPageFinal() {
     activity.skillIds = skillIds;
     activity.skillId = skillIds[0];
     activity.comment = (comment || "").trim();
-    activity.indicators = indicators.split("|").map((item, index) => ({ id: activity.indicators[index]?.id || slugify(`${title}-${index}-${Date.now()}`), label: item.trim() })).filter((item) => item.label);
+    activity.indicators = normalizeActivityIndicatorsBySkillSafe(
+      indicators.split("|").map((item, index) => ({
+        id: activity.indicators[index]?.id || slugify(`${title}-${index}-${Date.now()}`),
+        label: item.trim(),
+        skillId: activity.indicators[index]?.skillId || ""
+      })).filter((item) => item.label),
+      skillIds
+    );
     logAction("SÃ©ance modifiÃ©e", activity.title, activity.type);
     persistAppData();
     syncSessionActivities(activity.id);
@@ -3408,7 +3449,8 @@ function initEvaluationsPageFinal() {
       evaluations: {},
       indicators: activity.indicators.map((indicator, index) => ({
         id: slugify(`${activity.title}-copie-${index}-${Date.now()}`),
-        label: indicator.label
+        label: indicator.label,
+        skillId: indicator.skillId || ""
       }))
     }, app.evaluationActivities.length);
     app.evaluationActivities.push(duplicate);
@@ -10149,11 +10191,11 @@ function initAccountsPage() {
         ? getAuthoritativeActivityIndicatorDraftSafe(activityForm)
         : getStoredActivityIndicatorDraftSafe(activityForm);
       if (effectiveDraft.length) indicatorDraft = effectiveDraft;
-      const indicators = (indicatorDraft.length ? indicatorDraft : buildStructuredIndicatorsFromTextareaSafe(activityTitle.value.trim(), activityIndicators)).map((indicator, index) => ({
+      const indicators = normalizeActivityIndicatorsBySkillSafe((indicatorDraft.length ? indicatorDraft : buildStructuredIndicatorsFromTextareaSafe(activityTitle.value.trim(), activityIndicators)).map((indicator, index) => ({
         id: indicator.id || slugify(`${activityTitle.value.trim()}-${index}-${Date.now()}`),
         label: indicator.label,
         skillId: indicator.skillId || ""
-      }));
+      })), selectedSkillIds);
       if (!activityTitle.value.trim() || !activityClass.value || !selectedSkillIds.length || !indicators.length) {
         activityFeedback.textContent = "Renseigne un titre, une classe, au moins une compétence et au moins un indicateur.";
         return;
