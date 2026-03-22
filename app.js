@@ -8411,6 +8411,471 @@ function initAccountsPage() {
 (() => {
   if (document.body?.dataset?.page !== "evaluations") return;
 
+  const ultraState = {
+    classId: "",
+    activityId: "",
+    search: "",
+    openStudentId: ""
+  };
+  let ultraBound = false;
+  let ultraLastSignature = "";
+  let ultraPendingCreateSnapshot = null;
+
+  function ensureUltraSurfaceSafe() {
+    const selectionPanel = document.querySelector("#activity-selection-panel");
+    const selectionForm = selectionPanel?.querySelector(".stack-form");
+    const matrixPanel = document.querySelector("#activity-matrix-panel");
+    const reportPanel = document.querySelector("#activity-report-panel");
+    const synthesisPanel = document.querySelector("#activity-synthesis-panel");
+    const legacySummary = document.querySelector("#activity-summary");
+    const legacyMatrix = document.querySelector("#activity-matrix");
+    const legacyReport = document.querySelector("#activity-report");
+    const legacySynthesis = document.querySelector("#activity-synthesis");
+    if (!selectionPanel || !selectionForm || !matrixPanel || !reportPanel || !synthesisPanel || !legacySummary || !legacyMatrix || !legacyReport || !legacySynthesis) return null;
+
+    ["#fresh-evaluation-session-shell", "#authoritative-evaluation-session-panel"].forEach((selector) => {
+      const node = document.querySelector(selector);
+      if (node) {
+        node.hidden = true;
+        node.style.display = "none";
+      }
+    });
+
+    const cloneControl = (selector) => {
+      const current = selectionForm.querySelector(selector);
+      if (!current) return null;
+      if (current.dataset.ultraFinalControl === "true") return current;
+      const clone = current.cloneNode(true);
+      clone.dataset.ultraFinalControl = "true";
+      if (current instanceof HTMLInputElement || current instanceof HTMLSelectElement || current instanceof HTMLTextAreaElement) {
+        clone.value = current.value;
+      }
+      current.replaceWith(clone);
+      return clone;
+    };
+
+    const searchInput = cloneControl("#activity-search-input") || selectionForm.querySelector("#activity-search-input");
+    const classSelect = cloneControl("#session-class-select") || selectionForm.querySelector("#session-class-select");
+    const activitySelect = cloneControl("#activity-select") || selectionForm.querySelector("#activity-select");
+    if (!searchInput || !classSelect || !activitySelect) return null;
+
+    [legacySummary, legacyMatrix, legacyReport, legacySynthesis].forEach((node) => {
+      node.hidden = true;
+      node.style.display = "none";
+    });
+    ["#fresh-activity-summary", "#fresh-activity-matrix", "#fresh-activity-report", "#fresh-activity-synthesis"].forEach((selector) => {
+      const node = document.querySelector(selector);
+      if (node) {
+        node.hidden = true;
+        node.style.display = "none";
+      }
+    });
+
+    let summary = selectionPanel.querySelector("#ultra-eval-summary");
+    if (!summary) {
+      summary = document.createElement("div");
+      summary.id = "ultra-eval-summary";
+      summary.className = "class-cards";
+      legacySummary.insertAdjacentElement("afterend", summary);
+    }
+    let matrix = matrixPanel.querySelector("#ultra-eval-matrix");
+    if (!matrix) {
+      matrix = document.createElement("div");
+      matrix.id = "ultra-eval-matrix";
+      matrix.className = "activity-cards-layout";
+      legacyMatrix.insertAdjacentElement("afterend", matrix);
+    }
+    let report = reportPanel.querySelector("#ultra-eval-report");
+    if (!report) {
+      report = document.createElement("div");
+      report.id = "ultra-eval-report";
+      report.className = "class-cards";
+      legacyReport.insertAdjacentElement("afterend", report);
+    }
+    let synthesis = synthesisPanel.querySelector("#ultra-eval-synthesis");
+    if (!synthesis) {
+      synthesis = document.createElement("div");
+      synthesis.id = "ultra-eval-synthesis";
+      synthesis.className = "student-directory";
+      legacySynthesis.insertAdjacentElement("afterend", synthesis);
+    }
+
+    return {
+      selectionForm,
+      searchInput,
+      classSelect,
+      activitySelect,
+      summary,
+      matrix,
+      report,
+      synthesis,
+      evalClassSelect: document.querySelector("#eval-class-select")
+    };
+  }
+
+  function getUltraActivitiesSafe(classId, search = "") {
+    const activities = getActivitiesByClass(classId);
+    const term = String(search || "").trim().toLowerCase();
+    if (!term) return activities;
+    return activities.filter((activity) => {
+      const haystack = [
+        activity.title,
+        activity.type,
+        activity.startDate,
+        activity.endDate,
+        activity.date,
+        ...(getActivitySkills(activity).map((skill) => `${skill.code} ${skill.title}`)),
+        ...(activity.indicators || []).map((indicator) => indicator.label)
+      ].join(" ").toLowerCase();
+      return haystack.includes(term);
+    });
+  }
+
+  function chooseUltraClassIdSafe(preferredClassId = "", preferredActivityId = "") {
+    if (preferredClassId && getClassById(preferredClassId)) return preferredClassId;
+    const fromActivity = getActivityById(preferredActivityId)?.classId;
+    if (fromActivity && getClassById(fromActivity)) return fromActivity;
+    if (ultraState.classId && getClassById(ultraState.classId)) return ultraState.classId;
+    return app.classes.find((classItem) => getActivitiesByClass(classItem.id).length)?.id || app.classes[0]?.id || "";
+  }
+
+  function chooseUltraActivityIdSafe(classId, preferredActivityId = "") {
+    const visibleActivities = getUltraActivitiesSafe(classId, ultraState.search);
+    const allActivities = getActivitiesByClass(classId);
+    if (preferredActivityId && visibleActivities.some((activity) => activity.id === preferredActivityId)) return preferredActivityId;
+    if (preferredActivityId && allActivities.some((activity) => activity.id === preferredActivityId)) return preferredActivityId;
+    if (ultraState.activityId && visibleActivities.some((activity) => activity.id === ultraState.activityId)) return ultraState.activityId;
+    if (ultraState.activityId && allActivities.some((activity) => activity.id === ultraState.activityId)) return ultraState.activityId;
+    return visibleActivities[0]?.id || allActivities[0]?.id || "";
+  }
+
+  function syncUltraStudentSheetSafe(classId) {
+    const evalClassSelect = document.querySelector("#eval-class-select");
+    if (!evalClassSelect) return;
+    const options = app.classes.map((classItem) => `<option value="${classItem.id}">${escapeHtml(repairEvalTextFinalSafe(classItem.name))}</option>`).join("");
+    evalClassSelect.innerHTML = options;
+    evalClassSelect.value = classId || "";
+    evalClassSelect.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  function renderUltraSummarySafe(activity, classId) {
+    const nodes = ensureUltraSurfaceSafe();
+    if (!nodes) return;
+    const { summary } = nodes;
+    const classItem = getClassById(classId);
+    if (!activity) {
+      summary.innerHTML = `<article class="summary-card"><h3>Aucune séance</h3><p class="muted-copy">Crée un TP ou un TD pour commencer.</p></article>`;
+      return;
+    }
+    summary.innerHTML = `
+      <article class="summary-card">
+        <h3>${escapeHtml(`${activity.type} // ${repairEvalTextFinalSafe(activity.title)}`)}</h3>
+        <p class="muted-copy">${escapeHtml(repairEvalTextFinalSafe(classItem?.name || ""))} // ${escapeHtml(getActivitySkillLabel(activity))}</p>
+        <p class="muted-copy">${escapeHtml(formatActivityDateRange(activity))} // ${(activity.indicators || []).length} indicateur(s)</p>
+      </article>
+    `;
+  }
+
+  function renderUltraReportSafe(activity, classId) {
+    const nodes = ensureUltraSurfaceSafe();
+    if (!nodes) return;
+    const { report } = nodes;
+    const students = getStudentsByClass(classId);
+    if (!activity) {
+      report.innerHTML = "";
+      return;
+    }
+    const cards = (activity.indicators || []).map((indicator) => `
+      <article class="summary-card">
+        <h3>${escapeHtml(repairEvalTextFinalSafe(indicator.label))}</h3>
+        <p class="muted-copy">Moyenne: ${getIndicatorAverage(activity, students, indicator.id)}%</p>
+        <p class="muted-copy">${escapeHtml(renderIndicatorStatusBreakdown(activity, students, indicator.id))}</p>
+      </article>
+    `).join("");
+    report.innerHTML = `
+      <article class="summary-card">
+        <h3>Bilan global</h3>
+        <p class="muted-copy">Moyenne de la séance: ${getActivityAverage(activity, students)}%</p>
+        <p class="muted-copy">${students.length} élève(s) évalué(s)</p>
+      </article>
+      ${cards}
+    `;
+  }
+
+  function renderUltraSynthesisSafe(classId) {
+    const nodes = ensureUltraSurfaceSafe();
+    if (!nodes) return;
+    const { synthesis } = nodes;
+    const activities = getActivitiesByClass(classId);
+    const students = getStudentsByClass(classId);
+    synthesis.innerHTML = activities.length
+      ? activities.map((activity) => `
+          <article class="directory-row compact">
+            <div>
+              <strong>${escapeHtml(`${activity.type} // ${repairEvalTextFinalSafe(activity.title)}`)}</strong>
+              <p>${escapeHtml(getActivitySkillLabel(activity))}</p>
+              <p>${escapeHtml(formatActivityDateRange(activity))}</p>
+            </div>
+            <div class="student-badges">
+              <span class="badge">${(activity.indicators || []).length} indicateurs</span>
+              <span class="badge">${getActivityAverage(activity, students)}% moyen</span>
+            </div>
+          </article>
+        `).join("")
+      : `<article class="summary-card"><h3>Aucune synthèse</h3><p class="muted-copy">Aucune séance enregistrée pour cette classe.</p></article>`;
+  }
+
+  function renderUltraMatrixSafe(activity, classId) {
+    const nodes = ensureUltraSurfaceSafe();
+    if (!nodes) return;
+    const { matrix } = nodes;
+    matrix.className = "activity-cards-layout";
+    if (!activity) {
+      matrix.innerHTML = `<article class="summary-card"><h3>Aucune séance</h3><p class="muted-copy">Sélectionne ou crée une séance pour commencer l'évaluation.</p></article>`;
+      return;
+    }
+    const students = getStudentsByClass(classId);
+    if (!students.length) {
+      matrix.innerHTML = `<article class="summary-card"><h3>Aucun élève</h3><p class="muted-copy">La classe associée à cette séance ne contient aucun élève.</p></article>`;
+      return;
+    }
+    const groups = getEvalIndicatorGroupsFinalSafe(activity);
+    const openStudentId = ultraState.openStudentId && students.some((student) => student.id === ultraState.openStudentId)
+      ? ultraState.openStudentId
+      : (students[0]?.id || "");
+    ultraState.openStudentId = openStudentId;
+    matrix.innerHTML = students.map((student) => {
+      const isOpen = student.id === openStudentId;
+      const globalGrade = getEvalGlobalGradeFinalSafe(activity, student.id);
+      const overallStatus = mapGradeToStatus(globalGrade);
+      return `
+        <article class="activity-student-card${isOpen ? " is-open" : ""}" data-student-id="${student.id}">
+          <div class="activity-student-toggle" role="button" tabindex="0" aria-expanded="${isOpen ? "true" : "false"}">
+            <div class="activity-student-heading">
+              <strong>${escapeHtml(repairEvalTextFinalSafe(student.name))}</strong>
+              <p>${getStudentProgress(student)}% validé // ${escapeHtml(repairEvalTextFinalSafe(getClassById(student.classId)?.name || ""))}</p>
+            </div>
+            <div class="activity-student-toggle-meta">
+              <span class="badge">${groups.length} bloc(s)</span>
+              <span class="badge accent">${escapeHtml(getEvalStatusLabelFinalSafe(overallStatus))}</span>
+            </div>
+          </div>
+          <div class="activity-student-groups">
+            <section class="activity-skill-group activity-global-grade-box">
+              <div class="activity-global-grade-actions">
+                <label class="field compact-field">
+                  <span>Note globale /20</span>
+                  <input class="activity-student-global-grade" type="text" inputmode="decimal" data-activity-id="${activity.id}" data-student-id="${student.id}" value="${globalGrade === "" ? "" : globalGrade}" placeholder="Ex. 13.5">
+                  <small class="activity-global-grade-hint">${escapeHtml(getEvalStatusLabelFinalSafe(overallStatus))}</small>
+                </label>
+                <button class="primary-button activity-global-grade-apply" type="button" data-activity-id="${activity.id}" data-student-id="${student.id}"${hasPermission("edit_evaluations") ? "" : " disabled"}>Appliquer</button>
+              </div>
+            </section>
+            ${groups.map((group) => `
+              <section class="activity-skill-group">
+                <div class="activity-skill-group-head">
+                  <div class="activity-skill-group-heading">
+                    <strong>${escapeHtml(group.title)}</strong>
+                    <p class="muted-copy">${group.indicators.length} indicateur(s)</p>
+                  </div>
+                  <div class="activity-skill-group-summary">${renderEvalSummaryBadgesFinalSafe(getEvalStatusSummaryFinalSafe(activity, student.id, group.indicators))}</div>
+                </div>
+                <div class="activity-indicator-list">
+                  ${group.indicators.map((indicator) => `
+                    <label class="activity-indicator-row">
+                      <span class="activity-indicator-row-index">I${(activity.indicators || []).findIndex((item) => item.id === indicator.id) + 1}</span>
+                      <span class="activity-indicator-row-body">
+                        <span class="activity-indicator-card-label">${escapeHtml(repairEvalTextFinalSafe(indicator.label))}</span>
+                      </span>
+                      <select class="activity-status-select" data-activity-id="${activity.id}" data-student-id="${student.id}" data-indicator-id="${indicator.id}"${hasPermission("edit_evaluations") ? "" : " disabled"}>
+                        ${renderStatusOptions(getActivityIndicatorStatus(activity, student.id, indicator.id))}
+                      </select>
+                    </label>
+                  `).join("")}
+                </div>
+              </section>
+            `).join("")}
+          </div>
+        </article>
+      `;
+    }).join("");
+  }
+
+  function renderUltraEvaluationSurfaceSafe(preferredClassId = "", preferredActivityId = "") {
+    const nodes = ensureUltraSurfaceSafe();
+    if (!nodes) return;
+    const { searchInput, classSelect, activitySelect } = nodes;
+    const classOptions = app.classes.map((classItem) => `<option value="${classItem.id}">${escapeHtml(repairEvalTextFinalSafe(classItem.name))}</option>`).join("");
+    classSelect.innerHTML = classOptions;
+
+    const classId = chooseUltraClassIdSafe(preferredClassId, preferredActivityId);
+    ultraState.classId = classId;
+    if (classId && [...classSelect.options].some((option) => option.value === classId)) {
+      classSelect.value = classId;
+    }
+
+    if (typeof ultraState.search !== "string") ultraState.search = "";
+    if (searchInput.value !== ultraState.search) {
+      searchInput.value = ultraState.search;
+    }
+
+    const visibleActivities = getUltraActivitiesSafe(classId, ultraState.search);
+    const allActivities = getActivitiesByClass(classId);
+    activitySelect.innerHTML = visibleActivities.length
+      ? visibleActivities.map((activity) => `<option value="${activity.id}">${escapeHtml(`${activity.type} // ${repairEvalTextFinalSafe(activity.title)}`)}</option>`).join("")
+      : `<option value="">Aucune séance</option>`;
+
+    const activityId = chooseUltraActivityIdSafe(classId, preferredActivityId);
+    ultraState.activityId = activityId;
+    if (activityId && [...activitySelect.options].some((option) => option.value === activityId)) {
+      activitySelect.value = activityId;
+    }
+
+    const activity = getActivityById(activityId) || null;
+    syncUltraStudentSheetSafe(activity?.classId || classId);
+    renderUltraSummarySafe(activity, activity?.classId || classId);
+    renderUltraMatrixSafe(activity, activity?.classId || classId);
+    renderUltraReportSafe(activity, activity?.classId || classId);
+    renderUltraSynthesisSafe(activity?.classId || classId);
+  }
+
+  function bindUltraEvaluationSurfaceSafe() {
+    if (ultraBound) return;
+    const nodes = ensureUltraSurfaceSafe();
+    if (!nodes) return;
+    ultraBound = true;
+    const { searchInput, classSelect, activitySelect, matrix } = nodes;
+
+    searchInput.addEventListener("input", () => {
+      ultraState.search = String(searchInput.value || "");
+      renderUltraEvaluationSurfaceSafe(classSelect.value || "", activitySelect.value || "");
+    }, true);
+
+    classSelect.addEventListener("change", () => {
+      ultraState.classId = classSelect.value || "";
+      ultraState.activityId = "";
+      ultraState.openStudentId = "";
+      renderUltraEvaluationSurfaceSafe(ultraState.classId, "");
+    }, true);
+
+    activitySelect.addEventListener("change", () => {
+      ultraState.activityId = activitySelect.value || "";
+      ultraState.openStudentId = "";
+      renderUltraEvaluationSurfaceSafe(classSelect.value || "", ultraState.activityId);
+    }, true);
+
+    matrix.addEventListener("click", (event) => {
+      const toggle = event.target.closest(".activity-student-toggle");
+      if (toggle) {
+        const card = toggle.closest(".activity-student-card");
+        const studentId = card?.dataset?.studentId || "";
+        ultraState.openStudentId = ultraState.openStudentId === studentId ? "" : studentId;
+        renderUltraEvaluationSurfaceSafe(ultraState.classId, ultraState.activityId);
+        return;
+      }
+      const applyButton = event.target.closest(".activity-global-grade-apply");
+      if (applyButton) {
+        if (!hasPermission("edit_evaluations")) return;
+        const activity = getActivityById(applyButton.dataset.activityId || ultraState.activityId);
+        const studentId = applyButton.dataset.studentId || "";
+        const input = applyButton.closest(".activity-global-grade-actions")?.querySelector(".activity-student-global-grade");
+        if (!activity || !studentId || !input) return;
+        ultraState.openStudentId = studentId;
+        applyEvalGlobalGradeFinalSafe(activity, studentId, String(input.value || "").replace(",", "."));
+        persistAppData();
+        renderUltraEvaluationSurfaceSafe(activity.classId, activity.id);
+      }
+    }, true);
+
+    matrix.addEventListener("change", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLSelectElement)) return;
+      if (!target.matches(".activity-status-select")) return;
+      if (!hasPermission("edit_evaluations")) return;
+      const activity = getActivityById(target.dataset.activityId || ultraState.activityId);
+      const studentId = target.dataset.studentId || "";
+      if (!activity || !studentId) return;
+      ultraState.openStudentId = studentId;
+      setActivityIndicatorStatus(activity.id, studentId, target.dataset.indicatorId, target.value);
+      recomputeEvalActivitySkillsFinalSafe(activity, studentId);
+      persistAppData();
+      renderUltraEvaluationSurfaceSafe(activity.classId, activity.id);
+    }, true);
+
+    matrix.addEventListener("keydown", (event) => {
+      const target = event.target;
+      if (event.key === "Enter" && target instanceof HTMLInputElement && target.matches(".activity-student-global-grade")) {
+        event.preventDefault();
+        target.closest(".activity-global-grade-actions")?.querySelector(".activity-global-grade-apply")?.click();
+      }
+      if ((event.key === "Enter" || event.key === " ") && target instanceof HTMLElement && target.classList.contains("activity-student-toggle")) {
+        event.preventDefault();
+        target.click();
+      }
+    }, true);
+
+    document.addEventListener("submit", (event) => {
+      const form = event.target;
+      if (!(form instanceof HTMLFormElement) || form.id !== "activity-form") return;
+      ultraPendingCreateSnapshot = {
+        knownIds: new Set(app.evaluationActivities.map((activity) => activity.id)),
+        classId: document.querySelector("#activity-class")?.value || ultraState.classId || ""
+      };
+      window.setTimeout(() => {
+        const snapshot = ultraPendingCreateSnapshot;
+        const created = [...app.evaluationActivities].reverse().find((activity) => !snapshot?.knownIds?.has(activity.id) && (!snapshot?.classId || activity.classId === snapshot.classId)) || null;
+        ultraPendingCreateSnapshot = null;
+        renderUltraEvaluationSurfaceSafe(created?.classId || snapshot?.classId || ultraState.classId, created?.id || ultraState.activityId);
+      }, 120);
+      window.setTimeout(() => {
+        if (!ultraPendingCreateSnapshot) return;
+        const snapshot = ultraPendingCreateSnapshot;
+        const created = [...app.evaluationActivities].reverse().find((activity) => !snapshot?.knownIds?.has(activity.id)) || null;
+        ultraPendingCreateSnapshot = null;
+        renderUltraEvaluationSurfaceSafe(created?.classId || snapshot?.classId || ultraState.classId, created?.id || ultraState.activityId);
+      }, 320);
+    }, true);
+
+    ["#activity-duplicate-button", "#activity-delete-button", "#activity-edit-button", "#activity-cancel-edit"].forEach((selector) => {
+      const button = document.querySelector(selector);
+      if (!button) return;
+      button.addEventListener("click", () => {
+        window.setTimeout(() => renderUltraEvaluationSurfaceSafe(ultraState.classId, ultraState.activityId), 160);
+      }, true);
+    });
+
+    window.setInterval(() => {
+      const signature = app.evaluationActivities.map((activity) => `${activity.id}:${activity.classId}:${activity.title}:${(activity.indicators || []).length}`).join("|");
+      if (signature === ultraLastSignature) return;
+      ultraLastSignature = signature;
+      renderUltraEvaluationSurfaceSafe(ultraState.classId, ultraState.activityId);
+    }, 400);
+
+    window.__cielRefreshEvaluationSessionPanelSafe = (classId = "", activityId = "") => {
+      renderUltraEvaluationSurfaceSafe(classId || ultraState.classId, activityId || ultraState.activityId);
+    };
+    window.__cielScheduleActivityCardsLayoutSafe = () => {
+      renderUltraEvaluationSurfaceSafe(ultraState.classId, ultraState.activityId);
+    };
+    window.__cielRenderActivityCardsLayoutSafe = () => {
+      renderUltraEvaluationSurfaceSafe(ultraState.classId, ultraState.activityId);
+    };
+
+    renderUltraEvaluationSurfaceSafe();
+    window.setTimeout(() => renderUltraEvaluationSurfaceSafe(ultraState.classId, ultraState.activityId), 120);
+    window.setTimeout(() => renderUltraEvaluationSurfaceSafe(ultraState.classId, ultraState.activityId), 260);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bindUltraEvaluationSurfaceSafe, { once: true });
+  } else {
+    bindUltraEvaluationSurfaceSafe();
+  }
+})();
+
+(() => {
+  if (document.body?.dataset?.page !== "evaluations") return;
+
   const freshEvalState = {
     classId: "",
     activityId: "",
