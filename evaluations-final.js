@@ -630,26 +630,6 @@
       window.__cielScheduleActivityCardsLayoutSafe = () => render(state.classId, state.activityId);
       window.__cielRenderActivityCardsLayoutSafe = () => render(state.classId, state.activityId);
 
-      window.setInterval(() => {
-        const signature = app.evaluationActivities.map((activity) => `${activity.id}:${activity.classId}:${activity.title}:${(activity.indicators || []).length}`).join("|");
-        const currentNodes = ensureVisibleSurface();
-        const shouldRepairBlank = Boolean(
-          currentNodes
-          && state.activityId
-          && (
-            !currentNodes.matrix.textContent.trim()
-            || (
-              getStudentsByClass(getActivityById(state.activityId)?.classId || state.classId).length > 0
-              && !currentNodes.matrix.querySelector(".activity-student-card")
-            )
-          )
-        );
-        if (signature !== state.lastSignature || shouldRepairBlank) {
-          state.lastSignature = signature;
-          render(state.classId, state.activityId);
-        }
-      }, 400);
-
       render();
       window.setTimeout(() => render(state.classId, state.activityId), 120);
       window.setTimeout(() => render(state.classId, state.activityId), 260);

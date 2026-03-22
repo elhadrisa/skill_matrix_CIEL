@@ -8740,6 +8740,7 @@ function initAccountsPage() {
   }
 
   function bindUltraEvaluationSurfaceSafe() {
+    if (document.body?.dataset?.page === "evaluations" && document.querySelector('script[src="evaluations-final.js"]')) return;
     if (ultraBound) return;
     const nodes = ensureUltraSurfaceSafe();
     if (!nodes) return;
@@ -8843,13 +8844,6 @@ function initAccountsPage() {
         window.setTimeout(() => renderUltraEvaluationSurfaceSafe(ultraState.classId, ultraState.activityId), 160);
       }, true);
     });
-
-    window.setInterval(() => {
-      const signature = app.evaluationActivities.map((activity) => `${activity.id}:${activity.classId}:${activity.title}:${(activity.indicators || []).length}`).join("|");
-      if (signature === ultraLastSignature) return;
-      ultraLastSignature = signature;
-      renderUltraEvaluationSurfaceSafe(ultraState.classId, ultraState.activityId);
-    }, 400);
 
     window.__cielRefreshEvaluationSessionPanelSafe = (classId = "", activityId = "") => {
       renderUltraEvaluationSurfaceSafe(classId || ultraState.classId, activityId || ultraState.activityId);
@@ -9209,6 +9203,7 @@ function initAccountsPage() {
   }
 
   function bindFreshEvaluationSurfaceSafe() {
+    if (document.body?.dataset?.page === "evaluations" && document.querySelector('script[src="evaluations-final.js"]')) return;
     if (freshEvalBound) return;
     const nodes = ensureFreshEvaluationNodesSafe();
     if (!nodes) return;
@@ -9312,13 +9307,6 @@ function initAccountsPage() {
         }, 140);
       }, true);
     });
-
-    window.setInterval(() => {
-      const signature = app.evaluationActivities.map((activity) => `${activity.id}:${activity.classId}:${activity.title}:${(activity.indicators || []).length}`).join("|");
-      if (signature === freshEvalLastSignature) return;
-      freshEvalLastSignature = signature;
-      renderFreshEvaluationSurfaceSafe(freshEvalState.classId, freshEvalState.activityId);
-    }, 500);
 
     renderFreshEvaluationSurfaceSafe();
     window.setTimeout(() => renderFreshEvaluationSurfaceSafe(freshEvalState.classId, freshEvalState.activityId), 120);
@@ -9432,21 +9420,15 @@ function initAccountsPage() {
   }
 
   function bindUtf8DomObserverSafe() {
-    if (document.body?.dataset?.utf8ObserverBound === "true") return;
-    if (!document.body) return;
-    document.body.dataset.utf8ObserverBound = "true";
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        mutation.addedNodes.forEach((node) => normalizeNodeTreeSafe(node));
-      });
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
+    return;
   }
 
   function bootUtf8RepairsSafe() {
     repairGlobalUtf8StateSafe();
     normalizeNodeTreeSafe(document.body || document.documentElement);
-    bindUtf8DomObserverSafe();
+    [120, 320].forEach((delay) => window.setTimeout(() => {
+      normalizeNodeTreeSafe(document.body || document.documentElement);
+    }, delay));
   }
 
   const originalReplaceAppStateUtf8Safe = typeof replaceAppState === "function" ? replaceAppState : null;
@@ -10771,6 +10753,7 @@ function initAccountsPage() {
 
   function bindActivityCardsObserverUltraSafe() {
     if (document.body?.dataset?.page !== "evaluations") return;
+    if (document.querySelector('script[src="evaluations-final.js"]')) return;
     const matrix = document.querySelector("#activity-matrix");
     if (!matrix || matrix.dataset.cardsObserverBound === "true") return;
     matrix.dataset.cardsObserverBound = "true";
@@ -11641,14 +11624,7 @@ function initAccountsPage() {
     scheduleDisplayNormalization();
   }
 
-  const observer = new MutationObserver(() => scheduleDisplayNormalization());
-  if (document.body) {
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-  } else {
-    document.addEventListener("DOMContentLoaded", () => {
-      observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-    }, { once: true });
-  }
+  [140, 360].forEach((delay) => window.setTimeout(scheduleDisplayNormalization, delay));
 })();
 
 (() => {
@@ -12018,14 +11994,7 @@ function initAccountsPage() {
     scheduleMojibakeRepairSafe();
   }
 
-  const observer = new MutationObserver(() => scheduleMojibakeRepairSafe());
-  if (document.body) {
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-  } else {
-    document.addEventListener("DOMContentLoaded", () => {
-      observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-    }, { once: true });
-  }
+  [140, 360].forEach((delay) => window.setTimeout(scheduleMojibakeRepairSafe, delay));
 })();
 
 (() => {
@@ -15323,6 +15292,7 @@ function initCertificationPageFinal() {
 
   function bindVerticalActivityCardsUltimateSafe() {
     if (document.body?.dataset?.page !== "evaluations") return;
+    if (document.querySelector('script[src="evaluations-final.js"]')) return;
     if (document.body.dataset.verticalCardsUltimateBound === "true") return;
     document.body.dataset.verticalCardsUltimateBound = "true";
 
@@ -15360,11 +15330,6 @@ function initCertificationPageFinal() {
         element.addEventListener("submit", schedule, true);
       }
     });
-
-    const bodyObserver = new MutationObserver(() => {
-      if (shouldForceVerticalActivityCardsUltimateSafe()) scheduleVerticalActivityCardsUltimateSafe();
-    });
-    bodyObserver.observe(document.body, { childList: true, subtree: true });
 
     scheduleVerticalActivityCardsUltimateSafe();
   }
@@ -15883,6 +15848,7 @@ function initCertificationPageFinal() {
 
   function bindAuthoritativeEvaluationCardsFinalSafe() {
     if (document.body?.dataset?.page !== "evaluations") return;
+    if (document.querySelector('script[src="evaluations-final.js"]')) return;
     if (document.documentElement.dataset.authoritativeEvalCardsBound === "true") return;
     document.documentElement.dataset.authoritativeEvalCardsBound = "true";
     isolateVisibleActivityMatrixFinalSafe();
@@ -15913,17 +15879,6 @@ function initCertificationPageFinal() {
       }
     });
 
-    const bodyObserver = new MutationObserver(() => {
-      const matrix = document.querySelector("#activity-matrix");
-      if (!matrix) return;
-      const activityId = matrix.dataset.renderActivityId || document.querySelector("#activity-select")?.value || "";
-      if (!activityId) return;
-      if (!matrix.querySelector(".activity-student-card")) {
-        scheduleAuthoritativeEvaluationCardsFinalSafe(0);
-      }
-    });
-    bodyObserver.observe(document.body, { childList: true, subtree: true });
-
     scheduleAuthoritativeEvaluationCardsFinalSafe(0);
     scheduleAuthoritativeEvaluationCardsFinalSafe(120);
     scheduleAuthoritativeEvaluationCardsFinalSafe(260);
@@ -15931,25 +15886,9 @@ function initCertificationPageFinal() {
 
   function bindAuthoritativeEvaluationCardsWatchdogFinalSafe() {
     if (document.body?.dataset?.page !== "evaluations") return;
+    if (document.querySelector('script[src="evaluations-final.js"]')) return;
     if (document.documentElement.dataset.authoritativeEvalCardsWatchdogBound === "true") return;
     document.documentElement.dataset.authoritativeEvalCardsWatchdogBound = "true";
-
-    window.setInterval(() => {
-      if (document.body?.dataset?.page !== "evaluations") return;
-      isolateVisibleActivityMatrixFinalSafe();
-      const context = getAuthoritativeEvaluationContextFinalSafe();
-      if (!context?.matrix || !context.activity) return;
-      const students = getStudentsByClass(context.classId);
-      const expectedSignature = `${context.activity.id}::${context.classId}::${students.length}::${(context.activity.indicators || []).length}`;
-      const renderedCards = context.matrix.querySelectorAll(".activity-student-card").length;
-      const shouldRepair = context.matrix.dataset.authoritativeEvalSignature !== expectedSignature
-        || (students.length > 0 && renderedCards !== students.length)
-        || (students.length > 0 && !context.matrix.querySelector(".activity-student-card"))
-        || (students.length === 0 && !context.matrix.textContent.trim());
-      if (shouldRepair) {
-        scheduleAuthoritativeEvaluationCardsFinalSafe(0);
-      }
-    }, 300);
   }
 
   window.__cielRenderActivityCardsLayoutSafe = renderAuthoritativeEvaluationCardsFinalSafe;
@@ -16138,6 +16077,7 @@ function initCertificationPageFinal() {
 
   function bindAuthoritativeSessionPanelSafe() {
     if (document.body?.dataset?.page !== "evaluations") return;
+    if (document.querySelector('script[src="evaluations-final.js"]')) return;
     if (document.documentElement.dataset.authoritativeSessionPanelBound === "true") return;
     document.documentElement.dataset.authoritativeSessionPanelBound = "true";
 
@@ -16180,16 +16120,6 @@ function initCertificationPageFinal() {
         }, 120);
       }, true);
     });
-
-    let lastSignature = "";
-    window.setInterval(() => {
-      if (document.body?.dataset?.page !== "evaluations") return;
-      const signature = app.evaluationActivities.map((activity) => `${activity.id}:${activity.classId}:${activity.title}`).join("|");
-      if (signature === lastSignature) return;
-      lastSignature = signature;
-      const matrix = document.querySelector("#activity-matrix");
-      refreshAuthoritativeSessionPanelSafe(matrix?.dataset?.renderClassId || "", matrix?.dataset?.renderActivityId || "");
-    }, 400);
 
     refreshAuthoritativeSessionPanelSafe();
   }
