@@ -5036,6 +5036,38 @@ function setPendingActivitySkillIdsForIndicatorPickerSafe(form, skillIds) {
   return normalized;
 }
 
+function getStoredActivityIndicatorDraftSafe(form) {
+  if (!form?.dataset?.indicatorDraft) return [];
+  try {
+    const parsed = JSON.parse(form.dataset.indicatorDraft);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((item) => item && typeof item === "object")
+      .map((item, index) => ({
+        id: item.id || slugify(`indicator-draft-${index}-${Date.now()}`),
+        label: String(item.label || "").trim(),
+        skillId: item.skillId || ""
+      }))
+      .filter((item) => item.label);
+  } catch {
+    return [];
+  }
+}
+
+function setStoredActivityIndicatorDraftSafe(form, draft) {
+  if (!form) return [];
+  const normalized = (Array.isArray(draft) ? draft : [])
+    .filter((item) => item && typeof item === "object")
+    .map((item, index) => ({
+      id: item.id || slugify(`indicator-draft-${index}-${Date.now()}`),
+      label: String(item.label || "").trim(),
+      skillId: item.skillId || ""
+    }))
+    .filter((item) => item.label);
+  form.dataset.indicatorDraft = JSON.stringify(normalized);
+  return normalized;
+}
+
 function renderActivityIndicatorSkillSelectSafe(select, skillIds) {
   if (!select) return;
   const selectedSkills = (skillIds || []).map((skillId) => getSkillById(skillId)).filter(Boolean);
@@ -9799,6 +9831,11 @@ function initAccountsPage() {
 
     let indicatorDraft = [];
 
+    function syncStoredDraftSafe() {
+      indicatorDraft = setStoredActivityIndicatorDraftSafe(activityForm, indicatorDraft);
+      return indicatorDraft;
+    }
+
     function getSelectedSkillIds() {
       return getActivitySkillIdsForIndicatorPickerSafe(activitySkill, activityForm);
     }
@@ -9808,10 +9845,12 @@ function initAccountsPage() {
     }
 
     function syncTextareaFromDraftSafe() {
+      syncStoredDraftSafe();
       activityIndicators.value = indicatorDraft.map((indicator) => indicator.label).join("\n");
     }
 
     function renderIndicatorDraftSafe() {
+      syncStoredDraftSafe();
       if (!indicatorDraft.length) {
         activityIndicatorList.innerHTML = `<article class="directory-row"><div><strong>Aucun indicateur structuré</strong><p>Ajoute des indicateurs liés à une compétence ou utilise la saisie rapide.</p></div></article>`;
         return;
@@ -9842,6 +9881,7 @@ function initAccountsPage() {
       setPendingActivitySkillIdsForIndicatorPickerSafe(activityForm, []);
       activityForm.dataset.appliedSkillIds = "[]";
       indicatorDraft = [];
+      setStoredActivityIndicatorDraftSafe(activityForm, []);
       renderActivityIndicatorSkillSelectSafe(activityIndicatorSkill, []);
       syncTextareaFromDraftSafe();
       renderIndicatorDraftSafe();
@@ -9868,6 +9908,7 @@ function initAccountsPage() {
         label: indicator.label,
         skillId: indicator.skillId || ""
       }));
+      setStoredActivityIndicatorDraftSafe(activityForm, indicatorDraft);
       renderActivityIndicatorSkillSelectSafe(activityIndicatorSkill, activitySkillIds);
       syncTextareaFromDraftSafe();
       renderIndicatorDraftSafe();
@@ -9890,6 +9931,8 @@ function initAccountsPage() {
           }
         } catch {}
       }
+      const effectiveDraft = getStoredActivityIndicatorDraftSafe(activityForm);
+      if (effectiveDraft.length) indicatorDraft = effectiveDraft;
       const indicators = (indicatorDraft.length ? indicatorDraft : buildStructuredIndicatorsFromTextareaSafe(activityTitle.value.trim(), activityIndicators)).map((indicator, index) => ({
         id: indicator.id || slugify(`${activityTitle.value.trim()}-${index}-${Date.now()}`),
         label: indicator.label,
@@ -10018,29 +10061,42 @@ function initAccountsPage() {
       activitySkill.dataset.structuredBound = "true";
       activitySkill.addEventListener("change", syncIndicatorSkillOptionsSafe);
     }
-    if (!activityIndicatorAddButton.dataset.structuredBound) {
-      activityIndicatorAddButton.dataset.structuredBound = "true";
-      activityIndicatorAddButton.addEventListener("click", () => {
-        if (!activityIndicatorLabel.value.trim()) {
+    const latestAddButton = document.querySelector("#activity-indicator-add");
+    if (latestAddButton && !latestAddButton.dataset.structuredBound) {
+      const replacement = latestAddButton.cloneNode(true);
+      replacement.dataset.structuredBound = "true";
+      latestAddButton.replaceWith(replacement);
+      replacement.addEventListener("click", () => {
+        const label = activityIndicatorLabel.value.trim();
+        if (!label) {
           activityFeedback.textContent = "Saisis un indicateur avant de l'ajouter.";
           return;
         }
+        const availableSkillIds = getActivitySkillIdsForIndicatorPickerSafe(activitySkill, activityForm);
+        const selectedSkillId = activityIndicatorSkill.value || (availableSkillIds.length === 1 ? availableSkillIds[0] : "");
+        indicatorDraft = getStoredActivityIndicatorDraftSafe(activityForm);
         indicatorDraft.push({
-          id: slugify(`indicator-${activityIndicatorLabel.value}-${Date.now()}`),
-          label: activityIndicatorLabel.value.trim(),
-          skillId: activityIndicatorSkill.value || ""
+          id: slugify(`indicator-${label}-${Date.now()}`),
+          label,
+          skillId: selectedSkillId
         });
         activityIndicatorLabel.value = "";
         syncTextareaFromDraftSafe();
         renderIndicatorDraftSafe();
+        activityFeedback.textContent = "Indicateur ajouté.";
       });
     }
-    if (!activityIndicatorClearButton.dataset.structuredBound) {
-      activityIndicatorClearButton.dataset.structuredBound = "true";
-      activityIndicatorClearButton.addEventListener("click", () => {
+    const latestClearButton = document.querySelector("#activity-indicator-clear");
+    if (latestClearButton && !latestClearButton.dataset.structuredBound) {
+      const replacement = latestClearButton.cloneNode(true);
+      replacement.dataset.structuredBound = "true";
+      latestClearButton.replaceWith(replacement);
+      replacement.addEventListener("click", () => {
         indicatorDraft = [];
+        setStoredActivityIndicatorDraftSafe(activityForm, []);
         syncTextareaFromDraftSafe();
         renderIndicatorDraftSafe();
+        activityFeedback.textContent = "Liste des indicateurs vidée.";
       });
     }
     if (!activityCancelEditButton.dataset.structuredBound) {
@@ -10055,6 +10111,7 @@ function initAccountsPage() {
       indicatorBankLoadButton.addEventListener("click", () => {
         window.setTimeout(() => {
           indicatorDraft = buildStructuredIndicatorsFromTextareaSafe(activityTitle.value.trim(), activityIndicators);
+          setStoredActivityIndicatorDraftSafe(activityForm, indicatorDraft);
           renderIndicatorDraftSafe();
         }, 0);
       });
@@ -10086,6 +10143,7 @@ function initAccountsPage() {
         matrix.dataset.globalGradeBound = "true";
       }
     }
+    indicatorDraft = getStoredActivityIndicatorDraftSafe(activityForm);
     window.setTimeout(enhanceStudentSkillRowsSafe, 0);
   }
 
