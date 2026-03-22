@@ -283,6 +283,17 @@
       };
     }
 
+    function ensureVisibleSurface() {
+      const nodes = getVisibleNodes();
+      if (!nodes) return null;
+      [nodes.shell, nodes.summary, nodes.matrix, nodes.report, nodes.synthesis].forEach((node) => {
+        if (!node) return;
+        node.hidden = false;
+        node.style.display = "";
+      });
+      return nodes;
+    }
+
     function syncHiddenSelectors(classId, activityId) {
       const nodes = getVisibleNodes();
       if (!nodes) return;
@@ -341,7 +352,7 @@
     }
 
     function renderSummary(activity, classId) {
-      const nodes = getVisibleNodes();
+      const nodes = ensureVisibleSurface();
       if (!nodes) return;
       const classItem = getClassById(classId);
       if (!activity) {
@@ -358,7 +369,7 @@
     }
 
     function renderReport(activity, classId) {
-      const nodes = getVisibleNodes();
+      const nodes = ensureVisibleSurface();
       if (!nodes) return;
       const students = getStudentsByClass(classId);
       if (!activity) {
@@ -383,7 +394,7 @@
     }
 
     function renderSynthesis(classId) {
-      const nodes = getVisibleNodes();
+      const nodes = ensureVisibleSurface();
       if (!nodes) return;
       const activities = getActivitiesByClass(classId);
       const students = getStudentsByClass(classId);
@@ -405,7 +416,7 @@
     }
 
     function renderMatrix(activity, classId) {
-      const nodes = getVisibleNodes();
+      const nodes = ensureVisibleSurface();
       if (!nodes) return;
       const matrix = nodes.matrix;
       if (!activity) {
@@ -429,13 +440,15 @@
         return `
           <article class="activity-student-card${isOpen ? " is-open" : ""}" data-student-id="${student.id}">
             <div class="activity-student-toggle" role="button" tabindex="0" aria-expanded="${isOpen ? "true" : "false"}">
-              <div class="activity-student-heading">
-                <strong>${escapeHtml(repair(student.name))}</strong>
-                <p>${getStudentProgress(student)}% validé // ${escapeHtml(repair(getClassById(student.classId)?.name || ""))}</p>
-              </div>
-              <div class="activity-student-toggle-meta">
-                <span class="badge">${groups.length} bloc(s)</span>
-                <span class="badge accent">${escapeHtml(getStatusLabel(overallStatus))}</span>
+              <div class="activity-student-card-head">
+                <div class="activity-student-head-main">
+                  <h3>${escapeHtml(repair(student.name))}</h3>
+                  <p>${getStudentProgress(student)}% validé // ${escapeHtml(repair(getClassById(student.classId)?.name || ""))}</p>
+                </div>
+                <div class="activity-student-card-meta">
+                  <span class="badge">${groups.length} bloc(s)</span>
+                  <span class="badge accent">${escapeHtml(getStatusLabel(overallStatus))}</span>
+                </div>
               </div>
             </div>
             <div class="activity-student-groups">
@@ -480,7 +493,7 @@
     }
 
     function render(preferredClassId = "", preferredActivityId = "") {
-      const nodes = getVisibleNodes();
+      const nodes = ensureVisibleSurface();
       if (!nodes) return;
       const classOptions = app.classes.map((classItem) => `<option value="${classItem.id}">${escapeHtml(repair(classItem.name))}</option>`).join("");
       nodes.classSelect.innerHTML = classOptions;
@@ -515,7 +528,7 @@
     }
 
     function bind() {
-      const nodes = getVisibleNodes();
+      const nodes = ensureVisibleSurface();
       if (!nodes) return;
 
       nodes.searchInput.addEventListener("input", () => {
@@ -619,9 +632,22 @@
 
       window.setInterval(() => {
         const signature = app.evaluationActivities.map((activity) => `${activity.id}:${activity.classId}:${activity.title}:${(activity.indicators || []).length}`).join("|");
-        if (signature === state.lastSignature) return;
-        state.lastSignature = signature;
-        render(state.classId, state.activityId);
+        const currentNodes = ensureVisibleSurface();
+        const shouldRepairBlank = Boolean(
+          currentNodes
+          && state.activityId
+          && (
+            !currentNodes.matrix.textContent.trim()
+            || (
+              getStudentsByClass(getActivityById(state.activityId)?.classId || state.classId).length > 0
+              && !currentNodes.matrix.querySelector(".activity-student-card")
+            )
+          )
+        );
+        if (signature !== state.lastSignature || shouldRepairBlank) {
+          state.lastSignature = signature;
+          render(state.classId, state.activityId);
+        }
       }, 400);
 
       render();
