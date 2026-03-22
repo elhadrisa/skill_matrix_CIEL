@@ -9003,17 +9003,21 @@ function initAccountsPage() {
     matrix.className = "activity-cards-layout";
     matrix.innerHTML = students.map((student, index) => {
       const globalGrade = getActivityGlobalGradeUltraSafe(activity, student.id);
+      const mappedStatus = mapGradeToStatus(globalGrade);
       return `
-        <details class="activity-student-card panel"${index === 0 ? " open" : ""}>
-          <summary class="activity-student-card-head">
-            <div>
-              <h3>${escapeHtml(student.name)}</h3>
-              <p class="muted-copy">${getStudentProgress(student)}% validé // ${escapeHtml(getClassById(student.classId)?.name || "")}</p>
+        <article class="activity-student-card panel${index === 0 ? " is-open" : ""}" data-student-id="${student.id}">
+          <button class="activity-student-toggle" type="button" aria-expanded="${index === 0 ? "true" : "false"}">
+            <div class="activity-student-card-head">
+              <div class="activity-student-head-main">
+                <h3>${escapeHtml(student.name)}</h3>
+                <p class="muted-copy">${getStudentProgress(student)}% validé // ${escapeHtml(getClassById(student.classId)?.name || "")}</p>
+              </div>
+              <div class="activity-student-card-meta">
+                <span class="badge">${groups.length} bloc(s)</span>
+                <span class="badge ${mappedStatus === "acquis" ? "success" : mappedStatus === "partiellement_acquis" ? "accent" : mappedStatus === "en_cours_acquisition" ? "warning" : "ghost"}">${escapeHtml(levelLabels[mappedStatus] || "Non évalué")}</span>
+              </div>
             </div>
-            <div class="activity-student-card-meta">
-              <span class="badge">${groups.length} bloc(s)</span>
-            </div>
-          </summary>
+          </button>
           <div class="activity-student-groups">
             <section class="activity-skill-group activity-global-grade-box">
               <label class="field compact-field">
@@ -9043,9 +9047,28 @@ function initAccountsPage() {
               </section>
             `).join("")}
           </div>
-        </details>
+        </article>
       `;
     }).join("");
+
+    matrix.querySelectorAll(".activity-student-toggle").forEach((button) => {
+      if (button.dataset.ultraBound === "true") return;
+      button.dataset.ultraBound = "true";
+      button.addEventListener("click", () => {
+        const card = button.closest(".activity-student-card");
+        if (!card) return;
+        const shouldOpen = !card.classList.contains("is-open");
+        matrix.querySelectorAll(".activity-student-card").forEach((item) => {
+          item.classList.remove("is-open");
+          const toggle = item.querySelector(".activity-student-toggle");
+          if (toggle) toggle.setAttribute("aria-expanded", "false");
+        });
+        if (shouldOpen) {
+          card.classList.add("is-open");
+          button.setAttribute("aria-expanded", "true");
+        }
+      });
+    });
 
     matrix.querySelectorAll(".activity-status-select").forEach((select) => {
       if (select.dataset.ultraBound === "true") return;
