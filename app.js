@@ -9188,73 +9188,77 @@ function initAccountsPage() {
       `;
     }).join("");
 
-    if (matrix.dataset.ultraDelegated !== "true") {
-      matrix.dataset.ultraDelegated = "true";
+    const toggleCard = (toggle) => {
+      const card = toggle.closest(".activity-student-card");
+      if (!card) return;
+      const shouldOpen = !card.classList.contains("is-open");
+      matrix.dataset.openStudentId = shouldOpen ? card.dataset.studentId || "" : "";
+      matrix.querySelectorAll(".activity-student-card").forEach((item) => {
+        item.classList.remove("is-open");
+        const itemToggle = item.querySelector(".activity-student-toggle");
+        if (itemToggle) itemToggle.setAttribute("aria-expanded", "false");
+      });
+      if (shouldOpen) {
+        card.classList.add("is-open");
+        toggle.setAttribute("aria-expanded", "true");
+      }
+    };
 
-      const toggleCard = (toggle) => {
-        const card = toggle.closest(".activity-student-card");
-        if (!card) return;
-        const shouldOpen = !card.classList.contains("is-open");
-        matrix.dataset.openStudentId = shouldOpen ? card.dataset.studentId || "" : "";
-        matrix.querySelectorAll(".activity-student-card").forEach((item) => {
-          item.classList.remove("is-open");
-          const itemToggle = item.querySelector(".activity-student-toggle");
-          if (itemToggle) itemToggle.setAttribute("aria-expanded", "false");
-        });
-        if (shouldOpen) {
-          card.classList.add("is-open");
-          toggle.setAttribute("aria-expanded", "true");
-        }
-      };
-
-      matrix.addEventListener("click", (event) => {
+    matrix.querySelectorAll(".activity-student-toggle").forEach((toggle) => {
+      if (toggle.dataset.ultraBound === "true") return;
+      toggle.dataset.ultraBound = "true";
+      toggle.addEventListener("click", (event) => {
+        event.preventDefault();
         if (event.target.closest(".activity-status-select, .activity-student-global-grade")) return;
-        const toggle = event.target.closest(".activity-student-toggle");
-        if (!toggle) return;
         toggleCard(toggle);
       });
-
-      matrix.addEventListener("keydown", (event) => {
-        const toggle = event.target.closest(".activity-student-toggle");
-        if (!toggle) return;
+      toggle.addEventListener("keydown", (event) => {
         if (event.key !== "Enter" && event.key !== " ") return;
         event.preventDefault();
         toggleCard(toggle);
       });
+    });
 
-      matrix.addEventListener("change", (event) => {
-        const statusSelect = event.target.closest(".activity-status-select");
-        if (statusSelect) {
-          if (!hasPermission("edit_evaluations")) return;
-          matrix.dataset.openStudentId = statusSelect.dataset.studentId || matrix.dataset.openStudentId || "";
-          setActivityIndicatorStatus(statusSelect.dataset.activityId, statusSelect.dataset.studentId, statusSelect.dataset.indicatorId, statusSelect.value);
-          persistAppData();
-          window.setTimeout(refreshEvaluationPanelsUltraSafe, 0);
-          return;
-        }
-
-        const gradeInput = event.target.closest(".activity-student-global-grade");
-        if (gradeInput) {
-          if (!hasPermission("edit_evaluations")) return;
-          const liveActivity = getActivityById(gradeInput.dataset.activityId) || activity;
-          matrix.dataset.openStudentId = gradeInput.dataset.studentId || matrix.dataset.openStudentId || "";
-          applyActivityGlobalGradeUltraSafe(liveActivity, gradeInput.dataset.studentId, String(gradeInput.value || "").replace(",", "."));
-          persistAppData();
-          window.setTimeout(refreshEvaluationPanelsUltraSafe, 0);
-        }
+    matrix.querySelectorAll(".activity-status-select").forEach((select) => {
+      if (select.dataset.ultraBound === "true") return;
+      select.dataset.ultraBound = "true";
+      ["click", "mousedown", "focus"].forEach((eventName) => {
+        select.addEventListener(eventName, (event) => event.stopPropagation());
       });
-
-      matrix.addEventListener("focusout", (event) => {
-        const gradeInput = event.target.closest(".activity-student-global-grade");
-        if (!gradeInput) return;
+      select.addEventListener("change", (event) => {
         if (!hasPermission("edit_evaluations")) return;
-        const liveActivity = getActivityById(gradeInput.dataset.activityId) || activity;
-        matrix.dataset.openStudentId = gradeInput.dataset.studentId || matrix.dataset.openStudentId || "";
-        applyActivityGlobalGradeUltraSafe(liveActivity, gradeInput.dataset.studentId, String(gradeInput.value || "").replace(",", "."));
+        const target = event.currentTarget;
+        const liveActivity = getActivityById(target.dataset.activityId) || activity;
+        matrix.dataset.openStudentId = target.dataset.studentId || matrix.dataset.openStudentId || "";
+        setActivityIndicatorStatus(liveActivity.id, target.dataset.studentId, target.dataset.indicatorId, target.value);
         persistAppData();
         window.setTimeout(refreshEvaluationPanelsUltraSafe, 0);
       });
-    }
+    });
+
+    matrix.querySelectorAll(".activity-student-global-grade").forEach((input) => {
+      if (input.dataset.ultraBound === "true") return;
+      input.dataset.ultraBound = "true";
+      ["click", "mousedown", "focus"].forEach((eventName) => {
+        input.addEventListener(eventName, (event) => event.stopPropagation());
+      });
+      const commit = (event) => {
+        if (!hasPermission("edit_evaluations")) return;
+        const target = event.currentTarget;
+        const liveActivity = getActivityById(target.dataset.activityId) || activity;
+        matrix.dataset.openStudentId = target.dataset.studentId || matrix.dataset.openStudentId || "";
+        applyActivityGlobalGradeUltraSafe(liveActivity, target.dataset.studentId, String(target.value || "").replace(",", "."));
+        persistAppData();
+        window.setTimeout(refreshEvaluationPanelsUltraSafe, 0);
+      };
+      input.addEventListener("change", commit);
+      input.addEventListener("blur", commit);
+      input.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        commit(event);
+      });
+    });
   }
 
   const originalInitEvaluationsPageCardsUltraSafe = initEvaluationsPageFinal;
