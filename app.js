@@ -9611,8 +9611,13 @@ function initAccountsPage() {
     if (document.body?.dataset?.page !== "evaluations") return;
     const matrix = document.querySelector("#activity-matrix");
     const legend = document.querySelector("#activity-indicator-legend");
-    const classId = document.querySelector("#session-class-select")?.value || app.classes[0]?.id || "";
-    const activity = getActivityById(document.querySelector("#activity-select")?.value) || getActivitiesByClass(classId)[0];
+    const sessionClassSelect = document.querySelector("#session-class-select");
+    const evalClassSelect = document.querySelector("#eval-class-select");
+    const activitySelect = document.querySelector("#activity-select");
+    const selectedClassId = sessionClassSelect?.value || app.classes[0]?.id || "";
+    const selectedActivity = getActivityById(activitySelect?.value);
+    const fallbackActivity = getActivitiesByClass(selectedClassId)[0];
+    const activity = selectedActivity || fallbackActivity;
     if (!matrix) return;
     if (legend) legend.remove();
     if (!activity) {
@@ -9620,6 +9625,17 @@ function initAccountsPage() {
       matrix.innerHTML = "";
       delete matrix.dataset.openStudentId;
       return;
+    }
+
+    const classId = activity.classId || selectedClassId;
+    if (sessionClassSelect && sessionClassSelect.value !== classId && getClassById(classId)) {
+      sessionClassSelect.value = classId;
+    }
+    if (evalClassSelect && evalClassSelect.value !== classId && getClassById(classId)) {
+      evalClassSelect.value = classId;
+    }
+    if (activitySelect && activitySelect.value !== activity.id && [...(activitySelect.options || [])].some((option) => option.value === activity.id)) {
+      activitySelect.value = activity.id;
     }
 
     const students = getStudentsByClass(classId);
