@@ -14474,3 +14474,466 @@ function initCertificationPageFinal() {
   }
 })();
 
+(() => {
+  function repairEvalTextFinalSafe(value) {
+    return typeof repairDisplaySourceString === "function" ? repairDisplaySourceString(value) : String(value || "");
+  }
+
+  function getEvalStatusLabelFinalSafe(status) {
+    return repairEvalTextFinalSafe(levelLabels[status] || status || "Non évalué");
+  }
+
+  function formatEvalSkillTitleFinalSafe(skillId) {
+    const skill = skillId ? getSkillById(skillId) : null;
+    if (!skill) return "Indicateurs transversaux";
+    const code = String(skill.code || "").match(/^C(\d+)$/i);
+    const normalizedCode = code ? `C${String(code[1]).padStart(2, "0")}` : repairEvalTextFinalSafe(skill.code || "Compétence");
+    return `${normalizedCode} - ${repairEvalTextFinalSafe(skill.title || "")}`.trim();
+  }
+
+  function getEvalResolvedIndicatorSkillMapFinalSafe(activity) {
+    const skillIds = getActivitySkillIds(activity);
+    const indicators = Array.isArray(activity?.indicators) ? activity.indicators : [];
+    const resolved = new Map();
+
+    indicators.forEach((indicator) => {
+      if (indicator?.skillId && skillIds.includes(indicator.skillId)) {
+        resolved.set(indicator.id, indicator.skillId);
+      }
+    });
+
+    if (!skillIds.length) return resolved;
+
+    if (skillIds.length === 1) {
+      indicators.forEach((indicator) => {
+        if (!resolved.has(indicator.id)) resolved.set(indicator.id, skillIds[0]);
+      });
+      return resolved;
+    }
+
+    const unassigned = indicators.filter((indicator) => !resolved.has(indicator.id));
+    if (!unassigned.length) return resolved;
+
+    let cursor = 0;
+    unassigned.forEach((indicator) => {
+      const skillId = skillIds[cursor % skillIds.length];
+      resolved.set(indicator.id, skillId);
+      cursor += 1;
+    });
+
+    return resolved;
+  }
+
+  function getEvalIndicatorGroupsFinalSafe(activity) {
+    const indicators = Array.isArray(activity?.indicators) ? activity.indicators : [];
+    const skillIds = getActivitySkillIds(activity);
+    const resolvedMap = getEvalResolvedIndicatorSkillMapFinalSafe(activity);
+    const groups = [];
+
+    const pushGroup = (skillId, groupIndicators) => {
+      if (!groupIndicators.length) return;
+      groups.push({
+        id: skillId || "common",
+        title: formatEvalSkillTitleFinalSafe(skillId),
+        indicators: groupIndicators
+      });
+    };
+
+    if (skillIds.length === 1) {
+      pushGroup(skillIds[0], indicators);
+      return groups;
+    }
+
+    skillIds.forEach((skillId) => {
+      pushGroup(skillId, indicators.filter((indicator) => resolvedMap.get(indicator.id) === skillId));
+    });
+
+    pushGroup("", indicators.filter((indicator) => !resolvedMap.has(indicator.id)));
+    if (!groups.length) pushGroup("", indicators);
+    return groups;
+  }
+
+  function getEvalStatusSummaryFinalSafe(activity, studentId, indicators) {
+    const summary = {
+      acquis: 0,
+      partiellement_acquis: 0,
+      en_cours_acquisition: 0,
+      non_acquis: 0,
+      non_evalue: 0
+    };
+    indicators.forEach((indicator) => {
+      const status = getActivityIndicatorStatus(activity, studentId, indicator.id) || "non_evalue";
+      summary[status] = (summary[status] || 0) + 1;
+    });
+    return summary;
+  }
+
+  function renderEvalSummaryBadgesFinalSafe(summary) {
+    return [
+      ["acquis", "Acquis", "success"],
+      ["partiellement_acquis", "Partiel", "accent"],
+      ["en_cours_acquisition", "En cours", "warning"],
+      ["non_acquis", "Non acquis", "ghost"],
+      ["non_evalue", "Non évalué", "ghost"]
+    ].filter(([status]) => summary[status] > 0).map(([status, label, className]) => {
+      return `<span class="badge ${className}">${summary[status]} ${label}</span>`;
+    }).join("");
+  }
+
+  function getEvalGlobalGradeFinalSafe(activity, studentId) {
+    return normalizeGrade(activity?.evaluations?.[studentId]?.__globalGrade);
+  }
+
+  function getEvalDistributedStatusesFinalSafe(grade, count) {
+    const total = Math.max(0, Number.parseInt(count, 10) || 0);
+    if (!total) return [];
+    const normalized = normalizeGrade(grade);
+    if (normalized === "") return Array.from({ length: total }, () => "non_evalue");
+    const averageScore = Math.max(1, Math.min(4, (normalized / 20) * 4));
+    const spread = total <= 1 ? 0 : Math.min(0.9, 0.35 + total * 0.03);
+    return Array.from({ length: total }, (_, index) => {
+      const position = total <= 1 ? 0 : (index / (total - 1)) - 0.5;
+      const score = Math.max(1, Math.min(4, averageScore + position * spread));
+      if (score < 1.5) return "non_acquis";
+      if (score < 2.5) return "en_cours_acquisition";
+      if (score < 3.5) return "partiellement_acquis";
+      return "acquis";
+    });
+  }
+
+  function recomputeEvalActivitySkillsFinalSafe(activity, studentId) {
+    const student = getStudentById(studentId);
+    if (!activity || !student) return;
+    student.skillGrades = hydrateSkillGrades(student.skillGrades || {});
+    const evaluation = activity.evaluations?.[studentId] || {};
+    const resolvedMap = getEvalResolvedIndicatorSkillMapFinalSafe(activity);
+    getActivitySkillIds(activity).forEach((skillId) => {
+      const relatedIndicators = (activity.indicators || []).filter((indicator) => resolvedMap.get(indicator.id) === skillId);
+      if (!relatedIndicators.length) return;
+      const scores = relatedIndicators.map((indicator) => levelScores[evaluation[indicator.id]] || 0);
+      const averageScore = scores.length ? scores.reduce((sum, value) => sum + value, 0) / scores.length : 0;
+      const gradeFromIndicators = Math.round((averageScore / 4) * 20 * 2) / 2;
+      student.skillGrades[skillId] = gradeFromIndicators;
+      student.skills[skillId] = mapGradeToStatus(gradeFromIndicators);
+    });
+  }
+
+  function applyEvalGlobalGradeFinalSafe(activity, studentId, grade) {
+    const student = getStudentById(studentId);
+    if (!activity || !student) return;
+    const normalized = normalizeGrade(grade);
+    if (!activity.evaluations[studentId]) activity.evaluations[studentId] = {};
+    if (normalized === "") {
+      delete activity.evaluations[studentId].__globalGrade;
+      return;
+    }
+    activity.evaluations[studentId].__globalGrade = normalized;
+    const autoStatus = mapGradeToStatus(normalized);
+    const distributedStatuses = getEvalDistributedStatusesFinalSafe(normalized, (activity.indicators || []).length);
+    (activity.indicators || []).forEach((indicator, index) => {
+      activity.evaluations[studentId][indicator.id] = distributedStatuses[index] || autoStatus;
+    });
+    student.skillGrades = hydrateSkillGrades(student.skillGrades || {});
+    const resolvedMap = getEvalResolvedIndicatorSkillMapFinalSafe(activity);
+    getActivitySkillIds(activity).forEach((skillId) => {
+      const relatedIndicators = (activity.indicators || []).filter((indicator) => resolvedMap.get(indicator.id) === skillId);
+      if (!relatedIndicators.length) {
+        student.skillGrades[skillId] = normalized;
+        student.skills[skillId] = autoStatus;
+        return;
+      }
+      const scores = relatedIndicators.map((indicator) => levelScores[activity.evaluations[studentId][indicator.id]] || 0);
+      const averageScore = scores.length ? scores.reduce((sum, value) => sum + value, 0) / scores.length : 0;
+      const gradeFromIndicators = Math.round((averageScore / 4) * 20 * 2) / 2;
+      student.skillGrades[skillId] = gradeFromIndicators;
+      student.skills[skillId] = mapGradeToStatus(gradeFromIndicators);
+    });
+  }
+
+  function getAuthoritativeEvaluationContextFinalSafe() {
+    const matrix = document.querySelector("#activity-matrix");
+    const sessionClassSelect = document.querySelector("#session-class-select");
+    const evalClassSelect = document.querySelector("#eval-class-select");
+    const activitySelect = document.querySelector("#activity-select");
+    if (!matrix) return null;
+
+    const explicitActivityId = matrix.dataset.renderActivityId || activitySelect?.value || "";
+    const explicitClassId = matrix.dataset.renderClassId || "";
+    let activity = getActivityById(explicitActivityId);
+
+    const classCandidates = [
+      explicitClassId,
+      activity?.classId || "",
+      sessionClassSelect?.value || "",
+      evalClassSelect?.value || "",
+      app.classes[0]?.id || ""
+    ].filter(Boolean);
+
+    let classId = classCandidates.find((candidate) => getStudentsByClass(candidate).length > 0) || classCandidates[0] || "";
+
+    if (!activity && classId) {
+      activity = getActivitiesByClass(classId)[0] || null;
+    }
+    if (!activity && app.evaluationActivities.length) {
+      activity = app.evaluationActivities[0];
+      classId = activity.classId || classId;
+    }
+    if (activity?.classId) {
+      const matchingClassId = [activity.classId, classId].find((candidate) => candidate && getStudentsByClass(candidate).length > 0);
+      if (matchingClassId) classId = matchingClassId;
+    }
+
+    return {
+      matrix,
+      sessionClassSelect,
+      evalClassSelect,
+      activitySelect,
+      activity,
+      classId
+    };
+  }
+
+  let authoritativeEvalRenderQueued = false;
+  function renderAuthoritativeEvaluationCardsFinalSafe() {
+    const context = getAuthoritativeEvaluationContextFinalSafe();
+    if (!context) return;
+    const { matrix, sessionClassSelect, evalClassSelect, activitySelect, activity, classId } = context;
+
+    if (!activity) {
+      matrix.className = "activity-cards-layout";
+      matrix.innerHTML = "";
+      delete matrix.dataset.openStudentId;
+      delete matrix.dataset.renderActivityId;
+      delete matrix.dataset.renderClassId;
+      return;
+    }
+
+    const students = getStudentsByClass(classId);
+    matrix.dataset.renderActivityId = activity.id;
+    matrix.dataset.renderClassId = classId;
+
+    if (sessionClassSelect && getClassById(classId) && sessionClassSelect.value !== classId) {
+      sessionClassSelect.value = classId;
+    }
+    if (evalClassSelect && getClassById(classId) && evalClassSelect.value !== classId) {
+      evalClassSelect.value = classId;
+    }
+    if (activitySelect && [...(activitySelect.options || [])].some((option) => option.value === activity.id) && activitySelect.value !== activity.id) {
+      activitySelect.value = activity.id;
+    }
+
+    if (!students.length) {
+      matrix.className = "activity-cards-layout";
+      matrix.innerHTML = `
+        <article class="summary-card">
+          <h3>Aucun élève disponible</h3>
+          <p class="muted-copy">La séance est bien sélectionnée, mais aucun élève n'a été trouvé pour la classe associée.</p>
+        </article>
+      `;
+      return;
+    }
+
+    const groups = getEvalIndicatorGroupsFinalSafe(activity);
+    const preferredOpenStudentId = students.some((student) => student.id === matrix.dataset.openStudentId)
+      ? matrix.dataset.openStudentId
+      : (students[0]?.id || "");
+
+    matrix.className = "activity-cards-layout";
+    matrix.innerHTML = students.map((student, index) => {
+      const globalGrade = getEvalGlobalGradeFinalSafe(activity, student.id);
+      const mappedStatus = mapGradeToStatus(globalGrade);
+      const isOpen = student.id === preferredOpenStudentId || (!preferredOpenStudentId && index === 0);
+      return `
+        <article class="activity-student-card panel${isOpen ? " is-open" : ""}" data-student-id="${student.id}">
+          <div class="activity-student-toggle" role="button" tabindex="0" aria-expanded="${isOpen ? "true" : "false"}">
+            <div class="activity-student-card-head">
+              <div class="activity-student-head-main">
+                <h3>${escapeHtml(repairEvalTextFinalSafe(student.name))}</h3>
+                <p class="muted-copy">${getStudentProgress(student)}% validé // ${escapeHtml(repairEvalTextFinalSafe(getClassById(student.classId)?.name || ""))}</p>
+              </div>
+              <div class="activity-student-card-meta">
+                <span class="badge">${groups.length} bloc(s)</span>
+                <span class="badge ${mappedStatus === "acquis" ? "success" : mappedStatus === "partiellement_acquis" ? "accent" : mappedStatus === "en_cours_acquisition" ? "warning" : "ghost"}">${escapeHtml(getEvalStatusLabelFinalSafe(mappedStatus) || "Non évalué")}</span>
+              </div>
+            </div>
+          </div>
+          <div class="activity-student-groups">
+            <section class="activity-skill-group activity-global-grade-box">
+              <div class="activity-global-grade-actions">
+                <label class="field compact-field">
+                  <span>Note globale /20</span>
+                  <input class="activity-student-global-grade" type="text" inputmode="decimal" data-activity-id="${activity.id}" data-student-id="${student.id}" value="${globalGrade === "" ? "" : globalGrade}" placeholder="Ex. 13.5">
+                  <small class="activity-global-grade-hint">${escapeHtml(getEvalStatusLabelFinalSafe(mapGradeToStatus(globalGrade)) || "Non évalué")}</small>
+                </label>
+                <button class="primary-button activity-global-grade-apply" type="button" data-activity-id="${activity.id}" data-student-id="${student.id}"${hasPermission("edit_evaluations") ? "" : " disabled"}>Appliquer</button>
+              </div>
+            </section>
+            ${groups.map((group) => `
+              <section class="activity-skill-group">
+                <div class="activity-skill-group-head">
+                  <div class="activity-skill-group-heading">
+                    <strong>${escapeHtml(group.title)}</strong>
+                    <p class="muted-copy">${group.indicators.length} indicateur(s)</p>
+                  </div>
+                  <div class="activity-skill-group-summary">${renderEvalSummaryBadgesFinalSafe(getEvalStatusSummaryFinalSafe(activity, student.id, group.indicators))}</div>
+                </div>
+                <div class="activity-indicator-list">
+                  ${group.indicators.map((indicator) => `
+                    <label class="activity-indicator-row">
+                      <span class="activity-indicator-row-index">I${(activity.indicators || []).findIndex((item) => item.id === indicator.id) + 1}</span>
+                      <span class="activity-indicator-row-body">
+                        <span class="activity-indicator-card-label">${escapeHtml(repairEvalTextFinalSafe(indicator.label))}</span>
+                      </span>
+                      <select data-activity-id="${activity.id}" data-student-id="${student.id}" data-indicator-id="${indicator.id}" class="activity-status-select"${hasPermission("edit_evaluations") ? "" : " disabled"}>
+                        ${renderStatusOptions(getActivityIndicatorStatus(activity, student.id, indicator.id))}
+                      </select>
+                    </label>
+                  `).join("")}
+                </div>
+              </section>
+            `).join("")}
+          </div>
+        </article>
+      `;
+    }).join("");
+
+    const toggleCard = (card) => {
+      if (!card) return;
+      const shouldOpen = !card.classList.contains("is-open");
+      matrix.dataset.openStudentId = shouldOpen ? (card.dataset.studentId || "") : "";
+      matrix.querySelectorAll(".activity-student-card").forEach((item) => {
+        item.classList.remove("is-open");
+        item.querySelector(".activity-student-toggle")?.setAttribute("aria-expanded", "false");
+      });
+      if (shouldOpen) {
+        card.classList.add("is-open");
+        card.querySelector(".activity-student-toggle")?.setAttribute("aria-expanded", "true");
+      }
+    };
+
+    matrix.querySelectorAll(".activity-student-toggle").forEach((toggle) => {
+      toggle.addEventListener("click", (event) => {
+        event.preventDefault();
+        toggleCard(toggle.closest(".activity-student-card"));
+      });
+      toggle.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        toggleCard(toggle.closest(".activity-student-card"));
+      });
+    });
+
+    matrix.querySelectorAll(".activity-status-select").forEach((select) => {
+      ["click", "mousedown", "focus"].forEach((eventName) => {
+        select.addEventListener(eventName, (event) => event.stopPropagation());
+      });
+      select.addEventListener("change", (event) => {
+        const target = event.currentTarget;
+        if (!hasPermission("edit_evaluations")) return;
+        matrix.dataset.openStudentId = target.dataset.studentId || "";
+        setActivityIndicatorStatus(activity.id, target.dataset.studentId, target.dataset.indicatorId, target.value);
+        recomputeEvalActivitySkillsFinalSafe(activity, target.dataset.studentId);
+        persistAppData();
+        document.querySelector("#activity-select")?.dispatchEvent(new Event("change", { bubbles: true }));
+        window.__cielScheduleActivityCardsLayoutSafe?.();
+      });
+    });
+
+    matrix.querySelectorAll(".activity-student-global-grade").forEach((input) => {
+      ["click", "mousedown", "focus"].forEach((eventName) => {
+        input.addEventListener(eventName, (event) => event.stopPropagation());
+      });
+      input.addEventListener("input", (event) => {
+        const target = event.currentTarget;
+        const hint = target.closest(".activity-global-grade-actions")?.querySelector(".activity-global-grade-hint");
+        if (!hint) return;
+        const normalized = normalizeGrade(String(target.value || "").replace(",", "."));
+        hint.textContent = getEvalStatusLabelFinalSafe(mapGradeToStatus(normalized)) || "Non évalué";
+      });
+      input.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        event.currentTarget.closest(".activity-global-grade-actions")?.querySelector(".activity-global-grade-apply")?.click();
+      });
+    });
+
+    matrix.querySelectorAll(".activity-global-grade-apply").forEach((button) => {
+      button.addEventListener("click", (event) => {
+        if (!hasPermission("edit_evaluations")) return;
+        const target = event.currentTarget;
+        const input = target.closest(".activity-global-grade-actions")?.querySelector(".activity-student-global-grade");
+        if (!input) return;
+        matrix.dataset.openStudentId = target.dataset.studentId || "";
+        applyEvalGlobalGradeFinalSafe(activity, target.dataset.studentId, String(input.value || "").replace(",", "."));
+        persistAppData();
+        document.querySelector("#activity-select")?.dispatchEvent(new Event("change", { bubbles: true }));
+        window.__cielScheduleActivityCardsLayoutSafe?.();
+      });
+    });
+  }
+
+  function scheduleAuthoritativeEvaluationCardsFinalSafe(delay = 0) {
+    const trigger = () => {
+      if (authoritativeEvalRenderQueued) return;
+      authoritativeEvalRenderQueued = true;
+      window.requestAnimationFrame(() => {
+        authoritativeEvalRenderQueued = false;
+        renderAuthoritativeEvaluationCardsFinalSafe();
+      });
+    };
+    if (delay > 0) {
+      window.setTimeout(trigger, delay);
+    } else {
+      trigger();
+    }
+  }
+
+  function bindAuthoritativeEvaluationCardsFinalSafe() {
+    if (document.body?.dataset?.page !== "evaluations") return;
+    if (document.documentElement.dataset.authoritativeEvalCardsBound === "true") return;
+    document.documentElement.dataset.authoritativeEvalCardsBound = "true";
+
+    ["#activity-select", "#session-class-select", "#eval-class-select", "#eval-student-select", "#activity-search-input"].forEach((selector) => {
+      const element = document.querySelector(selector);
+      if (!element) return;
+      element.addEventListener("change", () => scheduleAuthoritativeEvaluationCardsFinalSafe(0), true);
+      if (selector === "#activity-search-input") {
+        element.addEventListener("input", () => scheduleAuthoritativeEvaluationCardsFinalSafe(0), true);
+      }
+    });
+
+    ["#activity-form", "#activity-submit-button", "#activity-edit-button", "#activity-duplicate-button", "#activity-delete-button", "#activity-cancel-edit"].forEach((selector) => {
+      const element = document.querySelector(selector);
+      if (!element) return;
+      element.addEventListener("click", () => scheduleAuthoritativeEvaluationCardsFinalSafe(160), true);
+      if (element instanceof HTMLFormElement) {
+        element.addEventListener("submit", () => scheduleAuthoritativeEvaluationCardsFinalSafe(160), true);
+      }
+    });
+
+    const bodyObserver = new MutationObserver(() => {
+      const matrix = document.querySelector("#activity-matrix");
+      if (!matrix) return;
+      const activityId = matrix.dataset.renderActivityId || document.querySelector("#activity-select")?.value || "";
+      if (!activityId) return;
+      if (!matrix.querySelector(".activity-student-card")) {
+        scheduleAuthoritativeEvaluationCardsFinalSafe(0);
+      }
+    });
+    bodyObserver.observe(document.body, { childList: true, subtree: true });
+
+    scheduleAuthoritativeEvaluationCardsFinalSafe(0);
+    scheduleAuthoritativeEvaluationCardsFinalSafe(120);
+    scheduleAuthoritativeEvaluationCardsFinalSafe(260);
+  }
+
+  window.__cielRenderActivityCardsLayoutSafe = renderAuthoritativeEvaluationCardsFinalSafe;
+  window.__cielScheduleActivityCardsLayoutSafe = scheduleAuthoritativeEvaluationCardsFinalSafe;
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bindAuthoritativeEvaluationCardsFinalSafe, { once: true });
+  } else {
+    bindAuthoritativeEvaluationCardsFinalSafe();
+  }
+})();
+
