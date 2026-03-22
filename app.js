@@ -10889,6 +10889,13 @@ function initAccountsPage() {
     if (document.body.dataset.authoritativeIndicatorEditorBound === "true") return;
     document.body.dataset.authoritativeIndicatorEditorBound = "true";
 
+    const indicatorList = document.querySelector("#activity-indicator-list");
+    if (indicatorList && !indicatorList.dataset.authoritativeBound) {
+      const replacement = indicatorList.cloneNode(false);
+      replacement.dataset.authoritativeBound = "true";
+      indicatorList.replaceWith(replacement);
+    }
+
     document.addEventListener("click", (event) => {
       const target = event.target;
       if (!(target instanceof HTMLElement)) return;
