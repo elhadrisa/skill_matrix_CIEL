@@ -9940,6 +9940,19 @@ function initAccountsPage() {
       event.preventDefault();
       event.stopImmediatePropagation();
       if (!hasPermission("edit_evaluations")) return;
+      const pendingLabel = activityIndicatorLabel.value.trim();
+      if (pendingLabel) {
+        const availableSkillIds = getActivitySkillIdsForIndicatorPickerSafe(activitySkill, activityForm);
+        const selectedSkillId = activityIndicatorSkill.value || (availableSkillIds.length === 1 ? availableSkillIds[0] : "");
+        indicatorDraft = getStoredActivityIndicatorDraftSafe(activityForm);
+        indicatorDraft.push({
+          id: slugify(`indicator-${pendingLabel}-${Date.now()}`),
+          label: pendingLabel,
+          skillId: selectedSkillId
+        });
+        setStoredActivityIndicatorDraftSafe(activityForm, indicatorDraft);
+        activityIndicatorLabel.value = "";
+      }
       let selectedSkillIds = getSelectedSkillIds();
       if (!selectedSkillIds.length && activityForm.dataset.appliedSkillIds) {
         try {
@@ -10896,10 +10909,11 @@ function initAccountsPage() {
       indicatorList.replaceWith(replacement);
     }
 
-    document.addEventListener("click", (event) => {
+    const handleIndicatorAction = (event) => {
       const target = event.target;
-      if (!(target instanceof HTMLElement)) return;
-      const addButton = target.closest("#activity-indicator-add");
+      const element = target instanceof Element ? target : target?.parentElement;
+      if (!element) return;
+      const addButton = element.closest("#activity-indicator-add");
       if (addButton) {
         event.preventDefault();
         event.stopPropagation();
@@ -10907,7 +10921,7 @@ function initAccountsPage() {
         addIndicatorUltraSafe();
         return;
       }
-      const clearButton = target.closest("#activity-indicator-clear");
+      const clearButton = element.closest("#activity-indicator-clear");
       if (clearButton) {
         event.preventDefault();
         event.stopPropagation();
@@ -10915,14 +10929,18 @@ function initAccountsPage() {
         clearIndicatorDraftUltraSafe();
         return;
       }
-      const removeButton = target.closest(".activity-indicator-remove-final, .indicator-draft-delete, .activity-indicator-remove");
+      const removeButton = element.closest(".activity-indicator-remove-final, .indicator-draft-delete, .activity-indicator-remove");
       if (removeButton?.dataset?.id) {
         event.preventDefault();
         event.stopPropagation();
         event.stopImmediatePropagation();
         removeIndicatorUltraSafe(removeButton.dataset.id);
       }
-    }, true);
+    };
+
+    document.addEventListener("pointerdown", handleIndicatorAction, true);
+    document.addEventListener("mousedown", handleIndicatorAction, true);
+    document.addEventListener("click", handleIndicatorAction, true);
 
     document.addEventListener("keydown", (event) => {
       const target = event.target;
