@@ -8423,7 +8423,6 @@ function initAccountsPage() {
 
   function ensureFreshEvaluationNodesSafe() {
     const selectionPanel = document.querySelector("#activity-selection-panel");
-    const summaryPanel = document.querySelector("#activity-selection-panel");
     const matrixPanel = document.querySelector("#activity-matrix-panel");
     const reportPanel = document.querySelector("#activity-report-panel");
     const synthesisPanel = document.querySelector("#activity-synthesis-panel");
@@ -8434,8 +8433,8 @@ function initAccountsPage() {
     const legacySynthesis = document.querySelector("#activity-synthesis");
     if (!selectionPanel || !matrixPanel || !reportPanel || !synthesisPanel || !legacySelectionForm || !legacySummary || !legacyMatrix || !legacyReport || !legacySynthesis) return null;
 
-    legacySelectionForm.hidden = true;
-    legacySelectionForm.style.display = "none";
+    legacySelectionForm.hidden = false;
+    legacySelectionForm.style.display = "";
     legacySummary.hidden = true;
     legacySummary.style.display = "none";
     legacyMatrix.hidden = true;
@@ -8446,26 +8445,27 @@ function initAccountsPage() {
     legacySynthesis.style.display = "none";
 
     let shell = selectionPanel.querySelector("#fresh-evaluation-session-shell");
-    if (!shell) {
-      shell = document.createElement("div");
-      shell.id = "fresh-evaluation-session-shell";
-      shell.className = "stack-form";
-      shell.innerHTML = `
-        <label class="field">
-          <span>Recherche rapide</span>
-          <input id="fresh-eval-search" type="text" placeholder="Titre, compétence, date...">
-        </label>
-        <label class="field">
-          <span>Classe</span>
-          <select id="fresh-eval-class"></select>
-        </label>
-        <label class="field">
-          <span>TP / TD</span>
-          <select id="fresh-eval-activity"></select>
-        </label>
-      `;
-      legacySelectionForm.insertAdjacentElement("afterend", shell);
+    if (shell) {
+      shell.hidden = true;
+      shell.style.display = "none";
     }
+
+    const replaceControl = (selector) => {
+      const current = legacySelectionForm.querySelector(selector);
+      if (!current) return null;
+      if (current.dataset.authoritativeControl === "true") return current;
+      const clone = current.cloneNode(true);
+      clone.dataset.authoritativeControl = "true";
+      if (current instanceof HTMLInputElement || current instanceof HTMLSelectElement || current instanceof HTMLTextAreaElement) {
+        clone.value = current.value;
+      }
+      current.replaceWith(clone);
+      return clone;
+    };
+
+    const searchInput = replaceControl("#activity-search-input") || legacySelectionForm.querySelector("#activity-search-input");
+    const classSelect = replaceControl("#session-class-select") || legacySelectionForm.querySelector("#session-class-select");
+    const activitySelect = replaceControl("#activity-select") || legacySelectionForm.querySelector("#activity-select");
 
     let visibleSummary = selectionPanel.querySelector("#fresh-activity-summary");
     if (!visibleSummary) {
@@ -8501,10 +8501,10 @@ function initAccountsPage() {
 
     return {
       selectionPanel,
-      shell,
-      searchInput: shell.querySelector("#fresh-eval-search"),
-      classSelect: shell.querySelector("#fresh-eval-class"),
-      activitySelect: shell.querySelector("#fresh-eval-activity"),
+      shell: legacySelectionForm,
+      searchInput,
+      classSelect,
+      activitySelect,
       summary: visibleSummary,
       matrix: visibleMatrix,
       report: visibleReport,
@@ -8545,24 +8545,13 @@ function initAccountsPage() {
   function syncLegacyEvaluationSelectorsSafe(classId, activityId) {
     const nodes = ensureFreshEvaluationNodesSafe();
     if (!nodes) return;
-    const { hiddenSessionClassSelect, hiddenEvalClassSelect, hiddenActivitySelect } = nodes;
-    const classOptions = app.classes.map((classItem) => `<option value="${classItem.id}">${escapeHtml(repairEvalTextFinalSafe(classItem.name))}</option>`).join("");
-    if (hiddenSessionClassSelect) {
-      hiddenSessionClassSelect.innerHTML = classOptions;
-      hiddenSessionClassSelect.value = classId || "";
-    }
+    const { hiddenEvalClassSelect } = nodes;
     if (hiddenEvalClassSelect) {
+      const classOptions = app.classes.map((classItem) => `<option value="${classItem.id}">${escapeHtml(repairEvalTextFinalSafe(classItem.name))}</option>`).join("");
       hiddenEvalClassSelect.innerHTML = classOptions;
       hiddenEvalClassSelect.value = classId || "";
       hiddenEvalClassSelect.dispatchEvent(new Event("change", { bubbles: true }));
     }
-    if (hiddenActivitySelect) {
-      const activities = getActivitiesByClass(classId);
-      hiddenActivitySelect.innerHTML = activities.map((activity) => `<option value="${activity.id}">${escapeHtml(`${activity.type} // ${repairEvalTextFinalSafe(activity.title)}`)}</option>`).join("");
-      hiddenActivitySelect.value = activityId || "";
-      hiddenActivitySelect.dispatchEvent(new Event("change", { bubbles: true }));
-    }
-    hiddenSessionClassSelect?.dispatchEvent(new Event("change", { bubbles: true }));
   }
 
   function renderFreshEvaluationSummarySafe(activity, classId) {
