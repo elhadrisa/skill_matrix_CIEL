@@ -3212,8 +3212,20 @@ function initEvaluationsPageFinal() {
 
   function syncIndicatorSkillOptions() {
     if (!activityIndicatorSkill) return;
-    const selectedSkills = getSelectedValues(activitySkill).map((skillId) => getSkillById(skillId)).filter(Boolean);
-    activityIndicatorSkill.innerHTML = `<option value="">Toutes les competences</option>${selectedSkills.map((skill) => `<option value="${skill.id}">${skill.code} // ${skill.title}</option>`).join("")}`;
+    let selectedSkillIds = [];
+    try {
+      selectedSkillIds = JSON.parse(activityForm?.dataset?.appliedSkillIds || "[]");
+    } catch {}
+    if (!Array.isArray(selectedSkillIds) || !selectedSkillIds.length) {
+      selectedSkillIds = getSelectedValues(activitySkill);
+    }
+    const selectedSkills = selectedSkillIds.map((skillId) => getSkillById(skillId)).filter(Boolean);
+    const placeholder = selectedSkills.length ? "Toutes les compétences sélectionnées" : "Choisis d'abord les compétences";
+    activityIndicatorSkill.innerHTML = `<option value="">${placeholder}</option>${selectedSkills.map((skill) => `<option value="${skill.id}">${skill.code} - ${skill.title}</option>`).join("")}`;
+    activityIndicatorSkill.disabled = !selectedSkills.length;
+    if (selectedSkills.length === 1) {
+      activityIndicatorSkill.value = selectedSkills[0].id;
+    }
   }
 
   function syncIndicatorTextareaFromDraft() {
@@ -3223,15 +3235,15 @@ function initEvaluationsPageFinal() {
 
   function renderIndicatorDraft() {
     if (!activityIndicatorList) return;
-    if (!activityIndicatorDraft.length) {
-      activityIndicatorList.innerHTML = `<article class="directory-row"><div><strong>Aucun indicateur structurÃ©</strong><p>Ajoute un indicateur liÃ© Ã  une compÃ©tence ou utilise la saisie rapide.</p></div></article>`;
+      if (!activityIndicatorDraft.length) {
+      activityIndicatorList.innerHTML = `<article class="directory-row"><div><strong>Aucun indicateur structuré</strong><p>Ajoute un indicateur lié à une compétence ou utilise la saisie rapide.</p></div></article>`;
       return;
     }
     activityIndicatorList.innerHTML = activityIndicatorDraft.map((indicator) => `
       <article class="directory-row compact">
         <div>
           <strong>${escapeHtml(indicator.label)}</strong>
-          <p>${escapeHtml(indicator.skillId ? getActivitySkillLabel({ skillIds: [indicator.skillId], skillId: indicator.skillId }) : "Toutes les competences de la seance")}</p>
+          <p>${escapeHtml(indicator.skillId ? getActivitySkillLabel({ skillIds: [indicator.skillId], skillId: indicator.skillId }) : "Toutes les compétences de la séance")}</p>
         </div>
         <div class="student-badges">
           <button class="ghost-button activity-indicator-remove" type="button" data-id="${indicator.id}">Retirer</button>
@@ -3255,7 +3267,7 @@ function initEvaluationsPageFinal() {
     syncIndicatorTextareaFromDraft();
     renderIndicatorDraft();
     populateIndicatorBankSelect(indicatorBankSelect);
-    if (activitySubmitButton) activitySubmitButton.textContent = "CrÃ©er la sÃ©ance";
+    if (activitySubmitButton) activitySubmitButton.textContent = "Créer la séance";
     if (activityCancelEditButton) activityCancelEditButton.hidden = true;
     delete activityForm.dataset.editingId;
   }
@@ -4974,7 +4986,10 @@ function populateSkillMultiSelect(select) {
 }
 
 function getSelectedValues(select) {
-  return [...(select?.selectedOptions || [])].map((option) => option.value).filter(Boolean);
+  const selected = [...(select?.selectedOptions || [])].map((option) => option.value).filter(Boolean);
+  if (selected.length) return selected;
+  const currentValue = select?.value;
+  return currentValue ? [currentValue] : [];
 }
 
 function clearMultiSelect(select) {
@@ -9735,8 +9750,22 @@ function initAccountsPage() {
     }
 
     function syncIndicatorSkillOptionsSafe() {
-      const selected = getSelectedSkillIds().map((id) => getSkillById(id)).filter(Boolean);
-      activityIndicatorSkill.innerHTML = `<option value="">Toutes les competences</option>${selected.map((skill) => `<option value="${skill.id}">${skill.code} // ${skill.title}</option>`).join("")}`;
+      let selectedSkillIds = getSelectedSkillIds();
+      if (!selectedSkillIds.length && activityForm.dataset.appliedSkillIds) {
+        try {
+          const parsed = JSON.parse(activityForm.dataset.appliedSkillIds);
+          if (Array.isArray(parsed) && parsed.length) {
+            selectedSkillIds = parsed.filter(Boolean);
+          }
+        } catch {}
+      }
+      const selected = selectedSkillIds.map((id) => getSkillById(id)).filter(Boolean);
+      const placeholder = selected.length ? "Toutes les compétences sélectionnées" : "Choisis d'abord les compétences";
+      activityIndicatorSkill.innerHTML = `<option value="">${placeholder}</option>${selected.map((skill) => `<option value="${skill.id}">${skill.code} - ${skill.title}</option>`).join("")}`;
+      activityIndicatorSkill.disabled = !selected.length;
+      if (selected.length === 1) {
+        activityIndicatorSkill.value = selected[0].id;
+      }
     }
 
     function syncTextareaFromDraftSafe() {
@@ -9745,14 +9774,14 @@ function initAccountsPage() {
 
     function renderIndicatorDraftSafe() {
       if (!indicatorDraft.length) {
-        activityIndicatorList.innerHTML = `<article class="directory-row"><div><strong>Aucun indicateur structure</strong><p>Ajoute des indicateurs lies a une competence ou utilise la saisie rapide.</p></div></article>`;
+        activityIndicatorList.innerHTML = `<article class="directory-row"><div><strong>Aucun indicateur structuré</strong><p>Ajoute des indicateurs liés à une compétence ou utilise la saisie rapide.</p></div></article>`;
         return;
       }
       activityIndicatorList.innerHTML = indicatorDraft.map((indicator) => `
         <article class="directory-row compact">
           <div>
             <strong>${escapeHtml(indicator.label)}</strong>
-            <p>${escapeHtml(indicator.skillId ? getActivitySkillLabel({ skillIds: [indicator.skillId], skillId: indicator.skillId }) : "Toutes les competences de la seance")}</p>
+            <p>${escapeHtml(indicator.skillId ? getActivitySkillLabel({ skillIds: [indicator.skillId], skillId: indicator.skillId }) : "Toutes les compétences de la séance")}</p>
           </div>
           <div class="student-badges">
             <button class="ghost-button indicator-draft-delete" type="button" data-id="${indicator.id}">Retirer</button>
@@ -9775,7 +9804,7 @@ function initAccountsPage() {
       syncIndicatorSkillOptionsSafe();
       syncTextareaFromDraftSafe();
       renderIndicatorDraftSafe();
-      if (activitySubmitButton) activitySubmitButton.textContent = "CrÃ©er la sÃ©ance";
+      if (activitySubmitButton) activitySubmitButton.textContent = "Créer la séance";
       if (activityCancelEditButton) activityCancelEditButton.hidden = true;
       delete activityForm.dataset.editingId;
     }
@@ -9801,7 +9830,7 @@ function initAccountsPage() {
       if (activitySubmitButton) activitySubmitButton.textContent = "Enregistrer les modifications";
       if (activityCancelEditButton) activityCancelEditButton.hidden = false;
       if (typeof applyEvaluationsView === "function") applyEvaluationsView("create");
-      activityFeedback.textContent = `Edition de la seance : ${activity.title}`;
+      activityFeedback.textContent = `Édition de la séance : ${activity.title}`;
     }
 
     function handleStructuredSubmitSafe(event) {
@@ -9823,14 +9852,14 @@ function initAccountsPage() {
         skillId: indicator.skillId || ""
       }));
       if (!activityTitle.value.trim() || !activityClass.value || !selectedSkillIds.length || !indicators.length) {
-        activityFeedback.textContent = "Renseigne un titre, une classe, au moins une competence et au moins un indicateur.";
+        activityFeedback.textContent = "Renseigne un titre, une classe, au moins une compétence et au moins un indicateur.";
         return;
       }
       const editingId = activityForm.dataset.editingId;
       if (editingId) {
         const activity = getActivityById(editingId);
         if (!activity) {
-          activityFeedback.textContent = "Seance introuvable.";
+          activityFeedback.textContent = "Séance introuvable.";
           return;
         }
         activity.title = activityTitle.value.trim();
@@ -9843,8 +9872,8 @@ function initAccountsPage() {
         activity.endDate = activityDateEnd.value || activityDateStart.value;
         activity.comment = activityComment.value.trim();
         activity.indicators = indicators;
-        logAction("SÃ©ance modifiÃ©e", activity.title, `${activity.type} // ${getClassById(activity.classId)?.name || ""}`);
-        activityFeedback.textContent = "SÃ©ance mise Ã  jour.";
+        logAction("Séance modifiée", activity.title, `${activity.type} // ${getClassById(activity.classId)?.name || ""}`);
+        activityFeedback.textContent = "Séance mise à jour.";
       } else {
         app.evaluationActivities.push({
           id: slugify(`${activityTitle.value.trim()}-${Date.now()}`),
@@ -9860,8 +9889,8 @@ function initAccountsPage() {
           indicators,
           evaluations: {}
         });
-        logAction("SÃ©ance crÃ©Ã©e", activityTitle.value.trim(), `${activityType.value} // ${getClassById(activityClass.value)?.name || ""}`);
-        activityFeedback.textContent = "SÃ©ance crÃ©Ã©e.";
+        logAction("Séance créée", activityTitle.value.trim(), `${activityType.value} // ${getClassById(activityClass.value)?.name || ""}`);
+        activityFeedback.textContent = "Séance créée.";
       }
       persistAppData();
       sessionClassSelect.value = activityClass.value;
@@ -9884,7 +9913,7 @@ function initAccountsPage() {
         const hint = row.querySelector(".skill-grade-hint");
         if (!select || !input || !hint) return;
         input.value = student.skillGrades?.[skill.id] ?? "";
-        hint.textContent = input.value === "" ? "Vide = non Ã©valuÃ©" : `Auto : ${levelLabels[mapGradeToStatus(input.value)] || "Non Ã©valuÃ©"}`;
+        hint.textContent = input.value === "" ? "Vide = non évalué" : `Auto : ${levelLabels[mapGradeToStatus(input.value)] || "Non évalué"}`;
         if (!input.dataset.gradeBound) {
           input.dataset.gradeBound = "true";
           input.addEventListener("change", () => {
@@ -9892,8 +9921,8 @@ function initAccountsPage() {
             student.skillGrades[skill.id] = normalized;
             const autoStatus = mapGradeToStatus(normalized);
             student.skills[skill.id] = autoStatus;
-            hint.textContent = normalized === "" ? "Vide = non Ã©valuÃ©" : `Auto : ${levelLabels[autoStatus] || autoStatus}`;
-            logAction("CompÃ©tence notÃ©e", student.name, `${skill.code} // ${normalized === "" ? "non Ã©valuÃ©" : `${normalized}/20`} // ${levelLabels[autoStatus] || autoStatus}`);
+            hint.textContent = normalized === "" ? "Vide = non évalué" : `Auto : ${levelLabels[autoStatus] || autoStatus}`;
+            logAction("Compétence notée", student.name, `${skill.code} // ${normalized === "" ? "non évalué" : `${normalized}/20`} // ${levelLabels[autoStatus] || autoStatus}`);
             persistAppData();
             select.value = autoStatus;
             evalStudentSelect.dispatchEvent(new Event("change"));
@@ -9919,7 +9948,7 @@ function initAccountsPage() {
           <label class="field compact-field">
             <span>Note globale /20</span>
             <input class="activity-global-grade-input" type="number" min="0" max="20" step="0.5" value="${getActivityGlobalGradeSafe(activity, studentId) ?? ""}" placeholder="Ex. 13.5">
-            <small class="activity-global-grade-hint">${escapeHtml(levelLabels[mapGradeToStatus(getActivityGlobalGradeSafe(activity, studentId))] || "Non Ã©valuÃ©")}</small>
+            <small class="activity-global-grade-hint">${escapeHtml(levelLabels[mapGradeToStatus(getActivityGlobalGradeSafe(activity, studentId))] || "Non évalué")}</small>
           </label>
         `;
         firstCell.appendChild(wrapper);
@@ -9929,7 +9958,7 @@ function initAccountsPage() {
           const normalized = normalizeGrade(input.value);
           setActivityGlobalGradeSafe(activity.id, studentId, normalized);
           persistAppData();
-          hint.textContent = normalized === "" ? "Non Ã©valuÃ©" : (levelLabels[mapGradeToStatus(normalized)] || "Non Ã©valuÃ©");
+          hint.textContent = normalized === "" ? "Non évalué" : (levelLabels[mapGradeToStatus(normalized)] || "Non évalué");
           window.setTimeout(() => {
             document.querySelector("#session-class-select")?.dispatchEvent(new Event("change"));
             document.querySelector("#eval-student-select")?.dispatchEvent(new Event("change"));
@@ -9974,7 +10003,7 @@ function initAccountsPage() {
       activityCancelEditButton.dataset.structuredBound = "true";
       activityCancelEditButton.addEventListener("click", () => {
         resetActivityEditorSafe();
-        activityFeedback.textContent = "Edition annulee.";
+        activityFeedback.textContent = "Édition annulée.";
       });
     }
     if (!indicatorBankLoadButton.dataset.structuredBound) {
