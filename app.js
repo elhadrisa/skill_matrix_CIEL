@@ -8409,6 +8409,476 @@ function initAccountsPage() {
 })();
 
 (() => {
+  if (document.body?.dataset?.page !== "evaluations") return;
+
+  const freshEvalState = {
+    classId: "",
+    activityId: "",
+    search: "",
+    openStudentId: ""
+  };
+  let freshEvalBound = false;
+  let freshEvalPendingSnapshot = null;
+  let freshEvalLastSignature = "";
+
+  function ensureFreshEvaluationNodesSafe() {
+    const selectionPanel = document.querySelector("#activity-selection-panel");
+    const summaryPanel = document.querySelector("#activity-selection-panel");
+    const matrixPanel = document.querySelector("#activity-matrix-panel");
+    const reportPanel = document.querySelector("#activity-report-panel");
+    const synthesisPanel = document.querySelector("#activity-synthesis-panel");
+    const legacySelectionForm = selectionPanel?.querySelector(".stack-form");
+    const legacySummary = document.querySelector("#activity-summary");
+    const legacyMatrix = document.querySelector("#activity-matrix");
+    const legacyReport = document.querySelector("#activity-report");
+    const legacySynthesis = document.querySelector("#activity-synthesis");
+    if (!selectionPanel || !matrixPanel || !reportPanel || !synthesisPanel || !legacySelectionForm || !legacySummary || !legacyMatrix || !legacyReport || !legacySynthesis) return null;
+
+    legacySelectionForm.hidden = true;
+    legacySelectionForm.style.display = "none";
+    legacySummary.hidden = true;
+    legacySummary.style.display = "none";
+    legacyMatrix.hidden = true;
+    legacyMatrix.style.display = "none";
+    legacyReport.hidden = true;
+    legacyReport.style.display = "none";
+    legacySynthesis.hidden = true;
+    legacySynthesis.style.display = "none";
+
+    let shell = selectionPanel.querySelector("#fresh-evaluation-session-shell");
+    if (!shell) {
+      shell = document.createElement("div");
+      shell.id = "fresh-evaluation-session-shell";
+      shell.className = "stack-form";
+      shell.innerHTML = `
+        <label class="field">
+          <span>Recherche rapide</span>
+          <input id="fresh-eval-search" type="text" placeholder="Titre, compétence, date...">
+        </label>
+        <label class="field">
+          <span>Classe</span>
+          <select id="fresh-eval-class"></select>
+        </label>
+        <label class="field">
+          <span>TP / TD</span>
+          <select id="fresh-eval-activity"></select>
+        </label>
+      `;
+      legacySelectionForm.insertAdjacentElement("afterend", shell);
+    }
+
+    let visibleSummary = selectionPanel.querySelector("#fresh-activity-summary");
+    if (!visibleSummary) {
+      visibleSummary = document.createElement("div");
+      visibleSummary.id = "fresh-activity-summary";
+      visibleSummary.className = "class-cards";
+      legacySummary.insertAdjacentElement("afterend", visibleSummary);
+    }
+
+    let visibleMatrix = matrixPanel.querySelector("#fresh-activity-matrix");
+    if (!visibleMatrix) {
+      visibleMatrix = document.createElement("div");
+      visibleMatrix.id = "fresh-activity-matrix";
+      visibleMatrix.className = "activity-cards-layout";
+      legacyMatrix.insertAdjacentElement("afterend", visibleMatrix);
+    }
+
+    let visibleReport = reportPanel.querySelector("#fresh-activity-report");
+    if (!visibleReport) {
+      visibleReport = document.createElement("div");
+      visibleReport.id = "fresh-activity-report";
+      visibleReport.className = "class-cards";
+      legacyReport.insertAdjacentElement("afterend", visibleReport);
+    }
+
+    let visibleSynthesis = synthesisPanel.querySelector("#fresh-activity-synthesis");
+    if (!visibleSynthesis) {
+      visibleSynthesis = document.createElement("div");
+      visibleSynthesis.id = "fresh-activity-synthesis";
+      visibleSynthesis.className = "student-directory";
+      legacySynthesis.insertAdjacentElement("afterend", visibleSynthesis);
+    }
+
+    return {
+      selectionPanel,
+      shell,
+      searchInput: shell.querySelector("#fresh-eval-search"),
+      classSelect: shell.querySelector("#fresh-eval-class"),
+      activitySelect: shell.querySelector("#fresh-eval-activity"),
+      summary: visibleSummary,
+      matrix: visibleMatrix,
+      report: visibleReport,
+      synthesis: visibleSynthesis,
+      hiddenSessionClassSelect: document.querySelector("#session-class-select"),
+      hiddenEvalClassSelect: document.querySelector("#eval-class-select"),
+      hiddenActivitySelect: document.querySelector("#activity-select")
+    };
+  }
+
+  function getFreshActivitiesSafe(classId, search = "") {
+    const source = getActivitiesByClass(classId);
+    const term = String(search || "").trim().toLowerCase();
+    if (!term) return source;
+    return source.filter((activity) => {
+      const haystack = [
+        activity.title,
+        activity.type,
+        activity.startDate,
+        activity.endDate,
+        activity.date,
+        ...(getActivitySkills(activity).map((skill) => `${skill.code} ${skill.title}`))
+      ].join(" ").toLowerCase();
+      return haystack.includes(term);
+    });
+  }
+
+  function chooseFreshActivityIdSafe(classId, preferredActivityId = "") {
+    const visibleActivities = getFreshActivitiesSafe(classId, freshEvalState.search);
+    const allActivities = getActivitiesByClass(classId);
+    if (preferredActivityId && visibleActivities.some((activity) => activity.id === preferredActivityId)) return preferredActivityId;
+    if (freshEvalState.activityId && visibleActivities.some((activity) => activity.id === freshEvalState.activityId)) return freshEvalState.activityId;
+    if (preferredActivityId && allActivities.some((activity) => activity.id === preferredActivityId)) return preferredActivityId;
+    if (allActivities.some((activity) => activity.id === freshEvalState.activityId)) return freshEvalState.activityId;
+    return visibleActivities[0]?.id || allActivities[0]?.id || "";
+  }
+
+  function syncLegacyEvaluationSelectorsSafe(classId, activityId) {
+    const nodes = ensureFreshEvaluationNodesSafe();
+    if (!nodes) return;
+    const { hiddenSessionClassSelect, hiddenEvalClassSelect, hiddenActivitySelect } = nodes;
+    const classOptions = app.classes.map((classItem) => `<option value="${classItem.id}">${escapeHtml(repairEvalTextFinalSafe(classItem.name))}</option>`).join("");
+    if (hiddenSessionClassSelect) {
+      hiddenSessionClassSelect.innerHTML = classOptions;
+      hiddenSessionClassSelect.value = classId || "";
+    }
+    if (hiddenEvalClassSelect) {
+      hiddenEvalClassSelect.innerHTML = classOptions;
+      hiddenEvalClassSelect.value = classId || "";
+      hiddenEvalClassSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    if (hiddenActivitySelect) {
+      const activities = getActivitiesByClass(classId);
+      hiddenActivitySelect.innerHTML = activities.map((activity) => `<option value="${activity.id}">${escapeHtml(`${activity.type} // ${repairEvalTextFinalSafe(activity.title)}`)}</option>`).join("");
+      hiddenActivitySelect.value = activityId || "";
+      hiddenActivitySelect.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    hiddenSessionClassSelect?.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  function renderFreshEvaluationSummarySafe(activity, classId) {
+    const nodes = ensureFreshEvaluationNodesSafe();
+    if (!nodes?.summary) return;
+    const { summary } = nodes;
+    const classItem = getClassById(classId);
+    if (!activity) {
+      summary.innerHTML = `<article class="summary-card"><h3>Aucune séance</h3><p class="muted-copy">Crée un TP ou un TD pour commencer.</p></article>`;
+      return;
+    }
+    summary.innerHTML = `
+      <article class="summary-card">
+        <h3>${escapeHtml(`${activity.type} // ${repairEvalTextFinalSafe(activity.title)}`)}</h3>
+        <p class="muted-copy">${escapeHtml(repairEvalTextFinalSafe(classItem?.name || ""))} // ${escapeHtml(getActivitySkillLabel(activity))}</p>
+        <p class="muted-copy">${escapeHtml(formatActivityDateRange(activity))} // ${(activity.indicators || []).length} indicateur(s)</p>
+      </article>
+    `;
+  }
+
+  function renderFreshEvaluationReportSafe(activity, classId) {
+    const nodes = ensureFreshEvaluationNodesSafe();
+    if (!nodes?.report) return;
+    const { report } = nodes;
+    const students = getStudentsByClass(classId);
+    if (!activity) {
+      report.innerHTML = "";
+      return;
+    }
+    const cards = (activity.indicators || []).map((indicator) => `
+      <article class="summary-card">
+        <h3>${escapeHtml(repairEvalTextFinalSafe(indicator.label))}</h3>
+        <p class="muted-copy">Moyenne: ${getIndicatorAverage(activity, students, indicator.id)}%</p>
+        <p class="muted-copy">${escapeHtml(renderIndicatorStatusBreakdown(activity, students, indicator.id))}</p>
+      </article>
+    `).join("");
+    report.innerHTML = `
+      <article class="summary-card">
+        <h3>Bilan global</h3>
+        <p class="muted-copy">Moyenne de la séance: ${getActivityAverage(activity, students)}%</p>
+        <p class="muted-copy">${students.length} élève(s) évalué(s)</p>
+      </article>
+      ${cards}
+    `;
+  }
+
+  function renderFreshEvaluationSynthesisSafe(classId) {
+    const nodes = ensureFreshEvaluationNodesSafe();
+    if (!nodes?.synthesis) return;
+    const { synthesis } = nodes;
+    const activities = getActivitiesByClass(classId);
+    const students = getStudentsByClass(classId);
+    synthesis.innerHTML = activities.length
+      ? activities.map((activity) => `
+          <article class="directory-row compact">
+            <div>
+              <strong>${escapeHtml(`${activity.type} // ${repairEvalTextFinalSafe(activity.title)}`)}</strong>
+              <p>${escapeHtml(getActivitySkillLabel(activity))}</p>
+              <p>${escapeHtml(formatActivityDateRange(activity))}</p>
+            </div>
+            <div class="student-badges">
+              <span class="badge">${(activity.indicators || []).length} indicateurs</span>
+              <span class="badge">${getActivityAverage(activity, students)}% moyen</span>
+            </div>
+          </article>
+        `).join("")
+      : `<article class="summary-card"><h3>Aucune synthèse</h3><p class="muted-copy">Aucune séance enregistrée pour cette classe.</p></article>`;
+  }
+
+  function renderFreshEvaluationMatrixSafe(activity, classId) {
+    const nodes = ensureFreshEvaluationNodesSafe();
+    if (!nodes?.matrix) return;
+    const { matrix } = nodes;
+    matrix.className = "activity-cards-layout";
+    if (!activity) {
+      matrix.innerHTML = `<article class="summary-card"><h3>Aucune séance</h3><p class="muted-copy">Sélectionne ou crée une séance pour commencer l'évaluation.</p></article>`;
+      return;
+    }
+    const students = getStudentsByClass(classId);
+    if (!students.length) {
+      matrix.innerHTML = `<article class="summary-card"><h3>Aucun élève</h3><p class="muted-copy">La classe associée à cette séance ne contient aucun élève.</p></article>`;
+      return;
+    }
+    const groups = getEvalIndicatorGroupsFinalSafe(activity);
+    const initialOpenStudentId = freshEvalState.openStudentId && students.some((student) => student.id === freshEvalState.openStudentId)
+      ? freshEvalState.openStudentId
+      : (students[0]?.id || "");
+    freshEvalState.openStudentId = initialOpenStudentId;
+
+    matrix.innerHTML = students.map((student) => {
+      const isOpen = student.id === initialOpenStudentId;
+      const globalGrade = getEvalGlobalGradeFinalSafe(activity, student.id);
+      const overallStatus = mapGradeToStatus(globalGrade);
+      return `
+        <article class="activity-student-card${isOpen ? " is-open" : ""}" data-student-id="${student.id}">
+          <div class="activity-student-toggle" role="button" tabindex="0" aria-expanded="${isOpen ? "true" : "false"}">
+            <div class="activity-student-heading">
+              <strong>${escapeHtml(repairEvalTextFinalSafe(student.name))}</strong>
+              <p>${getStudentProgress(student)}% validé // ${escapeHtml(repairEvalTextFinalSafe(getClassById(student.classId)?.name || ""))}</p>
+            </div>
+            <div class="activity-student-toggle-meta">
+              <span class="badge">${groups.length} bloc(s)</span>
+              <span class="badge accent">${escapeHtml(getEvalStatusLabelFinalSafe(overallStatus))}</span>
+            </div>
+          </div>
+          <div class="activity-student-groups">
+            <section class="activity-skill-group activity-global-grade-box">
+              <div class="activity-global-grade-actions">
+                <label class="field compact-field">
+                  <span>Note globale /20</span>
+                  <input class="activity-student-global-grade" type="text" inputmode="decimal" data-activity-id="${activity.id}" data-student-id="${student.id}" value="${globalGrade === "" ? "" : globalGrade}" placeholder="Ex. 13.5">
+                  <small class="activity-global-grade-hint">${escapeHtml(getEvalStatusLabelFinalSafe(overallStatus))}</small>
+                </label>
+                <button class="primary-button activity-global-grade-apply" type="button" data-activity-id="${activity.id}" data-student-id="${student.id}"${hasPermission("edit_evaluations") ? "" : " disabled"}>Appliquer</button>
+              </div>
+            </section>
+            ${groups.map((group) => `
+              <section class="activity-skill-group">
+                <div class="activity-skill-group-head">
+                  <div class="activity-skill-group-heading">
+                    <strong>${escapeHtml(group.title)}</strong>
+                    <p class="muted-copy">${group.indicators.length} indicateur(s)</p>
+                  </div>
+                  <div class="activity-skill-group-summary">${renderEvalSummaryBadgesFinalSafe(getEvalStatusSummaryFinalSafe(activity, student.id, group.indicators))}</div>
+                </div>
+                <div class="activity-indicator-list">
+                  ${group.indicators.map((indicator) => `
+                    <label class="activity-indicator-row">
+                      <span class="activity-indicator-row-index">I${(activity.indicators || []).findIndex((item) => item.id === indicator.id) + 1}</span>
+                      <span class="activity-indicator-row-body">
+                        <span class="activity-indicator-card-label">${escapeHtml(repairEvalTextFinalSafe(indicator.label))}</span>
+                      </span>
+                      <select class="activity-status-select" data-activity-id="${activity.id}" data-student-id="${student.id}" data-indicator-id="${indicator.id}"${hasPermission("edit_evaluations") ? "" : " disabled"}>
+                        ${renderStatusOptions(getActivityIndicatorStatus(activity, student.id, indicator.id))}
+                      </select>
+                    </label>
+                  `).join("")}
+                </div>
+              </section>
+            `).join("")}
+          </div>
+        </article>
+      `;
+    }).join("");
+  }
+
+  function renderFreshEvaluationSurfaceSafe(preferredClassId = "", preferredActivityId = "") {
+    const nodes = ensureFreshEvaluationNodesSafe();
+    if (!nodes) return;
+    const { searchInput, classSelect, activitySelect } = nodes;
+    const classOptions = app.classes.map((classItem) => `<option value="${classItem.id}">${escapeHtml(repairEvalTextFinalSafe(classItem.name))}</option>`).join("");
+    classSelect.innerHTML = classOptions;
+
+    const classId = preferredClassId
+      || freshEvalState.classId
+      || getActivityById(preferredActivityId)?.classId
+      || app.classes.find((classItem) => getActivitiesByClass(classItem.id).length)?.id
+      || app.classes[0]?.id
+      || "";
+    freshEvalState.classId = classId;
+    if (classId && [...classSelect.options].some((option) => option.value === classId)) {
+      classSelect.value = classId;
+    }
+
+    if (typeof freshEvalState.search !== "string") freshEvalState.search = "";
+    if (searchInput && searchInput.value !== freshEvalState.search) {
+      searchInput.value = freshEvalState.search;
+    }
+
+    const visibleActivities = getFreshActivitiesSafe(classId, freshEvalState.search);
+    activitySelect.innerHTML = visibleActivities.length
+      ? visibleActivities.map((activity) => `<option value="${activity.id}">${escapeHtml(`${activity.type} // ${repairEvalTextFinalSafe(activity.title)}`)}</option>`).join("")
+      : `<option value="">Aucune séance</option>`;
+    const activityId = chooseFreshActivityIdSafe(classId, preferredActivityId);
+    freshEvalState.activityId = activityId;
+    if (activityId && [...activitySelect.options].some((option) => option.value === activityId)) {
+      activitySelect.value = activityId;
+    }
+
+    const activity = getActivityById(activityId);
+    if (!freshEvalState.openStudentId || !getStudentsByClass(activity?.classId || classId).some((student) => student.id === freshEvalState.openStudentId)) {
+      freshEvalState.openStudentId = getStudentsByClass(activity?.classId || classId)[0]?.id || "";
+    }
+
+    syncLegacyEvaluationSelectorsSafe(activity?.classId || classId, activityId);
+    renderFreshEvaluationSummarySafe(activity, activity?.classId || classId);
+    renderFreshEvaluationMatrixSafe(activity, activity?.classId || classId);
+    renderFreshEvaluationReportSafe(activity, activity?.classId || classId);
+    renderFreshEvaluationSynthesisSafe(activity?.classId || classId);
+  }
+
+  function bindFreshEvaluationSurfaceSafe() {
+    if (freshEvalBound) return;
+    const nodes = ensureFreshEvaluationNodesSafe();
+    if (!nodes) return;
+    freshEvalBound = true;
+    const { searchInput, classSelect, activitySelect, matrix } = nodes;
+
+    searchInput?.addEventListener("input", () => {
+      freshEvalState.search = String(searchInput.value || "");
+      renderFreshEvaluationSurfaceSafe(classSelect.value || "", activitySelect.value || "");
+    }, true);
+
+    classSelect?.addEventListener("change", () => {
+      freshEvalState.classId = classSelect.value || "";
+      freshEvalState.activityId = "";
+      freshEvalState.openStudentId = "";
+      renderFreshEvaluationSurfaceSafe(freshEvalState.classId, "");
+    }, true);
+
+    activitySelect?.addEventListener("change", () => {
+      freshEvalState.activityId = activitySelect.value || "";
+      freshEvalState.openStudentId = "";
+      renderFreshEvaluationSurfaceSafe(classSelect.value || "", freshEvalState.activityId);
+    }, true);
+
+    matrix?.addEventListener("click", (event) => {
+      const toggle = event.target.closest(".activity-student-toggle");
+      if (toggle) {
+        const card = toggle.closest(".activity-student-card");
+        const studentId = card?.dataset?.studentId || "";
+        freshEvalState.openStudentId = freshEvalState.openStudentId === studentId ? "" : studentId;
+        renderFreshEvaluationSurfaceSafe(freshEvalState.classId, freshEvalState.activityId);
+        return;
+      }
+
+      const applyButton = event.target.closest(".activity-global-grade-apply");
+      if (applyButton) {
+        if (!hasPermission("edit_evaluations")) return;
+        const activity = getActivityById(applyButton.dataset.activityId || freshEvalState.activityId);
+        const studentId = applyButton.dataset.studentId || "";
+        const input = applyButton.closest(".activity-global-grade-actions")?.querySelector(".activity-student-global-grade");
+        if (!activity || !studentId || !input) return;
+        freshEvalState.openStudentId = studentId;
+        applyEvalGlobalGradeFinalSafe(activity, studentId, String(input.value || "").replace(",", "."));
+        persistAppData();
+        renderFreshEvaluationSurfaceSafe(activity.classId, activity.id);
+      }
+    }, true);
+
+    matrix?.addEventListener("change", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLSelectElement)) return;
+      if (target.matches(".activity-status-select")) {
+        if (!hasPermission("edit_evaluations")) return;
+        const activity = getActivityById(target.dataset.activityId || freshEvalState.activityId);
+        const studentId = target.dataset.studentId || "";
+        if (!activity || !studentId) return;
+        freshEvalState.openStudentId = studentId;
+        setActivityIndicatorStatus(activity.id, studentId, target.dataset.indicatorId, target.value);
+        recomputeEvalActivitySkillsFinalSafe(activity, studentId);
+        persistAppData();
+        renderFreshEvaluationSurfaceSafe(activity.classId, activity.id);
+      }
+    }, true);
+
+    matrix?.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      const target = event.target;
+      if (target instanceof HTMLInputElement && target.matches(".activity-student-global-grade")) {
+        event.preventDefault();
+        target.closest(".activity-global-grade-actions")?.querySelector(".activity-global-grade-apply")?.click();
+      }
+      if (target instanceof HTMLElement && target.classList.contains("activity-student-toggle")) {
+        event.preventDefault();
+        target.click();
+      }
+    }, true);
+
+    document.addEventListener("submit", (event) => {
+      const form = event.target;
+      if (!(form instanceof HTMLFormElement) || form.id !== "activity-form") return;
+      freshEvalPendingSnapshot = {
+        knownIds: new Set(app.evaluationActivities.map((activity) => activity.id)),
+        classId: document.querySelector("#activity-class")?.value || freshEvalState.classId || ""
+      };
+      window.setTimeout(() => {
+        const snapshot = freshEvalPendingSnapshot;
+        const created = app.evaluationActivities.find((activity) => !snapshot?.knownIds?.has(activity.id) && (!snapshot?.classId || activity.classId === snapshot.classId))
+          || [...app.evaluationActivities].reverse().find((activity) => !snapshot?.knownIds?.has(activity.id))
+          || null;
+        freshEvalPendingSnapshot = null;
+        renderFreshEvaluationSurfaceSafe(created?.classId || snapshot?.classId || freshEvalState.classId, created?.id || freshEvalState.activityId);
+      }, 120);
+    }, true);
+
+    ["#activity-duplicate-button", "#activity-delete-button", "#activity-edit-button", "#activity-cancel-edit"].forEach((selector) => {
+      const button = document.querySelector(selector);
+      if (!button) return;
+      button.addEventListener("click", () => {
+        window.setTimeout(() => {
+          renderFreshEvaluationSurfaceSafe(freshEvalState.classId, freshEvalState.activityId);
+        }, 140);
+      }, true);
+    });
+
+    window.setInterval(() => {
+      const signature = app.evaluationActivities.map((activity) => `${activity.id}:${activity.classId}:${activity.title}:${(activity.indicators || []).length}`).join("|");
+      if (signature === freshEvalLastSignature) return;
+      freshEvalLastSignature = signature;
+      renderFreshEvaluationSurfaceSafe(freshEvalState.classId, freshEvalState.activityId);
+    }, 500);
+
+    renderFreshEvaluationSurfaceSafe();
+    window.setTimeout(() => renderFreshEvaluationSurfaceSafe(freshEvalState.classId, freshEvalState.activityId), 120);
+    window.setTimeout(() => renderFreshEvaluationSurfaceSafe(freshEvalState.classId, freshEvalState.activityId), 260);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bindFreshEvaluationSurfaceSafe, { once: true });
+  } else {
+    bindFreshEvaluationSurfaceSafe();
+  }
+})();
+
+(() => {
   const UTF8_SUSPECT_PATTERN = /[ÃÂâ€œ”€™�]/;
 
   function repairUtf8StringDeepSafe(value) {
