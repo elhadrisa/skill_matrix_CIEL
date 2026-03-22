@@ -250,6 +250,30 @@ function repairDisplaySourceString(value) {
 
   return next
     .replace(/ÃƒÂ/g, "")
+    .replace(/Ã©/g, "é")
+    .replace(/Ã¨/g, "è")
+    .replace(/Ãª/g, "ê")
+    .replace(/Ã«/g, "ë")
+    .replace(/Ãà/g, "à")
+    .replace(/Ã¢/g, "â")
+    .replace(/Ãô/g, "ô")
+    .replace(/Ãû/g, "û")
+    .replace(/Ãù/g, "ù")
+    .replace(/Ãî/g, "î")
+    .replace(/Ãï/g, "ï")
+    .replace(/Ãç/g, "ç")
+    .replace(/ÃÉ/g, "É")
+    .replace(/ÃÈ/g, "È")
+    .replace(/ÃÊ/g, "Ê")
+    .replace(/ÃË/g, "Ë")
+    .replace(/ÃÀ/g, "À")
+    .replace(/ÃÂ/g, "Â")
+    .replace(/ÃÔ/g, "Ô")
+    .replace(/ÃÛ/g, "Û")
+    .replace(/ÃÙ/g, "Ù")
+    .replace(/ÃÎ/g, "Î")
+    .replace(/ÃÏ/g, "Ï")
+    .replace(/ÃÇ/g, "Ç")
     .replace(/â€“/g, "–")
     .replace(/â€”/g, "—")
     .replace(/â€¦/g, "…")
@@ -2454,6 +2478,7 @@ function initDashboardPageFinal() {
   const studentPanel = document.querySelector("#student-panel");
   const catalogPanel = document.querySelector("#catalog-panel");
   let calendarPanel = document.querySelector("#calendar-panel");
+  let calendarAnchor = new Date();
   const currentView = getRequestedDashboardView();
 
   if (alertsPanel) alertsPanel.style.display = "none";
@@ -2463,12 +2488,12 @@ function initDashboardPageFinal() {
     wrapper.className = "stack-form";
     wrapper.innerHTML = `
       <label class="field">
-        <span>Professeur rÃ©fÃ©rent</span>
+        <span>Professeur référent</span>
         <select id="teacher-filter-select"></select>
       </label>
       <label class="field">
         <span>Recherche globale</span>
-        <input id="global-search-input" type="text" placeholder="Ã‰lÃ¨ve, classe, entreprise, TP/TD...">
+        <input id="global-search-input" type="text" placeholder="Élève, classe, entreprise, TP / TD...">
       </label>
       <div id="global-search-results" class="student-directory"></div>
       <div id="deadlines-panel" class="student-directory"></div>
@@ -2490,9 +2515,14 @@ function initDashboardPageFinal() {
       <div class="section-head">
         <div>
           <p class="eyebrow">Calendar</p>
-          <h2>Calendrier pÃ©dagogique</h2>
+          <h2>Calendrier pédagogique</h2>
         </div>
-        <p id="calendar-month-label" class="results-count"></p>
+        <div class="calendar-toolbar">
+          <button id="calendar-prev-button" class="ghost-button" type="button">Mois précédent</button>
+          <button id="calendar-today-button" class="ghost-button" type="button">Aujourd'hui</button>
+          <button id="calendar-next-button" class="ghost-button" type="button">Mois suivant</button>
+          <p id="calendar-month-label" class="results-count"></p>
+        </div>
       </div>
       <div id="calendar-grid" class="calendar-grid"></div>
     `;
@@ -2505,8 +2535,12 @@ function initDashboardPageFinal() {
 
   populateTeacherFilter(teacherFilter);
   populateClassSelect(classSelect);
+  const calendarPrevButton = document.querySelector("#calendar-prev-button");
+  const calendarTodayButton = document.querySelector("#calendar-today-button");
+  const calendarNextButton = document.querySelector("#calendar-next-button");
   const requestedClassId = getRequestedClassId();
   if (requestedClassId) classSelect.value = requestedClassId;
+  calendarAnchor = new Date();
   enforcePermission("reset_app", resetButton);
   classSelect.addEventListener("change", renderDashboardPage);
   alertFilter?.addEventListener("change", renderDashboardPage);
@@ -2515,6 +2549,18 @@ function initDashboardPageFinal() {
     renderSearchResults();
   });
   searchInput?.addEventListener("input", renderSearchResults);
+  calendarPrevButton?.addEventListener("click", () => {
+    calendarAnchor = new Date(calendarAnchor.getFullYear(), calendarAnchor.getMonth() - 1, 1);
+    renderDashboardPage();
+  });
+  calendarTodayButton?.addEventListener("click", () => {
+    calendarAnchor = new Date();
+    renderDashboardPage();
+  });
+  calendarNextButton?.addEventListener("click", () => {
+    calendarAnchor = new Date(calendarAnchor.getFullYear(), calendarAnchor.getMonth() + 1, 1);
+    renderDashboardPage();
+  });
   resetButton.addEventListener("click", () => {
     if (!hasPermission("reset_app")) return;
     const initial = hydrateAppData({ classes: defaultClasses, students: defaultStudents, pfmpRecords: defaultPfmpRecords, evaluationActivities: defaultEvaluationActivities, accounts: app.accounts, activityLog: [] });
@@ -2523,9 +2569,10 @@ function initDashboardPageFinal() {
     app.pfmpRecords = initial.pfmpRecords;
     app.evaluationActivities = initial.evaluationActivities;
     app.activityLog = initial.activityLog;
-    logAction("RÃ©initialisation", "Application", "Jeu de donnÃ©es par dÃ©faut restaurÃ©");
+    logAction("Réinitialisation", "Application", "Jeu de données par défaut restauré");
     persistAppData();
     populateClassSelect(classSelect);
+    calendarAnchor = new Date();
     renderDashboardPage();
   });
 
@@ -2543,12 +2590,12 @@ function initDashboardPageFinal() {
     const pfmpSummary = getPfmpSummary(students);
     const exportSkillsButton = document.querySelector("#export-skills-button");
 
-    classMeta.textContent = classItem ? `${classItem.name} // ${classItem.year} // ${students.length} Ã©lÃ¨ves${selectedTeacher !== "all" ? ` // ${selectedTeacher}` : ""}` : "Aucune classe";
+    classMeta.textContent = classItem ? `${classItem.name} // ${classItem.year} // ${students.length} élèves${selectedTeacher !== "all" ? ` // ${selectedTeacher}` : ""}` : "Aucune classe";
     statsGrid.innerHTML = [
-      { label: "Ã‰lÃ¨ves", value: students.length, trace: "effectif de la classe" },
-      { label: "Progression moyenne", value: `${progressAverage}%`, trace: strongestBlock ? `bloc fort: ${strongestBlock.domain}` : "aucune donnÃ©e" },
-      { label: "PFMP renseignÃ©es", value: pfmpSummary.withCompany, trace: "entreprise saisie" },
-      { label: "Conventions complÃ¨tes", value: pfmpSummary.fullConvention, trace: "entreprise + parents + lycÃ©e" }
+      { label: "Élèves", value: students.length, trace: "effectif de la classe" },
+      { label: "Progression moyenne", value: `${progressAverage}%`, trace: strongestBlock ? `bloc fort : ${strongestBlock.domain}` : "aucune donnée" },
+      { label: "PFMP renseignées", value: pfmpSummary.withCompany, trace: "entreprise saisie" },
+      { label: "Conventions complètes", value: pfmpSummary.fullConvention, trace: "entreprise + parents + lycée" }
     ].map(renderStatCard).join("");
 
     renderStatusChart(statusChart, counts);
@@ -2563,7 +2610,7 @@ function initDashboardPageFinal() {
         <h3>${alert.title}</h3>
         <p class="muted-copy">${alert.detail}</p>
       </article>
-    `).join("") : `<article class="summary-card"><h3>Aucune alerte</h3><p class="muted-copy">Aucune alerte pour ce filtre sur la classe sÃ©lectionnÃ©e.</p></article>`;
+    `).join("") : `<article class="summary-card"><h3>Aucune alerte</h3><p class="muted-copy">Aucune alerte pour ce filtre sur la classe sélectionnée.</p></article>`;
 
     exportSkillsButton.onclick = () => exportSkillsWorkbook(classItem, students);
     catalogGrid.innerHTML = skillCatalog.map((skill) => `
@@ -2586,7 +2633,7 @@ function initDashboardPageFinal() {
             <p>${notice.meta}</p>
           </div>
         </article>
-      `).join("") : `<article class="summary-card"><h3>Aucune Ã©chÃ©ance</h3><p class="muted-copy">Aucune Ã©chÃ©ance prioritaire sur ce pÃ©rimÃ¨tre.</p></article>`;
+      `).join("") : `<article class="summary-card"><h3>Aucune échéance</h3><p class="muted-copy">Aucune échéance prioritaire sur ce périmètre.</p></article>`;
     }
 
     if (agendaPanel) {
@@ -2607,7 +2654,7 @@ function initDashboardPageFinal() {
 
     if (calendarGrid) {
       const monthLabel = document.querySelector("#calendar-month-label");
-      const calendar = getMonthCalendarData(classId, selectedTeacher);
+      const calendar = getMonthCalendarData(classId, selectedTeacher, calendarAnchor);
       if (monthLabel) monthLabel.textContent = calendar.label;
       calendarGrid.innerHTML = `
         ${calendar.weekdays.map((weekday) => `<div class="calendar-head">${weekday}</div>`).join("")}
@@ -5201,11 +5248,11 @@ function parseSortableDate(value) {
 
 function formatAgendaDate(value) {
   const date = parseSortableDate(value);
-  if (!date) return "Ã€ planifier";
+  if (!date) return "À planifier";
   return date.toLocaleDateString("fr-FR");
 }
 
-function getAgendaEntries(classId, teacher = "all") {
+function getAgendaEntries(classId, teacher = "all", options = {}) {
   const entries = [];
   const students = getStudentsByClass(classId).filter((student) => teacher === "all" || studentMatchesTeacher(student, teacher));
 
@@ -5217,7 +5264,7 @@ function getAgendaEntries(classId, teacher = "all") {
       sortKey: parseSortableDate(startDate)?.getTime() || Number.MAX_SAFE_INTEGER,
       title: `${activity.type} - ${activity.title}`,
       meta: `${getActivitySkillLabel(activity)} // ${getClassById(classId)?.name || ""}`,
-      kind: "SÃ©ance",
+      kind: "Séance",
       when: formatActivityDateRange(activity),
       startDate,
       endDate: activity.endDate || startDate
@@ -5231,14 +5278,18 @@ function getAgendaEntries(classId, teacher = "all") {
       entries.push({
         sortKey: parseSortableDate(entry.visitDate)?.getTime() || Number.MAX_SAFE_INTEGER,
         title: `${student.name} - ${period.label}`,
-        meta: `${entry.companyName || "Entreprise non renseignÃ©e"} // ${entry.teacher || "Professeur non renseignÃ©"}`,
+        meta: `${entry.companyName || "Entreprise non renseignée"} // ${entry.teacher || "Professeur non renseigné"}`,
         kind: "Visite PFMP",
         when: formatAgendaDate(entry.visitDate)
       });
     });
   });
 
-  return entries.sort((a, b) => a.sortKey - b.sortKey).slice(0, 12);
+  const sorted = entries.sort((a, b) => a.sortKey - b.sortKey);
+  if (typeof options.limit === "number" && options.limit >= 0) {
+    return options.limit === 0 ? sorted : sorted.slice(0, options.limit);
+  }
+  return sorted.slice(0, 12);
 }
 
 function addAttendanceEntry(studentId, status, date, reason = "") {
@@ -5277,15 +5328,17 @@ function getAttendanceStats(student) {
   };
 }
 
-function getMonthCalendarData(classId, teacher = "all") {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
+function getMonthCalendarData(classId, teacher = "all", anchorDate = new Date()) {
+  const parsedAnchor = parseSortableDate(anchorDate);
+  const fallbackAnchor = new Date(anchorDate);
+  const anchor = parsedAnchor || (!Number.isNaN(fallbackAnchor.getTime()) ? fallbackAnchor : new Date());
+  const year = anchor.getFullYear();
+  const month = anchor.getMonth();
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
   const startOffset = (firstDay.getDay() + 6) % 7;
   const totalCells = Math.ceil((startOffset + lastDay.getDate()) / 7) * 7;
-  const agendaItems = getAgendaEntries(classId, teacher);
+  const agendaItems = getAgendaEntries(classId, teacher, { limit: 0 });
   const eventsByDay = new Map();
 
   agendaItems.forEach((item) => {
@@ -5316,7 +5369,10 @@ function getMonthCalendarData(classId, teacher = "all") {
   }
 
   return {
-    label: now.toLocaleDateString("fr-FR", { month: "long", year: "numeric" }),
+    key: `${year}-${String(month + 1).padStart(2, "0")}`,
+    label: firstDay.toLocaleDateString("fr-FR", { month: "long", year: "numeric" }),
+    year,
+    month,
     weekdays: ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
     days
   };
@@ -8409,6 +8465,298 @@ function initAccountsPage() {
       }
     }, 0);
   }
+})();
+
+;(() => {
+  const EXAM_DISPATCH_STORAGE_KEY_FINAL = "ciel-exam-dispatch-v2";
+
+  function parseLocalJsonFinal(key, fallback) {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  function runFinalUtf8Sweep() {
+    try {
+      repairStructuredTextInPlace(app);
+    } catch {}
+
+    const root = document.body || document.documentElement;
+    if (!root) return;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode();
+    while (node) {
+      const fixed = repairDisplaySourceString(node.nodeValue);
+      if (fixed !== node.nodeValue) node.nodeValue = fixed;
+      node = walker.nextNode();
+    }
+    root.querySelectorAll("input[placeholder], textarea[placeholder], [title], [aria-label], img[alt], option, button, h1, h2, h3, h4, p, small, span, a, label, strong, th, td, legend, summary").forEach((element) => {
+      ["placeholder", "title", "aria-label", "alt"].forEach((attribute) => {
+        if (!element.hasAttribute(attribute)) return;
+        const value = element.getAttribute(attribute);
+        const fixed = repairDisplaySourceString(value);
+        if (fixed !== value) element.setAttribute(attribute, fixed);
+      });
+      if (element instanceof HTMLInputElement && /^(button|submit|reset)$/i.test(element.type)) {
+        const fixed = repairDisplaySourceString(element.value);
+        if (fixed !== element.value) element.value = fixed;
+      } else {
+        const fixed = repairDisplaySourceString(element.textContent);
+        if (fixed !== element.textContent) element.textContent = fixed;
+      }
+    });
+    document.title = repairDisplaySourceString(document.title);
+  }
+
+  function getCoverageCoherenceItemsFinal(classId) {
+    const students = getStudentsByClass(classId);
+    const activities = getActivitiesByClass(classId);
+    return skillCatalog.map((skill) => {
+      const activityHits = activities.filter((activity) => getActivitySkillIds(activity).includes(skill.id)).length;
+      const pfmpHits = students.reduce((sum, student) => sum + getPfmpObservationLabels(student.id, skill.id).length, 0);
+      const acquiredCount = students.filter((student) => ["partiellement_acquis", "acquis"].includes(student.skills?.[skill.id])).length;
+      const totalTraces = activityHits + pfmpHits;
+      const neverWorked = totalTraces === 0;
+      const weakValidation = !neverWorked && acquiredCount > 0 && totalTraces < Math.max(1, Math.ceil(acquiredCount / 2));
+      return { skill, activityHits, pfmpHits, acquiredCount, neverWorked, weakValidation };
+    }).filter((item) => item.neverWorked || item.weakValidation);
+  }
+
+  function bindCoverageFinalAuthoritative() {
+    if (document.body?.dataset?.page !== "coverage") return;
+    const classSelect = document.querySelector("#coverage-class-select");
+    const meta = document.querySelector("#coverage-meta");
+    const stats = document.querySelector("#coverage-stats");
+    const domains = document.querySelector("#coverage-domains");
+    const weak = document.querySelector("#coverage-weak-skills");
+    const coherence = document.querySelector("#coverage-coherence");
+    if (!classSelect || !meta || !stats || !domains || !weak || !coherence) return;
+
+    const render = () => {
+      populateClassSelect(classSelect);
+      const requestedClassId = getRequestedClassId();
+      if (requestedClassId && [...classSelect.options].some((option) => option.value === requestedClassId)) {
+        classSelect.value = requestedClassId;
+      } else if (!classSelect.value && app.classes[0]) {
+        classSelect.value = app.classes[0].id;
+      }
+
+      const classId = classSelect.value || app.classes[0]?.id || "";
+      const classItem = getClassById(classId);
+      const students = getStudentsByClass(classId);
+      const snapshot = getCoverageSnapshot(classId);
+      const coherenceItems = getCoverageCoherenceItemsFinal(classId);
+
+      meta.textContent = repairDisplaySourceString(`${classItem?.name || ""} // ${students.length} élèves // ${snapshot.coveredSkills}/${skillCatalog.length} compétences activées`);
+      stats.innerHTML = [
+        { label: "Compétences actives", value: `${snapshot.coveredSkills}/${skillCatalog.length}`, trace: "séances ou PFMP" },
+        { label: "Séances liées", value: snapshot.activitiesCount, trace: "TP / TD reliés au référentiel" },
+        { label: "Observations PFMP", value: snapshot.pfmpObserved, trace: "compétences observées" },
+        { label: "Couverture moyenne", value: `${snapshot.coverageRate}%`, trace: "sur les 3 domaines" }
+      ].map(renderStatCard).join("");
+
+      domains.innerHTML = snapshot.domains.map((domain) => `
+        <article class="summary-card">
+          <h3>${escapeHtml(repairDisplaySourceString(domain.domain))}</h3>
+          <p class="muted-copy">${domain.coveredSkills}/${domain.totalSkills} compétences couvertes</p>
+          <p class="muted-copy">${domain.activitiesCount} séance(s) // ${domain.pfmpCount} observation(s) PFMP</p>
+        </article>
+      `).join("");
+
+      weak.innerHTML = snapshot.weakSkills.length
+        ? snapshot.weakSkills.map((skill) => `
+            <article class="directory-row compact">
+              <div>
+                <strong>${escapeHtml(skill.code)} - ${escapeHtml(repairDisplaySourceString(skill.title))}</strong>
+                <p>${escapeHtml(repairDisplaySourceString(getSkillDomain(skill)))} // ${skill.activitiesCount} séance(s) // ${skill.pfmpCount} observation(s) PFMP</p>
+              </div>
+            </article>
+          `).join("")
+        : `<article class="summary-card"><h3>Aucune faiblesse majeure</h3><p class="muted-copy">Toutes les compétences ont au moins une trace pédagogique.</p></article>`;
+
+      coherence.innerHTML = coherenceItems.length
+        ? coherenceItems.map((item) => `
+            <article class="directory-row compact">
+              <div>
+                <strong>${escapeHtml(item.skill.code)} - ${escapeHtml(repairDisplaySourceString(item.skill.title))}</strong>
+                <p>${escapeHtml(repairDisplaySourceString(getSkillDomain(item.skill)))} // ${item.activityHits} séance(s) // ${item.pfmpHits} observation(s) PFMP</p>
+                <p>${item.neverWorked ? "Jamais travaillée ni observée." : `Validation fragile : ${item.acquiredCount} élève(s) avancés pour seulement ${item.activityHits + item.pfmpHits} trace(s).`}</p>
+              </div>
+            </article>
+          `).join("")
+        : `<article class="summary-card"><h3>Cohérence satisfaisante</h3><p class="muted-copy">Aucune alerte de cohérence détectée pour cette classe.</p></article>`;
+
+      runFinalUtf8Sweep();
+    };
+
+    if (!classSelect.dataset.coverageFinalBound) {
+      classSelect.dataset.coverageFinalBound = "true";
+      classSelect.addEventListener("change", render);
+    }
+    render();
+    window.setTimeout(render, 180);
+  }
+
+  function bindReportsFinalAuthoritative() {
+    if (document.body?.dataset?.page !== "reports") return;
+    const classSelect = document.querySelector("#reports-class-select");
+    const meta = document.querySelector("#reports-meta");
+    const kpis = document.querySelector("#reports-kpis");
+    const alerts = document.querySelector("#reports-alerts");
+    const exportButton = document.querySelector("#reports-export-pdf");
+    const main = document.querySelector("main.dashboard-layout");
+    if (!classSelect || !meta || !kpis || !alerts || !exportButton || !main) return;
+
+    let domainsPanel = document.querySelector("#reports-domains-panel");
+    if (!domainsPanel) {
+      domainsPanel = document.createElement("section");
+      domainsPanel.id = "reports-domains-panel";
+      domainsPanel.className = "panel";
+      domainsPanel.innerHTML = `
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Domaines</p>
+            <h2>Équilibre pédagogique</h2>
+          </div>
+        </div>
+        <div id="reports-domains-content" class="class-cards"></div>
+      `;
+      main.appendChild(domainsPanel);
+    }
+
+    let archivesPanel = document.querySelector("#reports-archives-panel");
+    if (!archivesPanel) {
+      archivesPanel = document.createElement("section");
+      archivesPanel.id = "reports-archives-panel";
+      archivesPanel.className = "panel";
+      archivesPanel.innerHTML = `
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Archives</p>
+            <h2>Historique récent</h2>
+          </div>
+        </div>
+        <div id="reports-archives-content" class="student-directory"></div>
+      `;
+      main.appendChild(archivesPanel);
+    }
+
+    const domainsContent = document.querySelector("#reports-domains-content");
+    const archivesContent = document.querySelector("#reports-archives-content");
+    if (!domainsContent || !archivesContent) return;
+
+    const render = () => {
+      const requestedClassId = getRequestedClassId();
+      const classes = [...app.classes].sort((a, b) => getClassNavLabel(a).localeCompare(getClassNavLabel(b), "fr"));
+      classSelect.innerHTML = classes.map((classItem) => `<option value="${classItem.id}">${escapeHtml(repairDisplaySourceString(classItem.name))}</option>`).join("");
+      if (requestedClassId && classes.some((item) => item.id === requestedClassId)) {
+        classSelect.value = requestedClassId;
+      } else if (!classSelect.value && classes[0]) {
+        classSelect.value = classes[0].id;
+      }
+
+      const classId = classSelect.value || classes[0]?.id || "";
+      const classItem = getClassById(classId);
+      const students = getStudentsByClass(classId);
+      const activities = getActivitiesByClass(classId);
+      const alertsList = getClassAlerts(classId, "all");
+      const dispatchStore = parseLocalJsonFinal(EXAM_DISPATCH_STORAGE_KEY_FINAL, {});
+      const finalizedCount = students.filter((student) => dispatchStore[student.id]?.finalized).length;
+      const sentCount = students.filter((student) => dispatchStore[student.id]?.sent).length;
+      const evidenceCount = (app.evidencePortfolio || []).filter((entry) => students.some((student) => student.id === entry.studentId)).length;
+      const coherenceCount = getCoverageCoherenceItemsFinal(classId).length;
+      const snapshot = getCoverageSnapshot(classId);
+
+      meta.textContent = repairDisplaySourceString(`${classItem?.name || ""} // ${students.length} élèves // ${activities.length} séances`);
+      kpis.innerHTML = [
+        { label: "Élèves suivis", value: students.length, trace: "cohorte active" },
+        { label: "Séances actives", value: activities.length, trace: "TP / TD sur l'année" },
+        { label: "Preuves", value: evidenceCount, trace: "portefeuille exploitable" },
+        { label: "Dossiers finalisés", value: `${finalizedCount}/${students.length || 0}`, trace: `${sentCount} envoyé(s)` },
+        { label: "Alertes référentiel", value: coherenceCount, trace: `${snapshot.coverageRate}% de couverture` }
+      ].map(renderStatCard).join("");
+
+      alerts.innerHTML = alertsList.length
+        ? alertsList.map((item) => `
+            <article class="directory-row compact">
+              <div>
+                <strong>${escapeHtml(repairDisplaySourceString(item.title || "Alerte"))}</strong>
+                <p>${escapeHtml(repairDisplaySourceString(item.detail || item.meta || ""))}</p>
+              </div>
+            </article>
+          `).join("")
+        : `<article class="summary-card"><h3>Aucune alerte</h3><p class="muted-copy">La classe ne présente pas d'alerte majeure sur cette vue.</p></article>`;
+
+      domainsContent.innerHTML = snapshot.domains.map((domain) => `
+        <article class="summary-card">
+          <h3>${escapeHtml(repairDisplaySourceString(domain.domain))}</h3>
+          <p class="muted-copy">${domain.coveredSkills}/${domain.totalSkills} compétences couvertes</p>
+          <div class="pfmp-kpis">
+            <span class="badge">${Math.round(((domain.coveredSkills || 0) / Math.max(domain.totalSkills || 1, 1)) * 100)}%</span>
+            <span class="badge">${domain.activitiesCount} séance(s)</span>
+            <span class="badge">${domain.pfmpCount} PFMP</span>
+          </div>
+        </article>
+      `).join("");
+
+      const latestArchives = (app.archives || []).slice(0, 3);
+      archivesContent.innerHTML = latestArchives.length
+        ? latestArchives.map((archive) => `
+            <article class="directory-row compact">
+              <div>
+                <strong>${escapeHtml(repairDisplaySourceString(archive.label || "Archive"))}</strong>
+                <p>${escapeHtml(repairDisplaySourceString(archive.summary || "-"))}</p>
+                <p>${archive.students.length} élève(s) // ${archive.classes.length} classe(s)</p>
+              </div>
+            </article>
+          `).join("")
+        : `<article class="summary-card"><h3>Aucune archive</h3><p class="muted-copy">Les sessions archivées apparaîtront ici.</p></article>`;
+
+      runFinalUtf8Sweep();
+    };
+
+    if (!classSelect.dataset.reportsFinalBound) {
+      classSelect.dataset.reportsFinalBound = "true";
+      classSelect.addEventListener("change", render);
+      exportButton.addEventListener("click", () => {
+        const classItem = getClassById(classSelect.value);
+        const html = buildPrintShell(
+          `Rapport premium - ${classItem?.name || ""}`,
+          `${classItem?.name || ""} // ${new Date().toLocaleDateString("fr-FR")}`,
+          `
+            <section class="card"><h2>Indicateurs globaux</h2>${kpis.innerHTML}</section>
+            <section class="card"><h2>Points de vigilance</h2>${alerts.innerHTML}</section>
+            <section class="card"><h2>Équilibre pédagogique</h2>${domainsContent.innerHTML}</section>
+            <section class="card"><h2>Archives récentes</h2>${archivesContent.innerHTML}</section>
+          `
+        );
+        printHtmlDocument(`Rapport premium ${classItem?.name || ""}`, html);
+      });
+    }
+
+    render();
+    window.setTimeout(render, 180);
+  }
+
+  function bootFinalQualityLot() {
+    runFinalUtf8Sweep();
+    bindCoverageFinalAuthoritative();
+    bindReportsFinalAuthoritative();
+  }
+
+  window.__cielRunFinalUtf8Sweep = runFinalUtf8Sweep;
+  window.__cielBootFinalQualityLot = bootFinalQualityLot;
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bootFinalQualityLot, { once: true });
+  } else {
+    bootFinalQualityLot();
+  }
+  window.addEventListener("pageshow", () => window.setTimeout(bootFinalQualityLot, 0), { once: true });
+  [240, 900].forEach((delay) => window.setTimeout(runFinalUtf8Sweep, delay));
 })();
 
 (() => {
@@ -12760,8 +13108,9 @@ function initCandidatePageFinal() {
       });
       const validated = lines.filter((line) => ["partiellement_acquis", "acquis"].includes(line.status)).length;
       const score = lines.reduce((sum, line) => sum + (levelScores[line.status] || 0), 0) / (lines.length || 1);
-      const average = Math.round(score * 100);
-      const note = Math.round(score * 20 * 10) / 10;
+      const ratio = Math.max(0, Math.min(1, score / Math.max(levelScores.acquis || 4, 1)));
+      const average = Math.round(ratio * 100);
+      const note = Math.round(ratio * 20 * 10) / 10;
       const hasIncomplete = lines.some((line) => ["absent", "non_evalue", "non_acquis"].includes(line.status));
       const ready = lines.every((line) => ["partiellement_acquis", "acquis"].includes(line.status));
       const status = ready ? "Pret" : (hasIncomplete ? "Incomplet" : "A verifier");
@@ -14360,10 +14709,12 @@ function initCertificationPageFinal() {
       const ready = lines.every((line) => ["partiellement_acquis", "acquis"].includes(line.status));
       const incomplete = lines.some((line) => ["absent", "non_evalue", "non_acquis"].includes(line.status));
       const score = lines.reduce((sum, line) => sum + (levelScores[line.status] || 0), 0) / (lines.length || 1);
+      const ratio = Math.max(0, Math.min(1, score / Math.max(levelScores.acquis || 4, 1)));
       return {
         exam: item.exam,
         status: ready ? "Pret" : (incomplete ? "Incomplet" : "A verifier"),
-        note: Math.round(score * 20 * 10) / 10
+        progress: Math.round(ratio * 100),
+        note: Math.round(ratio * 20 * 10) / 10
       };
     });
   }
@@ -14376,6 +14727,7 @@ function initCertificationPageFinal() {
       preview,
       label: ready === preview.length ? "Pret a envoyer" : (incomplete ? "Incomplet" : "A verifier"),
       readyCount: ready,
+      progress: preview.length ? Math.round(preview.reduce((sum, item) => sum + (item.progress || 0), 0) / preview.length) : 0,
       note: preview.length ? Math.round(preview.reduce((sum, item) => sum + item.note, 0) / preview.length * 10) / 10 : 0
     };
   }
@@ -16134,5 +16486,18 @@ function initCertificationPageFinal() {
   } else {
     bindAuthoritativeSessionPanelSafe();
   }
+})();
+
+;(() => {
+  const rerun = () => {
+    window.__cielBootFinalQualityLot?.();
+    window.__cielRunFinalUtf8Sweep?.();
+  };
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => window.setTimeout(rerun, 0), { once: true });
+  } else {
+    window.setTimeout(rerun, 0);
+  }
+  window.setTimeout(rerun, 320);
 })();
 
