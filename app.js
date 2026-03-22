@@ -110,7 +110,7 @@ const rolePermissions = {
 
 const levelLabels = {
   absent: "Absent",
-  non_evalue: "Non Ã©valuÃ©",
+  non_evalue: "Non évalué",
   non_acquis: "Non acquis",
   en_cours_acquisition: "En cours d'acquisition",
   partiellement_acquis: "Partiellement acquis",
@@ -8943,46 +8943,16 @@ function initAccountsPage() {
     if (!total) return [];
     const normalized = normalizeGrade(grade);
     if (normalized === "") return Array.from({ length: total }, () => "non_evalue");
-    let lowerStatus = "non_acquis";
-    let upperStatus = "en_cours_acquisition";
-    let ratio = normalized / 5;
-    if (normalized >= 5 && normalized < 10) {
-      lowerStatus = "non_acquis";
-      upperStatus = "en_cours_acquisition";
-      ratio = (normalized - 5) / 5;
-    } else if (normalized >= 10 && normalized < 14) {
-      lowerStatus = "en_cours_acquisition";
-      upperStatus = "partiellement_acquis";
-      ratio = (normalized - 10) / 4;
-    } else if (normalized >= 14) {
-      lowerStatus = "partiellement_acquis";
-      upperStatus = "acquis";
-      ratio = (normalized - 14) / 6;
-    }
-    ratio = Math.max(0, Math.min(1, ratio));
-    let upperCount = Math.round(ratio * total);
-    if (normalized > 0 && normalized < 20 && total > 2) {
-      if (upperCount === 0) upperCount = 1;
-      if (upperCount === total) upperCount = total - 1;
-    }
-    const lowerCount = total - upperCount;
-    const distributed = [];
-    const upperIndexes = new Set();
-    if (upperCount > 0) {
-      for (let step = 1; step <= upperCount; step += 1) {
-        const index = Math.min(total - 1, Math.round((step * (total + 1)) / (upperCount + 1)) - 1);
-        upperIndexes.add(index);
-      }
-      let cursor = 0;
-      while (upperIndexes.size < upperCount && cursor < total) {
-        upperIndexes.add(cursor);
-        cursor += 1;
-      }
-    }
-    for (let index = 0; index < lowerCount + upperCount; index += 1) {
-      distributed.push(upperIndexes.has(index) ? upperStatus : lowerStatus);
-    }
-    return distributed;
+    const averageScore = Math.max(1, Math.min(4, (normalized / 20) * 4));
+    const spread = total <= 1 ? 0 : Math.min(0.9, 0.35 + total * 0.03);
+    return Array.from({ length: total }, (_, index) => {
+      const position = total <= 1 ? 0 : (index / (total - 1)) - 0.5;
+      const score = Math.max(1, Math.min(4, averageScore + position * spread));
+      if (score < 1.5) return "non_acquis";
+      if (score < 2.5) return "en_cours_acquisition";
+      if (score < 3.5) return "partiellement_acquis";
+      return "acquis";
+    });
   }
 
   function refreshEvaluationPanelsUltraSafe() {
@@ -9168,6 +9138,7 @@ function initAccountsPage() {
       select.addEventListener("change", (event) => {
         const target = event.target;
         if (!hasPermission("edit_evaluations")) return;
+        matrix.dataset.openStudentId = target.dataset.studentId || matrix.dataset.openStudentId || "";
         setActivityIndicatorStatus(target.dataset.activityId, target.dataset.studentId, target.dataset.indicatorId, target.value);
         persistAppData();
         window.setTimeout(refreshEvaluationPanelsUltraSafe, 0);
@@ -9183,6 +9154,7 @@ function initAccountsPage() {
       const commit = (event) => {
         const target = event.target;
         if (!hasPermission("edit_evaluations")) return;
+        matrix.dataset.openStudentId = target.dataset.studentId || matrix.dataset.openStudentId || "";
         applyActivityGlobalGradeUltraSafe(activity, target.dataset.studentId, String(target.value || "").replace(",", "."));
         persistAppData();
         window.setTimeout(refreshEvaluationPanelsUltraSafe, 0);
