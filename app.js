@@ -3218,11 +3218,23 @@ function initEvaluationsPageFinal() {
 
   function syncIndicatorTextareaFromDraft() {
     if (!activityIndicators) return;
+    const storedDraft = getStoredActivityIndicatorDraftSafe(activityForm);
+    if (storedDraft.length || activityForm?.dataset?.indicatorDraft === "[]") {
+      activityIndicatorDraft = storedDraft;
+    } else {
+      activityIndicatorDraft = setStoredActivityIndicatorDraftSafe(activityForm, activityIndicatorDraft);
+    }
     activityIndicators.value = activityIndicatorDraft.map((indicator) => indicator.label).join("\n");
   }
 
   function renderIndicatorDraft() {
     if (!activityIndicatorList) return;
+    const storedDraft = getStoredActivityIndicatorDraftSafe(activityForm);
+    if (storedDraft.length || activityForm?.dataset?.indicatorDraft === "[]") {
+      activityIndicatorDraft = storedDraft;
+    } else {
+      activityIndicatorDraft = setStoredActivityIndicatorDraftSafe(activityForm, activityIndicatorDraft);
+    }
       if (!activityIndicatorDraft.length) {
       activityIndicatorList.innerHTML = `<article class="directory-row"><div><strong>Aucun indicateur structuré</strong><p>Ajoute un indicateur lié à une compétence ou utilise la saisie rapide.</p></div></article>`;
       return;
@@ -3241,6 +3253,7 @@ function initEvaluationsPageFinal() {
     activityIndicatorList.querySelectorAll(".activity-indicator-remove").forEach((button) => {
       button.addEventListener("click", () => {
         activityIndicatorDraft = activityIndicatorDraft.filter((indicator) => indicator.id !== button.dataset.id);
+        setStoredActivityIndicatorDraftSafe(activityForm, activityIndicatorDraft);
         syncIndicatorTextareaFromDraft();
         renderIndicatorDraft();
       });
@@ -9832,7 +9845,12 @@ function initAccountsPage() {
     let indicatorDraft = [];
 
     function syncStoredDraftSafe() {
-      indicatorDraft = setStoredActivityIndicatorDraftSafe(activityForm, indicatorDraft);
+      const storedDraft = getStoredActivityIndicatorDraftSafe(activityForm);
+      if (storedDraft.length || activityForm?.dataset?.indicatorDraft === "[]") {
+        indicatorDraft = storedDraft;
+      } else {
+        indicatorDraft = setStoredActivityIndicatorDraftSafe(activityForm, indicatorDraft);
+      }
       return indicatorDraft;
     }
 
