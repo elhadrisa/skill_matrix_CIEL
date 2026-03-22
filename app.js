@@ -10285,6 +10285,7 @@ function initAccountsPage() {
       renderEvaluationPage();
       window.__cielScheduleActivityCardsLayoutSafe?.();
     }
+    window.__cielHandleActivityFormSubmitSafe = handleStructuredSubmitSafe;
 
     function enhanceStudentSkillRowsSafe() {
       const classId = document.querySelector("#eval-class-select")?.value || app.classes[0]?.id || "";
@@ -14434,6 +14435,30 @@ function initCertificationPageFinal() {
     document.addEventListener("DOMContentLoaded", bindVerticalActivityCardsUltimateSafe, { once: true });
   } else {
     bindVerticalActivityCardsUltimateSafe();
+  }
+})();
+
+(() => {
+  function bindAuthoritativeActivitySubmitGuardSafe() {
+    if (document.body?.dataset?.page !== "evaluations") return;
+    if (document.documentElement.dataset.activitySubmitGuardBound === "true") return;
+    document.documentElement.dataset.activitySubmitGuardBound = "true";
+
+    document.addEventListener("submit", (event) => {
+      const form = event.target;
+      if (!(form instanceof HTMLFormElement) || form.id !== "activity-form") return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      if (typeof window.__cielHandleActivityFormSubmitSafe === "function") {
+        window.__cielHandleActivityFormSubmitSafe(event);
+      }
+    }, true);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bindAuthoritativeActivitySubmitGuardSafe, { once: true });
+  } else {
+    bindAuthoritativeActivitySubmitGuardSafe();
   }
 })();
 
