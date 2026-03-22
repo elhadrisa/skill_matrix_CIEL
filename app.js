@@ -10781,6 +10781,155 @@ function initAccountsPage() {
   }
 })();
 
+(() => {
+  function getIndicatorEditorElementsUltraSafe() {
+    if (document.body?.dataset?.page !== "evaluations") return null;
+    const form = document.querySelector("#activity-form");
+    const skillSelect = document.querySelector("#activity-skill");
+    const indicatorSkillSelect = document.querySelector("#activity-indicator-skill");
+    const indicatorLabelInput = document.querySelector("#activity-indicator-label");
+    const indicatorList = document.querySelector("#activity-indicator-list");
+    const indicatorTextarea = document.querySelector("#activity-indicators");
+    const feedback = document.querySelector("#activity-feedback");
+    if (!form || !skillSelect || !indicatorSkillSelect || !indicatorLabelInput || !indicatorList || !indicatorTextarea || !feedback) {
+      return null;
+    }
+    return { form, skillSelect, indicatorSkillSelect, indicatorLabelInput, indicatorList, indicatorTextarea, feedback };
+  }
+
+  function syncIndicatorTextareaUltraSafe(textarea, draft) {
+    textarea.value = draft.map((indicator) => indicator.label).join("\n");
+  }
+
+  function renderIndicatorDraftListUltraSafe(indicatorList, draft) {
+    if (!draft.length) {
+      indicatorList.innerHTML = `<article class="directory-row"><div><strong>Aucun indicateur structuré</strong><p>Ajoute un indicateur lié à une compétence ou utilise la saisie rapide.</p></div></article>`;
+      return;
+    }
+    indicatorList.innerHTML = draft.map((indicator) => `
+      <article class="directory-row compact">
+        <div>
+          <strong>${escapeHtml(indicator.label)}</strong>
+          <p>${escapeHtml(indicator.skillId ? getActivitySkillLabel({ skillIds: [indicator.skillId], skillId: indicator.skillId }) : "Toutes les compétences de la séance")}</p>
+        </div>
+        <div class="student-badges">
+          <button class="ghost-button activity-indicator-remove-final" type="button" data-id="${indicator.id}">Retirer</button>
+        </div>
+      </article>
+    `).join("");
+  }
+
+  function refreshIndicatorDraftUiUltraSafe() {
+    const refs = getIndicatorEditorElementsUltraSafe();
+    if (!refs) return;
+    const draft = getStoredActivityIndicatorDraftSafe(refs.form);
+    syncIndicatorTextareaUltraSafe(refs.indicatorTextarea, draft);
+    renderIndicatorDraftListUltraSafe(refs.indicatorList, draft);
+  }
+
+  function addIndicatorUltraSafe() {
+    const refs = getIndicatorEditorElementsUltraSafe();
+    if (!refs) return;
+    const label = refs.indicatorLabelInput.value.trim();
+    if (!label) {
+      refs.feedback.textContent = "Saisis un indicateur avant de l'ajouter.";
+      return;
+    }
+    const availableSkillIds = getActivitySkillIdsForIndicatorPickerSafe(refs.skillSelect, refs.form);
+    const selectedSkillId = refs.indicatorSkillSelect.value || (availableSkillIds.length === 1 ? availableSkillIds[0] : "");
+    const draft = getStoredActivityIndicatorDraftSafe(refs.form);
+    draft.push({
+      id: slugify(`indicator-${label}-${Date.now()}`),
+      label,
+      skillId: selectedSkillId
+    });
+    setStoredActivityIndicatorDraftSafe(refs.form, draft);
+    refs.indicatorLabelInput.value = "";
+    refreshIndicatorDraftUiUltraSafe();
+    refs.feedback.textContent = "Indicateur ajouté.";
+  }
+
+  function clearIndicatorDraftUltraSafe() {
+    const refs = getIndicatorEditorElementsUltraSafe();
+    if (!refs) return;
+    setStoredActivityIndicatorDraftSafe(refs.form, []);
+    refreshIndicatorDraftUiUltraSafe();
+    refs.feedback.textContent = "Liste des indicateurs vidée.";
+  }
+
+  function removeIndicatorUltraSafe(indicatorId) {
+    const refs = getIndicatorEditorElementsUltraSafe();
+    if (!refs) return;
+    const draft = getStoredActivityIndicatorDraftSafe(refs.form).filter((indicator) => indicator.id !== indicatorId);
+    setStoredActivityIndicatorDraftSafe(refs.form, draft);
+    refreshIndicatorDraftUiUltraSafe();
+    refs.feedback.textContent = "Indicateur retiré.";
+  }
+
+  function bindAuthoritativeIndicatorEditorUltraSafe() {
+    if (document.body?.dataset?.page !== "evaluations") return;
+    if (document.body.dataset.authoritativeIndicatorEditorBound === "true") return;
+    document.body.dataset.authoritativeIndicatorEditorBound = "true";
+
+    document.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const addButton = target.closest("#activity-indicator-add");
+      if (addButton) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        addIndicatorUltraSafe();
+        return;
+      }
+      const clearButton = target.closest("#activity-indicator-clear");
+      if (clearButton) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        clearIndicatorDraftUltraSafe();
+        return;
+      }
+      const removeButton = target.closest(".activity-indicator-remove-final, .indicator-draft-delete, .activity-indicator-remove");
+      if (removeButton?.dataset?.id) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        removeIndicatorUltraSafe(removeButton.dataset.id);
+      }
+    }, true);
+
+    document.addEventListener("keydown", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (target.id === "activity-indicator-label" && event.key === "Enter") {
+        event.preventDefault();
+        addIndicatorUltraSafe();
+      }
+    }, true);
+
+    window.setTimeout(refreshIndicatorDraftUiUltraSafe, 0);
+    window.setTimeout(refreshIndicatorDraftUiUltraSafe, 120);
+  }
+
+  const originalInitEvaluationsPageFinalIndicatorAuthoritativeSafe = initEvaluationsPageFinal;
+  initEvaluationsPageFinal = function () {
+    originalInitEvaluationsPageFinalIndicatorAuthoritativeSafe();
+    window.setTimeout(bindAuthoritativeIndicatorEditorUltraSafe, 0);
+    window.setTimeout(refreshIndicatorDraftUiUltraSafe, 100);
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => {
+      bindAuthoritativeIndicatorEditorUltraSafe();
+      refreshIndicatorDraftUiUltraSafe();
+    }, { once: true });
+  } else {
+    bindAuthoritativeIndicatorEditorUltraSafe();
+    refreshIndicatorDraftUiUltraSafe();
+  }
+})();
+
 ;(function () {
   const EXAM_CENTER_SETTINGS_KEY = "ciel-exam-center-settings";
   const EXAM_GRID_STORAGE_KEY = "ciel-exam-grid-settings";
