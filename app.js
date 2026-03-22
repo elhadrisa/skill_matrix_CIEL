@@ -8934,6 +8934,50 @@ function initAccountsPage() {
     return normalizeGrade(activity?.evaluations?.[studentId]?.__globalGrade);
   }
 
+  function getLevelLabelSafe(status) {
+    return repairInlineLabelUltraSafe(levelLabels[status] || status || "");
+  }
+
+  function getDistributedStatusesForGradeUltraSafe(grade, count) {
+    const total = Math.max(0, Number.parseInt(count, 10) || 0);
+    if (!total) return [];
+    const normalized = normalizeGrade(grade);
+    if (normalized === "") return Array.from({ length: total }, () => "non_evalue");
+    const scale = [
+      { score: 1, status: "non_acquis" },
+      { score: 2, status: "en_cours_acquisition" },
+      { score: 3, status: "partiellement_acquis" },
+      { score: 4, status: "acquis" }
+    ];
+    const averageScore = Math.max(1, Math.min(4, (normalized / 20) * 4));
+    const lowerScore = Math.max(1, Math.min(4, Math.floor(averageScore)));
+    const upperScore = Math.max(1, Math.min(4, Math.ceil(averageScore)));
+    const lowerStatus = scale.find((item) => item.score === lowerScore)?.status || "non_acquis";
+    const upperStatus = scale.find((item) => item.score === upperScore)?.status || lowerStatus;
+    if (lowerScore === upperScore) {
+      return Array.from({ length: total }, () => lowerStatus);
+    }
+    const upperCount = Math.max(0, Math.min(total, Math.round((averageScore - lowerScore) * total)));
+    const lowerCount = Math.max(0, total - upperCount);
+    const distributed = [];
+    const upperIndexes = new Set();
+    if (upperCount > 0) {
+      for (let step = 1; step <= upperCount; step += 1) {
+        const index = Math.min(total - 1, Math.round((step * (total + 1)) / (upperCount + 1)) - 1);
+        upperIndexes.add(index);
+      }
+      let cursor = 0;
+      while (upperIndexes.size < upperCount && cursor < total) {
+        upperIndexes.add(cursor);
+        cursor += 1;
+      }
+    }
+    for (let index = 0; index < lowerCount + upperCount; index += 1) {
+      distributed.push(upperIndexes.has(index) ? upperStatus : lowerStatus);
+    }
+    return distributed;
+  }
+
   function applyActivityGlobalGradeUltraSafe(activity, studentId, grade) {
     const student = getStudentById(studentId);
     if (!activity || !student) return;
@@ -8945,13 +8989,23 @@ function initAccountsPage() {
     }
     activity.evaluations[studentId].__globalGrade = normalized;
     const autoStatus = mapGradeToStatus(normalized);
-    (activity.indicators || []).forEach((indicator) => {
-      activity.evaluations[studentId][indicator.id] = autoStatus;
+    const distributedStatuses = getDistributedStatusesForGradeUltraSafe(normalized, (activity.indicators || []).length);
+    (activity.indicators || []).forEach((indicator, index) => {
+      activity.evaluations[studentId][indicator.id] = distributedStatuses[index] || autoStatus;
     });
     student.skillGrades = hydrateSkillGrades(student.skillGrades || {});
     getActivitySkillIds(activity).forEach((skillId) => {
-      student.skillGrades[skillId] = normalized;
-      student.skills[skillId] = autoStatus;
+      const relatedIndicators = (activity.indicators || []).filter((indicator) => (indicator.skillId || "") === skillId);
+      if (!relatedIndicators.length) {
+        student.skillGrades[skillId] = normalized;
+        student.skills[skillId] = autoStatus;
+        return;
+      }
+      const scores = relatedIndicators.map((indicator) => levelScores[activity.evaluations[studentId][indicator.id]] || 0);
+      const averageScore = scores.length ? scores.reduce((sum, value) => sum + value, 0) / scores.length : 0;
+      const gradeFromIndicators = Math.round((averageScore / 4) * 20 * 2) / 2;
+      student.skillGrades[skillId] = gradeFromIndicators;
+      student.skills[skillId] = mapGradeToStatus(gradeFromIndicators);
     });
     logAction("Note de sÃ©ance appliquÃ©e", student.name, `${activity.title} // ${normalized}/20 // ${levelLabels[autoStatus] || autoStatus}`);
   }
@@ -9025,7 +9079,7 @@ function initAccountsPage() {
               </div>
               <div class="activity-student-card-meta">
                 <span class="badge">${groups.length} bloc(s)</span>
-                <span class="badge ${mappedStatus === "acquis" ? "success" : mappedStatus === "partiellement_acquis" ? "accent" : mappedStatus === "en_cours_acquisition" ? "warning" : "ghost"}">${escapeHtml(levelLabels[mappedStatus] || "Non évalué")}</span>
+                <span class="badge ${mappedStatus === "acquis" ? "success" : mappedStatus === "partiellement_acquis" ? "accent" : mappedStatus === "en_cours_acquisition" ? "warning" : "ghost"}">${escapeHtml(getLevelLabelSafe(mappedStatus) || "Non évalué")}</span>
               </div>
             </div>
           </div>
@@ -9034,7 +9088,7 @@ function initAccountsPage() {
               <label class="field compact-field">
                 <span>Note globale /20</span>
                 <input class="activity-student-global-grade" type="text" inputmode="decimal" data-activity-id="${activity.id}" data-student-id="${student.id}" value="${globalGrade === "" ? "" : globalGrade}" placeholder="Ex. 13.5">
-                <small>${escapeHtml(levelLabels[mapGradeToStatus(globalGrade)] || "Non évalué")}</small>
+                <small>${escapeHtml(getLevelLabelSafe(mapGradeToStatus(globalGrade)) || "Non évalué")}</small>
               </label>
             </section>
             ${groups.map((group) => `
@@ -9048,7 +9102,7 @@ function initAccountsPage() {
                 <div class="activity-indicator-card-grid">
                   ${group.indicators.map((indicator) => `
                     <label class="activity-indicator-card">
-                      <span class="activity-indicator-card-label">${escapeHtml(indicator.label)}</span>
+                      <span class="activity-indicator-card-label">${escapeHtml(repairInlineLabelUltraSafe(indicator.label))}</span>
                       <select data-activity-id="${activity.id}" data-student-id="${student.id}" data-indicator-id="${indicator.id}" class="activity-status-select"${hasPermission("edit_evaluations") ? "" : " disabled"}>
                         ${renderStatusOptions(getActivityIndicatorStatus(activity, student.id, indicator.id))}
                       </select>
@@ -9141,6 +9195,15 @@ function initAccountsPage() {
   const originalRenderEvaluationPageUltraSafe = renderEvaluationPage;
   renderEvaluationPage = function (...args) {
     originalRenderEvaluationPageUltraSafe.apply(this, args);
+    window.setTimeout(renderActivityCardsLayoutUltraSafe, 0);
+  };
+
+  renderActivityMatrix = function () {
+    const matrix = document.querySelector("#activity-matrix");
+    if (matrix) {
+      matrix.className = "activity-cards-layout";
+      matrix.innerHTML = "";
+    }
     window.setTimeout(renderActivityCardsLayoutUltraSafe, 0);
   };
 
