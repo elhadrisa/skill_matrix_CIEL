@@ -14316,3 +14316,86 @@ function initCertificationPageFinal() {
   };
 })();
 
+(() => {
+  function shouldForceVerticalActivityCardsUltimateSafe() {
+    if (document.body?.dataset?.page !== "evaluations") return false;
+    const matrix = document.querySelector("#activity-matrix");
+    if (!matrix) return false;
+    if (matrix.querySelector(".activity-student-card")) return false;
+    return matrix.classList.contains("activity-grid")
+      || Boolean(matrix.querySelector(".matrix-header, .matrix-row, .activity-header, .activity-row"));
+  }
+
+  function renderVerticalActivityCardsUltimateSafe() {
+    if (!shouldForceVerticalActivityCardsUltimateSafe()) return;
+    window.__cielRenderActivityCardsLayoutSafe?.();
+  }
+
+  let activityCardsUltimateToken = 0;
+  function scheduleVerticalActivityCardsUltimateSafe() {
+    if (document.body?.dataset?.page !== "evaluations") return;
+    const token = ++activityCardsUltimateToken;
+    const runner = () => {
+      if (token !== activityCardsUltimateToken) return;
+      renderVerticalActivityCardsUltimateSafe();
+    };
+    runner();
+    window.requestAnimationFrame(runner);
+    [30, 90, 180, 320].forEach((delay) => window.setTimeout(runner, delay));
+  }
+
+  function bindVerticalActivityCardsUltimateSafe() {
+    if (document.body?.dataset?.page !== "evaluations") return;
+    if (document.body.dataset.verticalCardsUltimateBound === "true") return;
+    document.body.dataset.verticalCardsUltimateBound = "true";
+
+    const schedule = () => scheduleVerticalActivityCardsUltimateSafe();
+
+    [
+      "#activity-select",
+      "#session-class-select",
+      "#eval-class-select",
+      "#eval-student-select",
+      "#activity-search-input"
+    ].forEach((selector) => {
+      const element = document.querySelector(selector);
+      if (!element || element.dataset.verticalCardsUltimateBound === "true") return;
+      element.dataset.verticalCardsUltimateBound = "true";
+      element.addEventListener("change", schedule);
+      if (selector === "#activity-search-input") {
+        element.addEventListener("input", schedule);
+      }
+    });
+
+    [
+      "#activity-form",
+      "#activity-duplicate-button",
+      "#activity-edit-button",
+      "#activity-delete-button",
+      "#activity-cancel-edit",
+      "#activity-submit-button"
+    ].forEach((selector) => {
+      const element = document.querySelector(selector);
+      if (!element || element.dataset.verticalCardsUltimateActionBound === "true") return;
+      element.dataset.verticalCardsUltimateActionBound = "true";
+      element.addEventListener("click", schedule, true);
+      if (element instanceof HTMLFormElement) {
+        element.addEventListener("submit", schedule, true);
+      }
+    });
+
+    const bodyObserver = new MutationObserver(() => {
+      if (shouldForceVerticalActivityCardsUltimateSafe()) scheduleVerticalActivityCardsUltimateSafe();
+    });
+    bodyObserver.observe(document.body, { childList: true, subtree: true });
+
+    scheduleVerticalActivityCardsUltimateSafe();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bindVerticalActivityCardsUltimateSafe, { once: true });
+  } else {
+    bindVerticalActivityCardsUltimateSafe();
+  }
+})();
+
