@@ -8995,18 +8995,24 @@ function initAccountsPage() {
     if (!activity) {
       matrix.className = "activity-cards-layout";
       matrix.innerHTML = "";
+      delete matrix.dataset.openStudentId;
       return;
     }
 
     const students = getStudentsByClass(classId);
     const groups = getActivityIndicatorGroupsUltraSafe(activity);
+    if (matrix.dataset.openStudentId && !students.some((student) => student.id === matrix.dataset.openStudentId)) {
+      delete matrix.dataset.openStudentId;
+    }
+    const preferredOpenStudentId = matrix.dataset.openStudentId || students[0]?.id || "";
     matrix.className = "activity-cards-layout";
     matrix.innerHTML = students.map((student, index) => {
       const globalGrade = getActivityGlobalGradeUltraSafe(activity, student.id);
       const mappedStatus = mapGradeToStatus(globalGrade);
+      const isOpen = student.id === preferredOpenStudentId || (!preferredOpenStudentId && index === 0);
       return `
-        <article class="activity-student-card panel${index === 0 ? " is-open" : ""}" data-student-id="${student.id}">
-          <button class="activity-student-toggle" type="button" aria-expanded="${index === 0 ? "true" : "false"}">
+        <article class="activity-student-card panel${isOpen ? " is-open" : ""}" data-student-id="${student.id}">
+          <button class="activity-student-toggle" type="button" aria-expanded="${isOpen ? "true" : "false"}">
             <div class="activity-student-card-head">
               <div class="activity-student-head-main">
                 <h3>${escapeHtml(student.name)}</h3>
@@ -9058,6 +9064,7 @@ function initAccountsPage() {
         const card = button.closest(".activity-student-card");
         if (!card) return;
         const shouldOpen = !card.classList.contains("is-open");
+        matrix.dataset.openStudentId = shouldOpen ? card.dataset.studentId || "" : "";
         matrix.querySelectorAll(".activity-student-card").forEach((item) => {
           item.classList.remove("is-open");
           const toggle = item.querySelector(".activity-student-toggle");
