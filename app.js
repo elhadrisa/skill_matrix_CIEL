@@ -402,6 +402,10 @@ async function initializeApp() {
       if (page === "candidate") initCandidatePageFinal();
       if (page === "certification") initCertificationPageFinal();
       if (page === "remediation_pfmp" || page === "remediation_competences") initRemediationPageFinal();
+      if (page === "reports") {
+        initReportsPageFinalSafe();
+        window.setTimeout(enrichReportsPageSafe, 0);
+      }
       return;
     }
 
@@ -432,6 +436,10 @@ async function initializeApp() {
     if (page === "candidate") initCandidatePageFinal();
     if (page === "certification") initCertificationPageFinal();
     if (page === "remediation_pfmp" || page === "remediation_competences") initRemediationPageFinal();
+    if (page === "reports") {
+      initReportsPageFinalSafe();
+      window.setTimeout(enrichReportsPageSafe, 0);
+    }
 }
 }
 
@@ -15589,17 +15597,6 @@ function initCertificationPageFinal() {
     window.setTimeout(renderEvidenceFiltersSafe, 0);
   };
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => {
-      if (document.body?.dataset?.page === "reports") {
-        initReportsPageFinalSafe();
-        window.setTimeout(enrichReportsPageSafe, 0);
-      }
-    }, { once: true });
-  } else if (document.body?.dataset?.page === "reports") {
-    initReportsPageFinalSafe();
-    window.setTimeout(enrichReportsPageSafe, 0);
-  }
 })();
 
 (() => {
