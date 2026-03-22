@@ -9720,6 +9720,10 @@ function initAccountsPage() {
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     let node = walker.nextNode();
     while (node) {
+      if (node.parentElement?.closest?.("#activity-matrix")) {
+        node = walker.nextNode();
+        continue;
+      }
       const fixed = normalizeDisplayText(node.nodeValue);
       if (fixed !== node.nodeValue) {
         node.nodeValue = fixed;
@@ -9727,6 +9731,7 @@ function initAccountsPage() {
       node = walker.nextNode();
     }
     root.querySelectorAll("input[placeholder], textarea[placeholder], [title], option, button, h1, h2, h3, p, small, span, a, label").forEach((element) => {
+      if (element.closest?.("#activity-matrix")) return;
       if (element.hasAttribute("placeholder")) {
         const fixed = normalizeDisplayText(element.getAttribute("placeholder"));
         if (fixed !== element.getAttribute("placeholder")) element.setAttribute("placeholder", fixed);
@@ -9804,12 +9809,17 @@ function initAccountsPage() {
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     let node = walker.nextNode();
     while (node) {
+      if (node.parentElement?.closest?.("#activity-matrix")) {
+        node = walker.nextNode();
+        continue;
+      }
       const fixed = repairMojibakeSafe(node.nodeValue);
       if (fixed !== node.nodeValue) node.nodeValue = fixed;
       node = walker.nextNode();
     }
 
     root.querySelectorAll("input[placeholder], textarea[placeholder], [title], option, button, h1, h2, h3, p, small, span, a, label").forEach((element) => {
+      if (element.closest?.("#activity-matrix")) return;
       if (element.hasAttribute("placeholder")) {
         const placeholder = element.getAttribute("placeholder");
         const fixed = repairMojibakeSafe(placeholder);
