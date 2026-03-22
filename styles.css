@@ -367,6 +367,9 @@ body:not([data-page="home"]) .nav-tabs {
   min-width: 150px;
   text-align: center;
 }
+#session-role:empty {
+  display: none;
+}
 .nav-tab, .nav-dropdown-toggle, .nav-dropdown-link { font-size: 0.79rem; letter-spacing: 0.01em; }
 .nav-dropdown { position: relative; flex: 0 0 auto; }
 .nav-dropdown-toggle { min-height: 36px; list-style: none; cursor: pointer; }
