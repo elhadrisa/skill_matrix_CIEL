@@ -240,19 +240,18 @@
     if (event.key === "Escape") closeAll();
   });
 
-  window.addEventListener("resize", () => {
-    document.querySelectorAll("select.cmx-native-select-source").forEach((select) => {
-      const state = states.get(select);
-      if (state?.wrapper.classList.contains("is-open")) positionMenu(select);
+  function repositionOpenMenus() {
+    const openWrappers = document.querySelectorAll(".cmx-select.is-open");
+    if (!openWrappers.length) return;
+    openWrappers.forEach((wrapper) => {
+      const select = wrapper.querySelector("select.cmx-native-select-source");
+      if (select) positionMenu(select);
     });
-  });
+  }
 
-  window.addEventListener("scroll", () => {
-    document.querySelectorAll("select.cmx-native-select-source").forEach((select) => {
-      const state = states.get(select);
-      if (state?.wrapper.classList.contains("is-open")) positionMenu(select);
-    });
-  }, true);
+  window.addEventListener("resize", repositionOpenMenus);
+
+  window.addEventListener("scroll", repositionOpenMenus, true);
 
   const bodyObserver = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
@@ -264,21 +263,11 @@
     });
   });
 
-  function pollSync() {
-    document.querySelectorAll("select.cmx-native-select-source").forEach((select) => {
-      const state = states.get(select);
-      if (!state) return;
-      const snapshot = getSnapshot(select);
-      if (snapshot !== state.snapshot) syncSelect(select);
-    });
-  }
-
   function boot() {
     enhanceAll(document);
     if (document.body) {
       bodyObserver.observe(document.body, { childList: true, subtree: true });
     }
-    window.setInterval(pollSync, 250);
   }
 
   if (document.readyState === "loading") {
