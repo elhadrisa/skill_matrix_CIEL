@@ -21,11 +21,11 @@
         <a class="nav-tab" href="index.html">Accueil</a>
         <a class="nav-tab" href="classes.html">Classes</a>
         <a class="nav-tab" href="dashboard.html">Dashboard</a>
-        <a class="nav-tab" href="evaluations.html">Evaluations</a>
+        <a class="nav-tab" href="evaluations.html">Évaluations</a>
         <a class="nav-tab" href="pfmp.html">PFMP</a>
         <a class="nav-tab active" href="candidate.html">Examen</a>
         <span id="session-role" class="badge accent"></span>
-        <button id="logout-button" class="ghost-button" type="button">Deconnexion</button>
+        <button id="logout-button" class="ghost-button" type="button">Déconnexion</button>
       </nav>
       <a class="topbar-brandmark" href="index.html" aria-label="CIEL Matrix"><img src="ciel-matrix-logo.svg" alt="CIEL Matrix"></a>
     </header>
@@ -33,24 +33,24 @@
     <section class="hero panel">
       <div class="hero-copy">
         <p class="eyebrow">Maison des examens</p>
-        <h2 class="hero-title">Pilote les epreuves et le dossier officiel</h2>
+        <h2 class="hero-title">Pilote les épreuves et le dossier officiel</h2>
         <p class="hero-text">
-          Regroupe sur une seule page le pilotage certification de la classe et la preparation du dossier officiel eleve pour E2 / E31 / E32.
+          Regroupe sur une seule page le pilotage certification de la classe et la préparation du dossier officiel élève pour E2 / E31 / E32.
         </p>
       </div>
       <section class="hero-side">
         <div class="hero-side-head">
           <div>
-            <h2>Parametres examen</h2>
+            <h2>Paramètres examen</h2>
             <p id="candidate-meta" class="results-count"></p>
           </div>
           <div class="student-badges">
-            <button id="candidate-use-default" class="ghost-button" type="button">Utiliser le modele officiel</button>
+            <button id="candidate-use-default" class="ghost-button" type="button">Utiliser le modèle officiel</button>
             <button id="candidate-export-pack" class="ghost-button" type="button">Exporter le dossier complet</button>
             <button id="candidate-export-class-pdf" class="ghost-button" type="button">Exporter la vue classe</button>
             <button id="candidate-export-class-pack" class="ghost-button" type="button">Exporter les dossiers de la classe</button>
             <button id="candidate-export-pdf" class="ghost-button" type="button">Exporter le recap PDF</button>
-            <button id="candidate-export-grid" class="primary-button" type="button">Telecharger la grille completee</button>
+            <button id="candidate-export-grid" class="primary-button" type="button">Télécharger la grille complétée</button>
           </div>
         </div>
         <div class="mini-grid">
@@ -59,11 +59,11 @@
             <select id="candidate-class-select"></select>
           </label>
           <label class="field">
-            <span>Eleve</span>
+            <span>Élève</span>
             <select id="candidate-student-select"></select>
           </label>
           <label class="field">
-            <span>Numero candidat</span>
+            <span>Numéro candidat</span>
             <input id="candidate-number" type="text" placeholder="Ex. 2457812A">
           </label>
           <label class="field">
@@ -71,19 +71,19 @@
             <input id="candidate-date" type="date">
           </label>
           <label class="field">
-            <span>Academie</span>
-            <input id="candidate-academy" type="text" placeholder="Ex. Creteil">
+            <span>Académie</span>
+            <input id="candidate-academy" type="text" placeholder="Ex. Créteil">
           </label>
           <label class="field">
-            <span>Etablissement</span>
-            <input id="candidate-school" type="text" placeholder="Ex. Lycee ...">
+            <span>Établissement</span>
+            <input id="candidate-school" type="text" placeholder="Ex. Lycée ...">
           </label>
           <label class="field">
             <span>Filtre statut</span>
             <select id="candidate-status-filter">
               <option value="all">Tous</option>
-              <option value="ready">Prets</option>
-              <option value="review">A verifier</option>
+              <option value="ready">Prêts</option>
+              <option value="review">À vérifier</option>
               <option value="incomplete">Incomplets</option>
             </select>
           </label>
@@ -101,7 +101,7 @@
         <div class="hero-side-head">
           <div>
             <h2>Vue certification de la classe</h2>
-            <p class="results-count">Etat moyen des epreuves E2 / E31 / E32 pour la classe selectionnee.</p>
+            <p class="results-count">État moyen des épreuves E2 / E31 / E32 pour la classe sélectionnée.</p>
           </div>
         </div>
         <div id="candidate-cert-overview" class="class-cards"></div>
@@ -110,8 +110,8 @@
       <section class="panel">
         <div class="hero-side-head">
           <div>
-            <h2>Eleves a suivre</h2>
-            <p class="results-count">Repere les dossiers prets, a verifier ou incomplets avant envoi.</p>
+            <h2>Élèves à suivre</h2>
+            <p class="results-count">Repère les dossiers prêts, à vérifier ou incomplets avant envoi.</p>
           </div>
         </div>
         <div id="candidate-cert-students" class="class-cards"></div>
@@ -120,8 +120,8 @@
       <section class="panel">
         <div class="hero-side-head">
           <div>
-            <h2>Etat global du dossier</h2>
-            <p class="results-count">Vision synthetique du candidat avant envoi a la Maison des examens.</p>
+            <h2>État global du dossier</h2>
+            <p class="results-count">Vision synthétique du candidat avant envoi à la Maison des examens.</p>
           </div>
         </div>
         <div id="candidate-overview" class="class-cards"></div>
@@ -130,8 +130,8 @@
       <section class="panel">
         <div class="hero-side-head">
           <div>
-            <h2>Detail des epreuves</h2>
-            <p class="results-count">Competences mobilisees, niveau actuel, note estimative et statut.</p>
+            <h2>Détail des épreuves</h2>
+            <p class="results-count">Compétences mobilisées, niveau actuel, note estimative et statut.</p>
           </div>
         </div>
         <div id="candidate-exam-preview" class="class-cards"></div>

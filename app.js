@@ -154,6 +154,164 @@ const PFMP_PERIODS = [
   { id: "terminale_2", label: "Terminale - PFMP 2", cycle: "Terminale" }
 ];
 
+function repairDisplaySourceString(value) {
+  if (typeof value !== "string" || !value) return value;
+  let next = value;
+  if (/[ÃÂâ€��]/.test(next)) {
+    for (let index = 0; index < 4; index += 1) {
+      try {
+        const repaired = decodeURIComponent(escape(next));
+        if (!repaired || repaired === next) break;
+        next = repaired;
+      } catch {
+        break;
+      }
+    }
+  }
+
+  const sourceFixups = [
+    [/\bCreation\b/g, "Création"],
+    [/\bcreation\b/g, "création"],
+    [/\bEvaluation\b/g, "Évaluation"],
+    [/\bevaluation\b/g, "évaluation"],
+    [/\bEvaluations\b/g, "Évaluations"],
+    [/\bevaluations\b/g, "évaluations"],
+    [/\bCompetence\b/g, "Compétence"],
+    [/\bCompetences\b/g, "Compétences"],
+    [/\bcompetence\b/g, "compétence"],
+    [/\bcompetences\b/g, "compétences"],
+    [/\bEleve\b/g, "Élève"],
+    [/\bEleves\b/g, "Élèves"],
+    [/\beleve\b/g, "élève"],
+    [/\beleves\b/g, "élèves"],
+    [/\bSeance\b/g, "Séance"],
+    [/\bSeances\b/g, "Séances"],
+    [/\bseance\b/g, "séance"],
+    [/\bseances\b/g, "séances"],
+    [/\bAcademie\b/g, "Académie"],
+    [/\bacademie\b/g, "académie"],
+    [/\bEtablissement\b/g, "Établissement"],
+    [/\betablissement\b/g, "établissement"],
+    [/\bPremiere\b/g, "Première"],
+    [/\bpremiere\b/g, "première"],
+    [/\bBibliotheque\b/g, "Bibliothèque"],
+    [/\bbibliotheque\b/g, "bibliothèque"],
+    [/\bSynthese\b/g, "Synthèse"],
+    [/\bsynthese\b/g, "synthèse"],
+    [/\bRemediation\b/g, "Remédiation"],
+    [/\bRemediations\b/g, "Remédiations"],
+    [/\bremediation\b/g, "remédiation"],
+    [/\bremediations\b/g, "remédiations"],
+    [/\bReferentiel\b/g, "Référentiel"],
+    [/\breferentiel\b/g, "référentiel"],
+    [/\bPeriode\b/g, "Période"],
+    [/\bPeriodes\b/g, "Périodes"],
+    [/\bperiode\b/g, "période"],
+    [/\bperiodes\b/g, "périodes"],
+    [/\bActivite\b/g, "Activité"],
+    [/\bActivites\b/g, "Activités"],
+    [/\bactivite\b/g, "activité"],
+    [/\bactivites\b/g, "activités"],
+    [/\bDuree\b/g, "Durée"],
+    [/\bduree\b/g, "durée"],
+    [/\bTracabilite\b/g, "Traçabilité"],
+    [/\btracabilite\b/g, "traçabilité"],
+    [/\bParametres\b/g, "Paramètres"],
+    [/\bparametres\b/g, "paramètres"],
+    [/\bDeconnexion\b/g, "Déconnexion"],
+    [/\bdeconnexion\b/g, "déconnexion"],
+    [/\bpedagogique\b/g, "pédagogique"],
+    [/\bpedagogiques\b/g, "pédagogiques"],
+    [/\bcoherence\b/g, "cohérence"],
+    [/\bsecurite\b/g, "sécurité"],
+    [/\breseau\b/g, "réseau"],
+    [/\bReseau\b/g, "Réseau"],
+    [/\bgenerale\b/g, "générale"],
+    [/\bGenerale\b/g, "Générale"],
+    [/\bpreparation\b/g, "préparation"],
+    [/\bPreparation\b/g, "Préparation"],
+    [/\banalysee\b/g, "analysée"],
+    [/\bAnalysee\b/g, "Analysée"],
+    [/\breelle\b/g, "réelle"],
+    [/\bReelle\b/g, "Réelle"],
+    [/\bresume\b/g, "résumé"],
+    [/\bResume\b/g, "Résumé"],
+    [/\bverifier\b/g, "vérifier"],
+    [/\bVerifier\b/g, "Vérifier"],
+    [/\bprete\b/g, "prête"],
+    [/\bPrete\b/g, "Prête"],
+    [/\bprets\b/g, "prêts"],
+    [/\bPrets\b/g, "Prêts"]
+  ];
+
+  sourceFixups.forEach(([pattern, replacement]) => {
+    next = next.replace(pattern, replacement);
+  });
+
+  return next
+    .replace(/ÃƒÂ/g, "")
+    .replace(/â€“/g, "–")
+    .replace(/â€”/g, "—")
+    .replace(/â€¦/g, "…")
+    .replace(/â€¢/g, "•")
+    .replace(/â€˜/g, "‘")
+    .replace(/â€™/g, "’")
+    .replace(/â€œ/g, "“")
+    .replace(/â€\x9D/g, "”")
+    .replace(/â„¢/g, "™");
+}
+
+function shouldRepairStructuredText(key, value) {
+  if (typeof value !== "string" || !value) return false;
+  if (["id", "classId", "studentId", "skillId", "portfolioKey", "username", "password", "url", "href", "src", "path", "value", "type"].includes(key)) {
+    return false;
+  }
+  if (/^(?:https?:|mailto:|tel:)/i.test(value)) return false;
+  if (/\.(?:html?|svg|png|jpg|jpeg|gif|webp|xlsx?|pdf)(?:$|\?)/i.test(value)) return false;
+  if (/^[a-z0-9_-]+$/i.test(value) && !/[ÃÂâ€��]/.test(value)) return false;
+  return /[ÃÂâ€��]/.test(value)
+    || /\b(?:Creation|Evaluation|Evaluations|Competence|Competences|Eleve|Eleves|Seance|Seances|Academie|Etablissement|Premiere|Bibliotheque|Synthese|Remediation|Remediations|Referentiel|Periode|Periodes|Activite|Activites|Duree|Deconnexion|Tracabilite|coherence|pedagogique|securite|reseau|preparation|generale|analysee|reelle|resume|verifier|prets)\b/i.test(value);
+}
+
+function repairStructuredTextInPlace(node, seen = new WeakSet()) {
+  if (!node || typeof node !== "object") return node;
+  if (seen.has(node)) return node;
+  seen.add(node);
+  if (Array.isArray(node)) {
+    node.forEach((item) => repairStructuredTextInPlace(item, seen));
+    return node;
+  }
+  Object.keys(node).forEach((key) => {
+    const value = node[key];
+    if (typeof value === "string") {
+      if (shouldRepairStructuredText(key, value)) {
+        node[key] = repairDisplaySourceString(value);
+      }
+      return;
+    }
+    if (value && typeof value === "object") {
+      repairStructuredTextInPlace(value, seen);
+    }
+  });
+  return node;
+}
+
+[
+  skillCatalog,
+  defaultClasses,
+  defaultStudents,
+  defaultPfmpRecords,
+  defaultIndicatorBank,
+  defaultLessonLibrary,
+  defaultAccounts,
+  defaultActivityLog,
+  defaultEvidencePortfolio,
+  defaultArchives,
+  roleCatalog,
+  skillDomainOverrides,
+  PFMP_PERIODS
+].forEach((entry) => repairStructuredTextInPlace(entry));
+
 const page = document.body.dataset.page;
 const PROTECTED_PAGES = new Set(["dashboard", "classes", "evaluations", "pfmp", "pfmp_livret", "accounts", "bulletin", "candidate", "certification", "remediation_pfmp", "remediation_competences", "coverage", "mapping", "library", "reports"]);
 const ADMIN_ONLY_PAGES = new Set(["accounts"]);
@@ -472,6 +630,7 @@ async function persistCriticalAppData(data = app) {
 }
 
 function hydrateAppData(data) {
+  repairStructuredTextInPlace(data);
   const classes = (data.classes || defaultClasses).map((classItem, index) => ({
     id: classItem.id || `class-${index + 1}`,
     name: classItem.name || `Classe ${index + 1}`,
@@ -10033,8 +10192,8 @@ function initAccountsPage() {
     plainFrenchFixups.forEach(([pattern, replacement]) => {
       next = next.replace(pattern, replacement);
     });
-    next = next.replace(/Session Ã  clÃ´turer/g, "Session Ã  clÃ´turer");
-    next = next.replace(/Nouvelle annÃ©e scolaire/g, "Nouvelle annÃ©e scolaire");
+    next = next.replace(/Session Ã  clÃ´turer/g, "Session à clôturer");
+    next = next.replace(/Nouvelle annÃ©e scolaire/g, "Nouvelle année scolaire");
     return next;
   }
 
@@ -10051,7 +10210,7 @@ function initAccountsPage() {
       }
       node = walker.nextNode();
     }
-    root.querySelectorAll("input[placeholder], textarea[placeholder], [title], option, button, h1, h2, h3, p, small, span, a, label").forEach((element) => {
+    root.querySelectorAll("input[placeholder], textarea[placeholder], [title], [aria-label], img[alt], option, button, h1, h2, h3, h4, p, small, span, a, label, strong, th, td, legend, summary").forEach((element) => {
       if (element.hasAttribute("placeholder")) {
         const fixed = normalizeDisplayText(element.getAttribute("placeholder"));
         if (fixed !== element.getAttribute("placeholder")) element.setAttribute("placeholder", fixed);
@@ -10060,9 +10219,21 @@ function initAccountsPage() {
         const fixed = normalizeDisplayText(element.getAttribute("title"));
         if (fixed !== element.getAttribute("title")) element.setAttribute("title", fixed);
       }
+      if (element.hasAttribute("aria-label")) {
+        const fixed = normalizeDisplayText(element.getAttribute("aria-label"));
+        if (fixed !== element.getAttribute("aria-label")) element.setAttribute("aria-label", fixed);
+      }
+      if (element.hasAttribute("alt")) {
+        const fixed = normalizeDisplayText(element.getAttribute("alt"));
+        if (fixed !== element.getAttribute("alt")) element.setAttribute("alt", fixed);
+      }
       if (element.tagName === "OPTION" || element.tagName === "BUTTON") {
         const fixed = normalizeDisplayText(element.textContent);
         if (fixed !== element.textContent) element.textContent = fixed;
+      }
+      if (element instanceof HTMLInputElement && /^(button|submit|reset)$/i.test(element.type)) {
+        const fixed = normalizeDisplayText(element.value);
+        if (fixed !== element.value) element.value = fixed;
       }
     });
     document.title = normalizeDisplayText(document.title);
@@ -10138,7 +10309,7 @@ function initAccountsPage() {
       node = walker.nextNode();
     }
 
-    root.querySelectorAll("input[placeholder], textarea[placeholder], [title], option, button, h1, h2, h3, p, small, span, a, label").forEach((element) => {
+    root.querySelectorAll("input[placeholder], textarea[placeholder], [title], [aria-label], img[alt], option, button, h1, h2, h3, h4, p, small, span, a, label, strong, th, td, legend, summary").forEach((element) => {
       if (element.hasAttribute("placeholder")) {
         const placeholder = element.getAttribute("placeholder");
         const fixed = repairMojibakeSafe(placeholder);
@@ -10149,8 +10320,22 @@ function initAccountsPage() {
         const fixed = repairMojibakeSafe(title);
         if (fixed !== title) element.setAttribute("title", fixed);
       }
+      if (element.hasAttribute("aria-label")) {
+        const label = element.getAttribute("aria-label");
+        const fixed = repairMojibakeSafe(label);
+        if (fixed !== label) element.setAttribute("aria-label", fixed);
+      }
+      if (element.hasAttribute("alt")) {
+        const alt = element.getAttribute("alt");
+        const fixed = repairMojibakeSafe(alt);
+        if (fixed !== alt) element.setAttribute("alt", fixed);
+      }
       const fixedText = repairMojibakeSafe(element.textContent);
       if (fixedText !== element.textContent) element.textContent = fixedText;
+      if (element instanceof HTMLInputElement && /^(button|submit|reset)$/i.test(element.type)) {
+        const fixed = repairMojibakeSafe(element.value);
+        if (fixed !== element.value) element.value = fixed;
+      }
     });
 
     document.title = repairMojibakeSafe(document.title);
