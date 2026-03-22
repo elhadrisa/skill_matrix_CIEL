@@ -593,6 +593,23 @@ body[data-page="cielai"]::after {
   min-height: 220px;
 }
 
+.cielai-rubric-list {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0 16px;
+}
+
+.cielai-rubric-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: rgba(5, 15, 24, 0.72);
+}
+
 body.evaluations-create-view .evaluation-layout {
   grid-template-columns: 1fr;
   justify-items: center;
