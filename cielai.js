@@ -66,6 +66,8 @@
       skillsSelect: bySelector("#cielai-skills"),
       commentInput: bySelector("#cielai-comment"),
       insights: bySelector("#cielai-insights"),
+      pedagogyKit: bySelector("#cielai-pedagogy-kit"),
+      inductivePlan: bySelector("#cielai-inductive-plan"),
       groups: bySelector("#cielai-indicators-groups")
     };
   }
@@ -300,8 +302,300 @@
       suggestedClassId,
       skillConfidence,
       cues,
-      stats: { fileName: safeRepair(fileName), usefulUnits: units.length }
+      stats: { fileName: safeRepair(fileName), usefulUnits: units.length },
+      sourceUnits: units.slice(0, 10)
     };
+  }
+
+  function getSkillCode(skillId) {
+    const skill = getSkillById(skillId);
+    return safeRepair(skill?.code || String(skillId || "").toUpperCase());
+  }
+
+  function getPedagogyProfile(domainLabel, type) {
+    const isTd = String(type || "").toUpperCase() === "TD";
+    const profiles = {
+      "Reseau Informatique": {
+        trigger: "une situation reseau a rendre fonctionnelle ou conforme au besoin",
+        exploration: isTd ? "faire rechercher la logique d'adressage et justifier les calculs" : "faire manipuler l'adressage, la configuration et les tests de connectivite",
+        formalization: "stabiliser la methode de configuration et les controles reseau",
+        reinvestment: "transferer la methode sur une variante d'architecture ou de parametrage"
+      },
+      "Cybersecurite": {
+        trigger: "une situation de securisation, d'analyse ou d'automatisation a traiter",
+        exploration: isTd ? "faire analyser les risques, les traces ou le script attendu" : "faire manipuler l'outil, le script ou la procedure de securisation",
+        formalization: "faire emerger les regles, points de vigilance et controles de securite",
+        reinvestment: "reutiliser la demarche sur un nouveau cas ou un incident voisin"
+      },
+      "Electronique": {
+        trigger: "une mise en service, un montage ou un prototype a fiabiliser",
+        exploration: isTd ? "faire lire le schema et anticiper les choix techniques" : "faire manipuler le montage, la mesure et la mise en service",
+        formalization: "institutionnaliser les reglages, mesures et controles attendus",
+        reinvestment: "transposer la methode sur un montage ou un reglage voisin"
+      }
+    };
+    return profiles[domainLabel] || {
+      trigger: "une situation professionnelle a comprendre puis traiter",
+      exploration: isTd ? "faire rechercher et justifier la demarche attendue" : "faire manipuler puis observer pour faire emerger la methode",
+      formalization: "faire formaliser la methode et les points de vigilance",
+      reinvestment: "proposer une variante pour transferer les acquis"
+    };
+  }
+
+  function buildDurationSlices(totalHours) {
+    const weights = [10, 25, 12, 15, 18, 10, 10];
+    const totalMinutes = Math.max(120, Math.min(360, Math.round((Number(totalHours) || 3) * 60)));
+    let remaining = totalMinutes;
+    return weights.map((weight, index) => {
+      if (index === weights.length - 1) return remaining;
+      const minRemaining = (weights.length - index - 1) * 10;
+      let minutes = Math.max(10, Math.round(((totalMinutes * weight) / 100) / 5) * 5);
+      minutes = Math.min(minutes, remaining - minRemaining);
+      remaining -= minutes;
+      return minutes;
+    });
+  }
+
+  function formatMinutesLabel(minutes) {
+    return `${Math.max(5, Math.round(minutes || 0))} min`;
+  }
+
+  function extractPlanFocus(groups, maxCount) {
+    return groups
+      .flatMap((group) => group.indicators.map((label) => ({
+        skillId: group.skillId,
+        skillCode: getSkillCode(group.skillId),
+        label: safeRepair(label)
+      })))
+      .slice(0, maxCount);
+  }
+
+  function buildTeachingKit(units, groupedIndicators, insights, title, type) {
+    const isTd = String(type || "").toUpperCase() === "TD";
+    const domain = safeRepair(insights?.dominantDomain || "A confirmer");
+    const skillTitles = groupedIndicators
+      .map((group) => {
+        const skill = getSkillById(group.skillId);
+        return safeRepair(skill ? `${skill.code} - ${skill.title}` : group.skillId);
+      })
+      .slice(0, 4);
+    const focusIndicators = extractPlanFocus(groupedIndicators, 5).map((item) => item.label);
+    const firstUnit = safeRepair(units[0] || title || "la situation professionnelle");
+    const secondUnit = safeRepair(units[1] || "les donnees techniques du document");
+
+    const modality = isTd
+      ? {
+          title: "TD inductif d'analyse et de formalisation",
+          rationale: `Modalite adaptee a un travail de lecture, de justification et de structuration des notions en ${domain}.`
+        }
+      : {
+          title: "TP inductif de manipulation et de validation",
+          rationale: `Modalite adaptee a une demarche de test, de configuration et de verification pratique en ${domain}.`
+        };
+
+    const objectives = [
+      isTd
+        ? `Analyser ${firstUnit} et justifier une demarche technique argumentee.`
+        : `Realiser ${firstUnit} en respectant une demarche de mise en oeuvre coherente.`,
+      `Mobiliser les competences visees : ${skillTitles.join(", ") || "competences a confirmer"}.`,
+      isTd
+        ? `Formaliser les regles, calculs ou choix techniques a partir de ${secondUnit}.`
+        : `Verifier le resultat obtenu et conclure sur la conformite au besoin.`,
+      focusIndicators[0]
+        ? `Valider en priorite : ${focusIndicators[0]}.`
+        : `Produire une trace exploitable en fin de seance.`
+    ].filter(Boolean);
+
+    const deliverables = isTd
+      ? [
+          "reponses argumentees ou tableau d'analyse complete",
+          "schema, calculs ou justification des choix techniques",
+          "synthese ecrite courte des notions stabilisees"
+        ]
+      : [
+          "fichier de configuration, script ou parametres appliques",
+          "captures, mesures ou resultats de tests",
+          "compte rendu bref avec validation finale"
+        ];
+
+    const traceWriting = isTd
+      ? "Construire une trace ecrite en 3 parties : situation, demarche d'analyse, regles ou methode retenue."
+      : "Construire une trace ecrite en 3 parties : etapes de mise en oeuvre, controles realises, resultat final valide.";
+
+    const assessmentAdvice = isTd
+      ? "Evaluer la qualite du raisonnement, la justesse des justifications et la stabilisation des notions."
+      : "Evaluer la qualite de la mise en oeuvre, la validite des tests et la conformite du resultat obtenu.";
+
+    const prerequisites = [
+      isTd
+        ? `Comprendre les notions de base utiles au sujet : ${domain.toLowerCase()}.`
+        : `Savoir prendre en main l'environnement technique lie a ${domain.toLowerCase()}.`,
+      skillTitles[0]
+        ? `Avoir deja rencontre la competence ${skillTitles[0]}.`
+        : "Avoir deja pratique une situation professionnelle voisine.",
+      focusIndicators[0]
+        ? `Pouvoir expliquer ou realiser : ${focusIndicators[0]}.`
+        : "Pouvoir suivre une consigne technique simple et la verbaliser.",
+      isTd
+        ? "Savoir lire un document technique, un schema ou un tableau de donnees."
+        : "Savoir appliquer une procedure de test, de configuration ou de mesure."
+    ];
+
+    const differentiation = {
+      support: isTd
+        ? [
+            "Fournir une grille de lecture du document avec les informations a reperer.",
+            "Donner un exemple partiellement resolu ou un calcul modele.",
+            "Autoriser une mise en commun intermediaire avant la formalisation."
+          ]
+        : [
+            "Fournir une fiche methode pas a pas pour la configuration ou la manipulation.",
+            "Preparer un environnement deja partiellement configure.",
+            "Reduire le nombre de verifications a conduire en autonomie complete."
+          ],
+      standard: isTd
+        ? [
+            "Laisser l'eleve construire sa demarche a partir du document et justifier ses choix.",
+            "Exiger une synthese ecrite structuree en fin de seance."
+          ]
+        : [
+            "Laisser l'eleve realiser la procedure complete puis verifier le resultat.",
+            "Exiger des preuves de validation : capture, mesure, test ou compte rendu."
+          ],
+      extension: isTd
+        ? [
+            "Ajouter une variante de donnees ou une contrainte supplementaire a traiter.",
+            "Demander une comparaison entre deux solutions ou deux methodes possibles."
+          ]
+        : [
+            "Ajouter un cas de panne, de variante ou de contrainte supplementaire.",
+            "Demander une justification technique des choix et une optimisation finale."
+          ]
+      };
+
+    return {
+      modality,
+      objectives,
+      deliverables,
+      prerequisites,
+      differentiation,
+      traceWriting,
+      assessmentAdvice
+    };
+  }
+
+  function buildInductivePlan(units, groupedIndicators, insights, title, type) {
+    const profile = getPedagogyProfile(insights?.dominantDomain, type);
+    const isTd = String(type || "").toUpperCase() === "TD";
+    const durations = buildDurationSlices(insights?.durationEstimate?.hours || 3);
+    const focusIndicators = extractPlanFocus(groupedIndicators, 6);
+    const skillBadges = [...new Set(groupedIndicators.map((group) => getSkillCode(group.skillId)).filter(Boolean))];
+    const firstUnit = safeRepair(units[0] || title || "la situation proposee");
+    const secondUnit = safeRepair(units[1] || "les donnees techniques du document");
+    const thirdUnit = safeRepair(units[2] || "les contraintes de realisation");
+    const focusOne = focusIndicators.slice(0, 2).map((item) => `${item.skillCode}: ${item.label}`);
+    const focusTwo = focusIndicators.slice(2, 4).map((item) => `${item.skillCode}: ${item.label}`);
+    const focusThree = focusIndicators.slice(4, 6).map((item) => `${item.skillCode}: ${item.label}`);
+    const formalisationTargets = groupedIndicators
+      .map((group) => {
+        const skill = getSkillById(group.skillId);
+        return safeRepair(skill ? `${skill.code} - ${skill.title}` : group.skillId);
+      })
+      .slice(0, 3);
+
+    const steps = [
+      {
+        title: "1. Situation declenchante",
+        durationLabel: formatMinutesLabel(durations[0]),
+        objective: "Faire emerger le probleme professionnel et donner du sens a la seance.",
+        teacherAction: `Presenter ${profile.trigger} en partant de ${firstUnit}. Faire verbaliser ce qu'il faut comprendre, verifier ou produire.`,
+        studentAction: `Observer le support, reperer les informations utiles, formuler des hypotheses et identifier le besoin.`,
+        output: "Question-probleme reformulee et criteres de reussite identifies.",
+        badges: [safeRepair(insights?.dominantDomain || "A confirmer"), ...skillBadges.slice(0, 2)],
+        focus: [firstUnit]
+      },
+      {
+        title: "2. Recherche / manipulation guidee",
+        durationLabel: formatMinutesLabel(durations[1]),
+        objective: "Laisser les eleves chercher, tester et s'approprier la situation avant l'apport magistral.",
+        teacherAction: `${profile.exploration}. Guider sans donner tout de suite la procedure complete.`,
+        studentAction: isTd
+          ? "Chercher, comparer, calculer, argumenter les choix et construire une premiere reponse justifiee."
+          : "Manipuler, tester, observer, relever les ecarts et essayer une premiere resolution a partir du TP.",
+        output: isTd
+          ? "Premieres hypotheses argumentees, calculs et constats notes."
+          : "Premiers essais realises, constats notes et traces de manipulation conservees.",
+        badges: [...skillBadges.slice(0, 3)],
+        focus: focusOne.length ? focusOne : [secondUnit]
+      },
+      {
+        title: "3. Mise en commun",
+        durationLabel: formatMinutesLabel(durations[2]),
+        objective: "Faire comparer les essais pour faire emerger les regularites et les erreurs utiles.",
+        teacherAction: `Organiser la verbalisation des procedures, des reussites et des erreurs observees a partir de ${secondUnit}.`,
+        studentAction: `Expliquer la demarche suivie, confronter les resultats et justifier les choix provisoires.`,
+        output: "Tableau de constats, erreurs frequentes et bonnes pratiques partagees.",
+        badges: [...skillBadges.slice(0, 2)],
+        focus: focusTwo.length ? focusTwo : [secondUnit, thirdUnit]
+      },
+      {
+        title: "4. Formalisation / institutionnalisation",
+        durationLabel: formatMinutesLabel(durations[3]),
+        objective: "Structurer les savoirs et stabiliser la methode professionnelle attendue.",
+        teacherAction: `${profile.formalization}. Donner la regle, la methode ou le schema de reference a partir des situations observees.`,
+        studentAction: `Reformuler la methode, retenir les points de vigilance et relier la pratique aux competences visees.`,
+        output: "Trace ecrite, schema de methode ou synthese de reference.",
+        badges: [...skillBadges],
+        focus: formalisationTargets.length ? formalisationTargets : [safeRepair(insights?.dominantDomain || "Domaine a confirmer")]
+      },
+      {
+        title: "5. Reinvestissement",
+        durationLabel: formatMinutesLabel(durations[4]),
+        objective: "Verifier que la methode est transferable sur une situation voisine.",
+        teacherAction: `${profile.reinvestment}. Proposer une variante, un autre jeu de donnees ou un cas similaire.`,
+        studentAction: `Reutiliser la demarche sur une nouvelle consigne en autonomie progressive.`,
+        output: "Resolution d'un second cas, ajustements argumentes et corrections eventuelles.",
+        badges: [...skillBadges.slice(0, 3)],
+        focus: focusThree.length ? focusThree : [thirdUnit]
+      },
+      {
+        title: "6. Trace ecrite / synthese",
+        durationLabel: formatMinutesLabel(durations[5]),
+        objective: "Consolider ce qui doit etre retenu et reutilisable.",
+        teacherAction: `Faire formaliser une synthese courte : etapes, regles, controles et erreurs a eviter.`,
+        studentAction: `Rediger la trace ecrite, le schema, le tableau ou le compte rendu attendu.`,
+        output: "Synthese exploitable pour la suite de la progression.",
+        badges: ["Trace ecrite", ...skillBadges.slice(0, 2)],
+        focus: [safeRepair(title || "Synthese de seance")]
+      },
+      {
+        title: "7. Evaluation / regulation",
+        durationLabel: formatMinutesLabel(durations[6]),
+        objective: "Observer les acquis et preparer la remediations si besoin.",
+        teacherAction: `Observer les indicateurs vises, reguler a chaud et valider les acquis atteints en fin de seance.`,
+        studentAction: `Verifier son travail, expliciter ce qui est acquis ou a retravailler.`,
+        output: "Validation des indicateurs et points de remediations identifies.",
+        badges: ["Evaluation", ...skillBadges.slice(0, 2)],
+        focus: focusIndicators.length ? focusIndicators.map((item) => `${item.skillCode}: ${item.label}`).slice(0, 4) : ["Indicateurs de la seance"]
+      }
+    ];
+
+    return steps;
+  }
+
+  function buildGeneratedComment(skillIds, insights, units) {
+    const skillCodes = skillIds.map((skillId) => getSkillById(skillId)?.code).filter(Boolean).join(", ") || "a verifier";
+    const sequence = (insights?.inductivePlan || []).map((step) => step.title.replace(/^\d+\.\s*/, "")).join(" > ");
+    return [
+      `Seance analysee par CielAI.`,
+      `Dominante pressentie : ${insights?.dominantDomain || "a confirmer"}.`,
+      `Competences pressenties : ${skillCodes}.`,
+      `Duree conseillee : ${insights?.durationEstimate?.label || "a confirmer"}.`,
+      insights?.teachingKit?.modality?.title ? `Modalite conseillee : ${insights.teachingKit.modality.title}.` : "",
+      (insights?.teachingKit?.objectives || []).length ? `Objectifs : ${insights.teachingKit.objectives.slice(0, 3).join(" / ")}.` : "",
+      sequence ? `Demarche inductive conseillee : ${sequence}.` : "",
+      units.slice(0, 3).join(" ")
+    ].filter(Boolean).join("\n");
   }
 
   function analyzeDocument(text, fileName) {
@@ -314,12 +608,14 @@
     const groupedIndicatorsMap = pickIndicatorCandidates(units, skillIds, repairedText);
     const groupedIndicators = skillIds.map((skillId) => ({ skillId, indicators: groupedIndicatorsMap.get(skillId) || [] }));
     const insights = buildInsights(units, skillIds, scoredSkills, fileName, repairedText, type);
+    insights.teachingKit = buildTeachingKit(units, groupedIndicators, insights, title, type);
+    insights.inductivePlan = buildInductivePlan(units, groupedIndicators, insights, title, type);
     return {
       type,
       title,
       skillIds,
       groupedIndicators,
-      comment: `Seance analysee par CielAI. Dominante pressentie : ${insights.dominantDomain || "a confirmer"}. Competences pressenties : ${skillIds.map((skillId) => getSkillById(skillId)?.code).filter(Boolean).join(", ") || "a verifier"}.\n${units.slice(0, 3).join(" ")}`.trim(),
+      comment: buildGeneratedComment(skillIds, insights, units),
       insights
     };
   }
@@ -390,6 +686,127 @@
     `;
   }
 
+  function renderTeachingKit() {
+    const kitNode = getNodes().pedagogyKit;
+    if (!kitNode) return;
+    const kit = state.insights?.teachingKit;
+    if (!kit) {
+      kitNode.innerHTML = `<article class="summary-card"><h3>En attente</h3><p class="muted-copy">L'analyse proposera ici la modalite, les objectifs, le livrable et la trace ecrite.</p></article>`;
+      return;
+    }
+    kitNode.innerHTML = `
+      <article class="summary-card">
+        <h3>Modalite conseillee</h3>
+        <span class="stat-value">${escapeHtmlSafe(kit.modality.title)}</span>
+        <p class="muted-copy">${escapeHtmlSafe(kit.modality.rationale)}</p>
+      </article>
+      <article class="summary-card cielai-kit-list-card">
+        <h3>Objectifs de seance</h3>
+        <ul class="cielai-kit-list">
+          ${kit.objectives.map((item) => `<li>${escapeHtmlSafe(item)}</li>`).join("")}
+        </ul>
+      </article>
+      <article class="summary-card cielai-kit-list-card">
+        <h3>Livrables attendus</h3>
+        <ul class="cielai-kit-list">
+          ${kit.deliverables.map((item) => `<li>${escapeHtmlSafe(item)}</li>`).join("")}
+        </ul>
+      </article>
+      <article class="summary-card cielai-kit-list-card">
+        <h3>Prérequis élève</h3>
+        <ul class="cielai-kit-list">
+          ${(kit.prerequisites || []).map((item) => `<li>${escapeHtmlSafe(item)}</li>`).join("")}
+        </ul>
+      </article>
+      <article class="summary-card cielai-kit-list-card">
+        <h3>Trace ecrite conseillee</h3>
+        <p class="muted-copy">${escapeHtmlSafe(kit.traceWriting)}</p>
+        <h3>Conseil d'evaluation</h3>
+        <p class="muted-copy">${escapeHtmlSafe(kit.assessmentAdvice)}</p>
+      </article>
+      <article class="summary-card cielai-kit-list-card">
+        <h3>Différenciation</h3>
+        <span class="eyebrow">Aide</span>
+        <ul class="cielai-kit-list">
+          ${(kit.differentiation?.support || []).map((item) => `<li>${escapeHtmlSafe(item)}</li>`).join("")}
+        </ul>
+        <span class="eyebrow">Autonomie attendue</span>
+        <ul class="cielai-kit-list">
+          ${(kit.differentiation?.standard || []).map((item) => `<li>${escapeHtmlSafe(item)}</li>`).join("")}
+        </ul>
+        <span class="eyebrow">Approfondissement</span>
+        <ul class="cielai-kit-list">
+          ${(kit.differentiation?.extension || []).map((item) => `<li>${escapeHtmlSafe(item)}</li>`).join("")}
+        </ul>
+      </article>
+    `;
+  }
+
+  function renderInductivePlan() {
+    const planNode = getNodes().inductivePlan;
+    if (!planNode) return;
+    const plan = state.insights?.inductivePlan || [];
+    if (!plan.length) {
+      planNode.innerHTML = `<article class="summary-card"><h3>En attente</h3><p class="muted-copy">L'analyse generera ici un decoupage enseignant selon une demarche inductive.</p></article>`;
+      return;
+    }
+    planNode.innerHTML = plan.map((step, index) => `
+      <article class="summary-card cielai-plan-step">
+        <div class="cielai-plan-step-head">
+          <span class="cielai-plan-step-index">${String(index + 1).padStart(2, "0")}</span>
+          <div class="cielai-plan-step-main">
+            <h3>${escapeHtmlSafe(step.title)}</h3>
+            <p class="muted-copy">${escapeHtmlSafe(step.objective)}</p>
+          </div>
+          <div class="student-badges">
+            <span class="badge accent">${escapeHtmlSafe(step.durationLabel)}</span>
+            ${(step.badges || []).map((badge) => `<span class="badge">${escapeHtmlSafe(badge)}</span>`).join("")}
+          </div>
+        </div>
+        ${(step.focus || []).length ? `<div class="student-badges cielai-plan-focus">${step.focus.map((item) => `<span class="badge">${escapeHtmlSafe(item)}</span>`).join("")}</div>` : ""}
+        <div class="cielai-plan-step-grid">
+          <article class="cielai-plan-box">
+            <span class="eyebrow">Prof</span>
+            <p>${escapeHtmlSafe(step.teacherAction)}</p>
+          </article>
+          <article class="cielai-plan-box">
+            <span class="eyebrow">Eleves</span>
+            <p>${escapeHtmlSafe(step.studentAction)}</p>
+          </article>
+          <article class="cielai-plan-box">
+            <span class="eyebrow">Trace attendue</span>
+            <p>${escapeHtmlSafe(step.output)}</p>
+          </article>
+        </div>
+      </article>
+    `).join("");
+  }
+
+  function rebuildInductivePlanFromCurrentState() {
+    if (!state.insights) {
+      renderTeachingKit();
+      renderInductivePlan();
+      return;
+    }
+    const nodes = getNodes();
+    state.insights.teachingKit = buildTeachingKit(
+      state.insights.sourceUnits || [],
+      state.groupedIndicators,
+      state.insights,
+      nodes.titleInput?.value || "",
+      nodes.typeSelect?.value || "TP"
+    );
+    state.insights.inductivePlan = buildInductivePlan(
+      state.insights.sourceUnits || [],
+      state.groupedIndicators,
+      state.insights,
+      nodes.titleInput?.value || "",
+      nodes.typeSelect?.value || "TP"
+    );
+    renderTeachingKit();
+    renderInductivePlan();
+  }
+
   function renderGroupedIndicators() {
     const groupsNode = getNodes().groups;
     if (!groupsNode) return;
@@ -432,6 +849,7 @@
       skillId,
       indicators: currentBySkill.get(skillId)?.length ? currentBySkill.get(skillId) : [...(SKILL_RULES[skillId]?.defaults || [])]
     }));
+    rebuildInductivePlanFromCurrentState();
     renderGroupedIndicators();
   }
 
@@ -449,6 +867,8 @@
       nodes.classSelect.value = result.insights.suggestedClassId;
     }
     renderInsights();
+    renderTeachingKit();
+    renderInductivePlan();
     renderGroupedIndicators();
     nodes.createButton.disabled = false;
     nodes.createOpenButton.disabled = false;
@@ -563,11 +983,15 @@
     nodes.createButton?.addEventListener("click", () => createActivityFromAi(false));
     nodes.createOpenButton?.addEventListener("click", () => createActivityFromAi(true));
     nodes.skillsSelect?.addEventListener("change", syncStateFromSelectedSkills);
+    nodes.typeSelect?.addEventListener("change", rebuildInductivePlanFromCurrentState);
+    nodes.titleInput?.addEventListener("change", rebuildInductivePlanFromCurrentState);
     nodes.startDate?.addEventListener("change", () => {
       if (!nodes.endDate.value) nodes.endDate.value = nodes.startDate.value;
     });
 
     renderInsights();
+    renderTeachingKit();
+    renderInductivePlan();
     renderGroupedIndicators();
   }
 
