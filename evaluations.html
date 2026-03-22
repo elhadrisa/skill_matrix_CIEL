@@ -80,10 +80,11 @@
               </label>
             </div>
             <div class="student-badges">
-              <button id="activity-indicator-add" class="ghost-button" type="button" onclick="return window.__cielAddIndicatorDirectSafe ? (window.__cielAddIndicatorDirectSafe(), false) : false;">Ajouter l'indicateur</button>
-              <button id="activity-indicator-clear" class="ghost-button" type="button" onclick="return window.__cielClearIndicatorDirectSafe ? (window.__cielClearIndicatorDirectSafe(), false) : false;">Vider la liste</button>
+              <button id="activity-indicator-add" class="ghost-button" type="button" onclick="return window.__cielInlineIndicatorAdd ? (window.__cielInlineIndicatorAdd(), false) : false;">Ajouter l'indicateur</button>
+              <button id="activity-indicator-clear" class="ghost-button" type="button" onclick="return window.__cielInlineIndicatorClear ? (window.__cielInlineIndicatorClear(), false) : false;">Vider la liste</button>
             </div>
-            <div id="activity-indicator-list" class="student-directory"></div>
+            <div id="activity-indicator-authoritative-list" class="student-directory"></div>
+            <div id="activity-indicator-list" class="student-directory" hidden></div>
           </section>
           <div class="mini-grid">
             <label class="field">
@@ -336,6 +337,120 @@
     </template>
   </div>
 
+  <script>
+    (function () {
+      function getRefs() {
+        const form = document.getElementById("activity-form");
+        const list = document.getElementById("activity-indicator-authoritative-list");
+        const labelInput = document.getElementById("activity-indicator-label");
+        const skillSelect = document.getElementById("activity-indicator-skill");
+        const textarea = document.getElementById("activity-indicators");
+        const feedback = document.getElementById("activity-feedback");
+        return { form, list, labelInput, skillSelect, textarea, feedback };
+      }
+
+      function readDraft() {
+        const { form } = getRefs();
+        if (!form || !form.dataset.authoritativeIndicatorDraft) return [];
+        try {
+          const parsed = JSON.parse(form.dataset.authoritativeIndicatorDraft);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return [];
+        }
+      }
+
+      function writeDraft(draft) {
+        const { form, textarea } = getRefs();
+        if (!form) return [];
+        const normalized = (Array.isArray(draft) ? draft : [])
+          .filter(Boolean)
+          .map((item, index) => ({
+            id: item.id || ("indicator-inline-" + index + "-" + Date.now()),
+            label: String(item.label || "").trim(),
+            skillId: item.skillId || "",
+            skillLabel: item.skillLabel || "Toutes les compétences de la séance"
+          }))
+          .filter((item) => item.label);
+        const payload = JSON.stringify(normalized);
+        form.dataset.authoritativeIndicatorDraft = payload;
+        form.dataset.indicatorDraft = payload;
+        if (textarea) {
+          textarea.value = normalized.map((item) => item.label).join("\n");
+        }
+        return normalized;
+      }
+
+      function renderDraft() {
+        const { list } = getRefs();
+        if (!list) return;
+        const draft = readDraft();
+        if (!draft.length) {
+          list.innerHTML = '<article class="directory-row"><div><strong>Aucun indicateur structuré</strong><p>Ajoute un indicateur lié à une compétence ou utilise la saisie rapide.</p></div></article>';
+          return;
+        }
+        list.innerHTML = draft.map((item) => (
+          '<article class="directory-row compact">' +
+            '<div>' +
+              '<strong>' + item.label.replace(/</g, "&lt;").replace(/>/g, "&gt;") + '</strong>' +
+              '<p>' + String(item.skillLabel || "Toutes les compétences de la séance").replace(/</g, "&lt;").replace(/>/g, "&gt;") + '</p>' +
+            '</div>' +
+            '<div class="student-badges">' +
+              '<button class="ghost-button" type="button" data-inline-remove="' + item.id + '">Retirer</button>' +
+            '</div>' +
+          '</article>'
+        )).join("");
+      }
+
+      window.__cielInlineIndicatorAdd = function () {
+        const { labelInput, skillSelect, feedback } = getRefs();
+        const label = (labelInput?.value || "").trim();
+        if (!label) {
+          if (feedback) feedback.textContent = "Saisis un indicateur avant de l'ajouter.";
+          return false;
+        }
+        const draft = readDraft();
+        const skillLabel = skillSelect?.selectedOptions?.[0]?.textContent || "Toutes les compétences de la séance";
+        draft.push({
+          id: "indicator-inline-" + Date.now(),
+          label,
+          skillId: skillSelect?.value || "",
+          skillLabel
+        });
+        writeDraft(draft);
+        if (labelInput) labelInput.value = "";
+        renderDraft();
+        if (feedback) feedback.textContent = "Indicateur ajouté.";
+        return false;
+      };
+
+      window.__cielInlineIndicatorClear = function () {
+        const { feedback } = getRefs();
+        writeDraft([]);
+        renderDraft();
+        if (feedback) feedback.textContent = "Liste des indicateurs vidée.";
+        return false;
+      };
+
+      window.__cielInlineIndicatorRefresh = function () {
+        renderDraft();
+      };
+
+      document.addEventListener("click", function (event) {
+        const button = event.target.closest("[data-inline-remove]");
+        if (!button) return;
+        const next = readDraft().filter((item) => item.id !== button.dataset.inlineRemove);
+        writeDraft(next);
+        renderDraft();
+      });
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", renderDraft, { once: true });
+      } else {
+        renderDraft();
+      }
+    })();
+  </script>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <script src="app.js"></script>
 </body>

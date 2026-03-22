@@ -5081,6 +5081,38 @@ function setStoredActivityIndicatorDraftSafe(form, draft) {
   return normalized;
 }
 
+function getAuthoritativeActivityIndicatorDraftSafe(form) {
+  if (!form?.dataset?.authoritativeIndicatorDraft) return [];
+  try {
+    const parsed = JSON.parse(form.dataset.authoritativeIndicatorDraft);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((item) => item && typeof item === "object")
+      .map((item, index) => ({
+        id: item.id || slugify(`authoritative-indicator-${index}-${Date.now()}`),
+        label: String(item.label || "").trim(),
+        skillId: item.skillId || ""
+      }))
+      .filter((item) => item.label);
+  } catch {
+    return [];
+  }
+}
+
+function setAuthoritativeActivityIndicatorDraftSafe(form, draft) {
+  if (!form) return [];
+  const normalized = (Array.isArray(draft) ? draft : [])
+    .filter((item) => item && typeof item === "object")
+    .map((item, index) => ({
+      id: item.id || slugify(`authoritative-indicator-${index}-${Date.now()}`),
+      label: String(item.label || "").trim(),
+      skillId: item.skillId || ""
+    }))
+    .filter((item) => item.label);
+  form.dataset.authoritativeIndicatorDraft = JSON.stringify(normalized);
+  return normalized;
+}
+
 function renderActivityIndicatorSkillSelectSafe(select, skillIds) {
   if (!select) return;
   const selectedSkills = (skillIds || []).map((skillId) => getSkillById(skillId)).filter(Boolean);
@@ -9900,9 +9932,11 @@ function initAccountsPage() {
       activityForm.dataset.appliedSkillIds = "[]";
       indicatorDraft = [];
       setStoredActivityIndicatorDraftSafe(activityForm, []);
+      setAuthoritativeActivityIndicatorDraftSafe(activityForm, []);
       renderActivityIndicatorSkillSelectSafe(activityIndicatorSkill, []);
       syncTextareaFromDraftSafe();
       renderIndicatorDraftSafe();
+      window.__cielInlineIndicatorRefresh?.();
       if (activitySubmitButton) activitySubmitButton.textContent = "Créer la séance";
       if (activityCancelEditButton) activityCancelEditButton.hidden = true;
       delete activityForm.dataset.editingId;
@@ -9927,9 +9961,14 @@ function initAccountsPage() {
         skillId: indicator.skillId || ""
       }));
       setStoredActivityIndicatorDraftSafe(activityForm, indicatorDraft);
+      setAuthoritativeActivityIndicatorDraftSafe(activityForm, indicatorDraft.map((indicator) => ({
+        ...indicator,
+        skillLabel: indicator.skillId ? getActivitySkillLabel({ skillIds: [indicator.skillId], skillId: indicator.skillId }) : "Toutes les compétences de la séance"
+      })));
       renderActivityIndicatorSkillSelectSafe(activityIndicatorSkill, activitySkillIds);
       syncTextareaFromDraftSafe();
       renderIndicatorDraftSafe();
+      window.__cielInlineIndicatorRefresh?.();
       if (activitySubmitButton) activitySubmitButton.textContent = "Enregistrer les modifications";
       if (activityCancelEditButton) activityCancelEditButton.hidden = false;
       if (typeof applyEvaluationsView === "function") applyEvaluationsView("create");
@@ -9962,7 +10001,9 @@ function initAccountsPage() {
           }
         } catch {}
       }
-      const effectiveDraft = getStoredActivityIndicatorDraftSafe(activityForm);
+      const effectiveDraft = getAuthoritativeActivityIndicatorDraftSafe(activityForm).length
+        ? getAuthoritativeActivityIndicatorDraftSafe(activityForm)
+        : getStoredActivityIndicatorDraftSafe(activityForm);
       if (effectiveDraft.length) indicatorDraft = effectiveDraft;
       const indicators = (indicatorDraft.length ? indicatorDraft : buildStructuredIndicatorsFromTextareaSafe(activityTitle.value.trim(), activityIndicators)).map((indicator, index) => ({
         id: indicator.id || slugify(`${activityTitle.value.trim()}-${index}-${Date.now()}`),
@@ -10143,7 +10184,12 @@ function initAccountsPage() {
         window.setTimeout(() => {
           indicatorDraft = buildStructuredIndicatorsFromTextareaSafe(activityTitle.value.trim(), activityIndicators);
           setStoredActivityIndicatorDraftSafe(activityForm, indicatorDraft);
+          setAuthoritativeActivityIndicatorDraftSafe(activityForm, indicatorDraft.map((indicator) => ({
+            ...indicator,
+            skillLabel: indicator.skillId ? getActivitySkillLabel({ skillIds: [indicator.skillId], skillId: indicator.skillId }) : "Toutes les compétences de la séance"
+          })));
           renderIndicatorDraftSafe();
+          window.__cielInlineIndicatorRefresh?.();
         }, 0);
       });
     }
@@ -10174,7 +10220,10 @@ function initAccountsPage() {
         matrix.dataset.globalGradeBound = "true";
       }
     }
-    indicatorDraft = getStoredActivityIndicatorDraftSafe(activityForm);
+    indicatorDraft = getAuthoritativeActivityIndicatorDraftSafe(activityForm).length
+      ? getAuthoritativeActivityIndicatorDraftSafe(activityForm)
+      : getStoredActivityIndicatorDraftSafe(activityForm);
+    window.__cielInlineIndicatorRefresh?.();
     window.setTimeout(enhanceStudentSkillRowsSafe, 0);
   }
 
@@ -10819,7 +10868,7 @@ function initAccountsPage() {
     const skillSelect = document.querySelector("#activity-skill");
     const indicatorSkillSelect = document.querySelector("#activity-indicator-skill");
     const indicatorLabelInput = document.querySelector("#activity-indicator-label");
-    const indicatorList = document.querySelector("#activity-indicator-list");
+    const indicatorList = document.querySelector("#activity-indicator-authoritative-list") || document.querySelector("#activity-indicator-list");
     const indicatorTextarea = document.querySelector("#activity-indicators");
     const feedback = document.querySelector("#activity-feedback");
     if (!form || !skillSelect || !indicatorSkillSelect || !indicatorLabelInput || !indicatorList || !indicatorTextarea || !feedback) {
@@ -10853,7 +10902,7 @@ function initAccountsPage() {
   function refreshIndicatorDraftUiUltraSafe() {
     const refs = getIndicatorEditorElementsUltraSafe();
     if (!refs) return;
-    const draft = getStoredActivityIndicatorDraftSafe(refs.form);
+    const draft = getAuthoritativeActivityIndicatorDraftSafe(refs.form);
     syncIndicatorTextareaUltraSafe(refs.indicatorTextarea, draft);
     renderIndicatorDraftListUltraSafe(refs.indicatorList, draft);
   }
@@ -10868,12 +10917,13 @@ function initAccountsPage() {
     }
     const availableSkillIds = getActivitySkillIdsForIndicatorPickerSafe(refs.skillSelect, refs.form);
     const selectedSkillId = refs.indicatorSkillSelect.value || (availableSkillIds.length === 1 ? availableSkillIds[0] : "");
-    const draft = getStoredActivityIndicatorDraftSafe(refs.form);
+    const draft = getAuthoritativeActivityIndicatorDraftSafe(refs.form);
     draft.push({
       id: slugify(`indicator-${label}-${Date.now()}`),
       label,
       skillId: selectedSkillId
     });
+    setAuthoritativeActivityIndicatorDraftSafe(refs.form, draft);
     setStoredActivityIndicatorDraftSafe(refs.form, draft);
     refs.indicatorLabelInput.value = "";
     refreshIndicatorDraftUiUltraSafe();
@@ -10883,6 +10933,7 @@ function initAccountsPage() {
   function clearIndicatorDraftUltraSafe() {
     const refs = getIndicatorEditorElementsUltraSafe();
     if (!refs) return;
+    setAuthoritativeActivityIndicatorDraftSafe(refs.form, []);
     setStoredActivityIndicatorDraftSafe(refs.form, []);
     refreshIndicatorDraftUiUltraSafe();
     refs.feedback.textContent = "Liste des indicateurs vidée.";
@@ -10891,7 +10942,8 @@ function initAccountsPage() {
   function removeIndicatorUltraSafe(indicatorId) {
     const refs = getIndicatorEditorElementsUltraSafe();
     if (!refs) return;
-    const draft = getStoredActivityIndicatorDraftSafe(refs.form).filter((indicator) => indicator.id !== indicatorId);
+    const draft = getAuthoritativeActivityIndicatorDraftSafe(refs.form).filter((indicator) => indicator.id !== indicatorId);
+    setAuthoritativeActivityIndicatorDraftSafe(refs.form, draft);
     setStoredActivityIndicatorDraftSafe(refs.form, draft);
     refreshIndicatorDraftUiUltraSafe();
     refs.feedback.textContent = "Indicateur retiré.";
@@ -10906,11 +10958,9 @@ function initAccountsPage() {
     window.__cielClearIndicatorDirectSafe = clearIndicatorDraftUltraSafe;
     window.__cielRefreshIndicatorDraftUiSafe = refreshIndicatorDraftUiUltraSafe;
 
-    const indicatorList = document.querySelector("#activity-indicator-list");
-    if (indicatorList && !indicatorList.dataset.authoritativeBound) {
-      const replacement = indicatorList.cloneNode(false);
-      replacement.dataset.authoritativeBound = "true";
-      indicatorList.replaceWith(replacement);
+    const legacyList = document.querySelector("#activity-indicator-list");
+    if (legacyList) {
+      legacyList.hidden = true;
     }
 
     const handleIndicatorAction = (event) => {
