@@ -3530,39 +3530,23 @@ function initEvaluationsPageFinal() {
   }
 
   function renderActivityMatrix(activity, classId) {
-    const students = getStudentsByClass(classId);
     if (!activity) {
+      activityMatrix.className = "activity-cards-layout";
       activityMatrix.innerHTML = "";
       return;
     }
-    activityMatrix.classList.add("activity-grid");
-    activityMatrix.innerHTML = `
-      <div class="matrix-header activity-header">
-        <strong>Ã‰lÃ¨ve</strong>
-        ${activity.indicators.map((indicator) => `<strong>${indicator.label}</strong>`).join("")}
-      </div>
-      ${students.map((student) => `
-        <div class="matrix-row activity-row">
-          <div><strong>${student.name}</strong><p class="muted-copy">${getStudentProgress(student)}% validÃ©</p></div>
-          ${activity.indicators.map((indicator) => `
-            <label class="field">
-              <select data-activity-id="${activity.id}" data-student-id="${student.id}" data-indicator-id="${indicator.id}" class="activity-status-select"${canEditEvaluations ? "" : " disabled"}>
-                ${renderStatusOptions(getActivityIndicatorStatus(activity, student.id, indicator.id))}
-              </select>
-            </label>
-          `).join("")}
-        </div>
-      `).join("")}
-    `;
-    activityMatrix.querySelectorAll(".activity-status-select").forEach((select) => {
-      select.addEventListener("change", (event) => {
-        if (!canEditEvaluations) return;
-        const target = event.target;
-        setActivityIndicatorStatus(target.dataset.activityId, target.dataset.studentId, target.dataset.indicatorId, target.value);
-        persistAppData();
-        renderEvaluationPage();
-      });
-    });
+    if (activitySelect?.value !== activity.id && [...(activitySelect?.options || [])].some((option) => option.value === activity.id)) {
+      activitySelect.value = activity.id;
+    }
+    activityMatrix.className = "activity-cards-layout";
+    activityMatrix.innerHTML = "";
+    activityMatrix.dataset.renderActivityId = activity.id;
+    const renderCards = window.__cielRenderActivityCardsLayoutSafe;
+    if (typeof renderCards === "function") {
+      renderCards();
+      window.setTimeout(renderCards, 0);
+      window.setTimeout(renderCards, 80);
+    }
   }
 
   function renderActivityReport(activity, classId) {
@@ -6331,40 +6315,23 @@ function initEvaluationsPage() {
   }
 
   function renderActivityMatrix(activity, classId) {
-    const students = getStudentsByClass(classId);
     if (!activity) {
+      activityMatrix.className = "activity-cards-layout";
       activityMatrix.innerHTML = "";
       return;
     }
-    activityMatrix.classList.add("activity-grid");
-    activityMatrix.innerHTML = `
-      <div class="matrix-header activity-header">
-        <strong>Ã‰lÃ¨ve</strong>
-        ${activity.indicators.map((indicator) => `<strong>${indicator.label}</strong>`).join("")}
-      </div>
-      ${students.map((student) => `
-        <div class="matrix-row activity-row">
-          <div><strong>${student.name}</strong><p class="muted-copy">${getStudentProgress(student)}% validÃ©</p></div>
-          ${activity.indicators.map((indicator) => `
-            <label class="field">
-              <select data-activity-id="${activity.id}" data-student-id="${student.id}" data-indicator-id="${indicator.id}" class="activity-status-select"${canEditEvaluations ? "" : " disabled"}>
-                ${renderStatusOptions(getActivityIndicatorStatus(activity, student.id, indicator.id))}
-              </select>
-            </label>
-          `).join("")}
-        </div>
-      `).join("")}
-    `;
-
-    activityMatrix.querySelectorAll(".activity-status-select").forEach((select) => {
-      select.addEventListener("change", (event) => {
-        if (!canEditEvaluations) return;
-        const target = event.target;
-        setActivityIndicatorStatus(target.dataset.activityId, target.dataset.studentId, target.dataset.indicatorId, target.value);
-        persistAppData();
-        renderEvaluationPage();
-      });
-    });
+    if (activitySelect?.value !== activity.id && [...(activitySelect?.options || [])].some((option) => option.value === activity.id)) {
+      activitySelect.value = activity.id;
+    }
+    activityMatrix.className = "activity-cards-layout";
+    activityMatrix.innerHTML = "";
+    activityMatrix.dataset.renderActivityId = activity.id;
+    const renderCards = window.__cielRenderActivityCardsLayoutSafe;
+    if (typeof renderCards === "function") {
+      renderCards();
+      window.setTimeout(renderCards, 0);
+      window.setTimeout(renderCards, 80);
+    }
   }
 
   function renderActivityReport(activity, classId) {
@@ -7097,39 +7064,23 @@ function initEvaluationsPage() {
   }
 
   function renderActivityMatrix(activity, classId) {
-    const students = getStudentsByClass(classId);
     if (!activity) {
+      activityMatrix.className = "activity-cards-layout";
       activityMatrix.innerHTML = "";
       return;
     }
-    activityMatrix.classList.add("activity-grid");
-    activityMatrix.innerHTML = `
-      <div class="matrix-header activity-header">
-        <strong>Ã‰lÃ¨ve</strong>
-        ${activity.indicators.map((indicator) => `<strong>${indicator.label}</strong>`).join("")}
-      </div>
-      ${students.map((student) => `
-        <div class="matrix-row activity-row">
-          <div><strong>${student.name}</strong><p class="muted-copy">${getStudentProgress(student)}% validÃ©</p></div>
-          ${activity.indicators.map((indicator) => `
-            <label class="field">
-              <select data-activity-id="${activity.id}" data-student-id="${student.id}" data-indicator-id="${indicator.id}" class="activity-status-select">
-                ${renderStatusOptions(getActivityIndicatorStatus(activity, student.id, indicator.id))}
-              </select>
-            </label>
-          `).join("")}
-        </div>
-      `).join("")}
-    `;
-
-    activityMatrix.querySelectorAll(".activity-status-select").forEach((select) => {
-      select.addEventListener("change", (event) => {
-        const target = event.target;
-        setActivityIndicatorStatus(target.dataset.activityId, target.dataset.studentId, target.dataset.indicatorId, target.value);
-        persistAppData();
-        renderEvaluationPage();
-      });
-    });
+    if (activitySelect?.value !== activity.id && [...(activitySelect?.options || [])].some((option) => option.value === activity.id)) {
+      activitySelect.value = activity.id;
+    }
+    activityMatrix.className = "activity-cards-layout";
+    activityMatrix.innerHTML = "";
+    activityMatrix.dataset.renderActivityId = activity.id;
+    const renderCards = window.__cielRenderActivityCardsLayoutSafe;
+    if (typeof renderCards === "function") {
+      renderCards();
+      window.setTimeout(renderCards, 0);
+      window.setTimeout(renderCards, 80);
+    }
   }
 
   function renderActivityReport(activity, classId) {
