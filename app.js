@@ -8707,6 +8707,7 @@ function initAccountsPage() {
     if (document.body?.dataset?.page !== "evaluations") return;
     const matrix = document.querySelector("#activity-matrix");
     if (!matrix) return;
+    if (matrix.classList.contains("activity-cards-layout") || matrix.querySelector(".activity-student-card")) return;
 
     const header = matrix.querySelector(".matrix-header.activity-header");
     const rows = [...matrix.querySelectorAll(".matrix-row.activity-row")];
@@ -9012,7 +9013,7 @@ function initAccountsPage() {
       const isOpen = student.id === preferredOpenStudentId || (!preferredOpenStudentId && index === 0);
       return `
         <article class="activity-student-card panel${isOpen ? " is-open" : ""}" data-student-id="${student.id}">
-          <button class="activity-student-toggle" type="button" aria-expanded="${isOpen ? "true" : "false"}">
+          <div class="activity-student-toggle" role="button" tabindex="0" aria-expanded="${isOpen ? "true" : "false"}">
             <div class="activity-student-card-head">
               <div class="activity-student-head-main">
                 <h3>${escapeHtml(student.name)}</h3>
@@ -9023,7 +9024,7 @@ function initAccountsPage() {
                 <span class="badge ${mappedStatus === "acquis" ? "success" : mappedStatus === "partiellement_acquis" ? "accent" : mappedStatus === "en_cours_acquisition" ? "warning" : "ghost"}">${escapeHtml(levelLabels[mappedStatus] || "Non évalué")}</span>
               </div>
             </div>
-          </button>
+          </div>
           <div class="activity-student-groups">
             <section class="activity-skill-group activity-global-grade-box">
               <label class="field compact-field">
@@ -9057,29 +9058,38 @@ function initAccountsPage() {
       `;
     }).join("");
 
-    matrix.querySelectorAll(".activity-student-toggle").forEach((button) => {
-      if (button.dataset.ultraBound === "true") return;
-      button.dataset.ultraBound = "true";
-      button.addEventListener("click", () => {
-        const card = button.closest(".activity-student-card");
+    matrix.querySelectorAll(".activity-student-toggle").forEach((toggle) => {
+      if (toggle.dataset.ultraBound === "true") return;
+      toggle.dataset.ultraBound = "true";
+      const handleToggle = () => {
+        const card = toggle.closest(".activity-student-card");
         if (!card) return;
         const shouldOpen = !card.classList.contains("is-open");
         matrix.dataset.openStudentId = shouldOpen ? card.dataset.studentId || "" : "";
         matrix.querySelectorAll(".activity-student-card").forEach((item) => {
           item.classList.remove("is-open");
-          const toggle = item.querySelector(".activity-student-toggle");
-          if (toggle) toggle.setAttribute("aria-expanded", "false");
+          const itemToggle = item.querySelector(".activity-student-toggle");
+          if (itemToggle) itemToggle.setAttribute("aria-expanded", "false");
         });
         if (shouldOpen) {
           card.classList.add("is-open");
-          button.setAttribute("aria-expanded", "true");
+          toggle.setAttribute("aria-expanded", "true");
         }
+      };
+      toggle.addEventListener("click", handleToggle);
+      toggle.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        handleToggle();
       });
     });
 
     matrix.querySelectorAll(".activity-status-select").forEach((select) => {
       if (select.dataset.ultraBound === "true") return;
       select.dataset.ultraBound = "true";
+      ["click", "mousedown", "focus"].forEach((eventName) => {
+        select.addEventListener(eventName, (event) => event.stopPropagation());
+      });
       select.addEventListener("change", (event) => {
         const target = event.target;
         if (!hasPermission("edit_evaluations")) return;
@@ -9095,6 +9105,9 @@ function initAccountsPage() {
     matrix.querySelectorAll(".activity-student-global-grade").forEach((input) => {
       if (input.dataset.ultraBound === "true") return;
       input.dataset.ultraBound = "true";
+      ["click", "mousedown", "focus"].forEach((eventName) => {
+        input.addEventListener(eventName, (event) => event.stopPropagation());
+      });
       const commit = (event) => {
         const target = event.target;
         if (!hasPermission("edit_evaluations")) return;
@@ -9490,6 +9503,7 @@ function initAccountsPage() {
       const classId = document.querySelector("#session-class-select")?.value || app.classes[0]?.id || "";
       const activity = getActivityById(document.querySelector("#activity-select")?.value) || getActivitiesByClass(classId)[0];
       if (!matrix || !activity) return;
+      if (matrix.classList.contains("activity-cards-layout") || matrix.querySelector(".activity-student-card")) return;
       matrix.querySelectorAll(".matrix-row").forEach((row) => {
         const studentId = row.querySelector(".activity-status-select")?.dataset.studentId;
         if (!studentId || row.querySelector(".global-grade-field")) return;

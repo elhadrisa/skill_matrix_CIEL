@@ -1094,6 +1094,12 @@ body.evaluations-create-view #activity-creation-panel {
   z-index: 1;
 }
 
+.activity-student-toggle:focus-visible {
+  outline: 2px solid rgba(98,245,212,0.5);
+  outline-offset: 4px;
+  border-radius: 18px;
+}
+
 .activity-student-card-head {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
