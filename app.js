@@ -9936,16 +9936,109 @@ function initAccountsPage() {
     [/coh\?rence/g, "cohÃ©rence"]
   ];
 
+  const plainFrenchFixups = [
+    [/\bCreation\b/g, "Création"],
+    [/\bcreation\b/g, "création"],
+    [/\bEvaluation\b/g, "Évaluation"],
+    [/\bevaluation\b/g, "évaluation"],
+    [/\bEvaluations\b/g, "Évaluations"],
+    [/\bevaluations\b/g, "évaluations"],
+    [/\bCompetence\b/g, "Compétence"],
+    [/\bCompetences\b/g, "Compétences"],
+    [/\bcompetence\b/g, "compétence"],
+    [/\bcompetences\b/g, "compétences"],
+    [/\bEleve\b/g, "Élève"],
+    [/\bEleves\b/g, "Élèves"],
+    [/\beleve\b/g, "élève"],
+    [/\beleves\b/g, "élèves"],
+    [/\bSeance\b/g, "Séance"],
+    [/\bSeances\b/g, "Séances"],
+    [/\bseance\b/g, "séance"],
+    [/\bseances\b/g, "séances"],
+    [/\bAcademie\b/g, "Académie"],
+    [/\bacademie\b/g, "académie"],
+    [/\bEtablissement\b/g, "Établissement"],
+    [/\betablissement\b/g, "établissement"],
+    [/\bPremiere\b/g, "Première"],
+    [/\bpremiere\b/g, "première"],
+    [/\bBibliotheque\b/g, "Bibliothèque"],
+    [/\bbibliotheque\b/g, "bibliothèque"],
+    [/\bSynthese\b/g, "Synthèse"],
+    [/\bsynthese\b/g, "synthèse"],
+    [/\bRemediation\b/g, "Remédiation"],
+    [/\bRemediations\b/g, "Remédiations"],
+    [/\bremediation\b/g, "remédiation"],
+    [/\bremediations\b/g, "remédiations"],
+    [/\bPeriode\b/g, "Période"],
+    [/\bPeriodes\b/g, "Périodes"],
+    [/\bperiode\b/g, "période"],
+    [/\bperiodes\b/g, "périodes"],
+    [/\bActivite\b/g, "Activité"],
+    [/\bActivites\b/g, "Activités"],
+    [/\bactivite\b/g, "activité"],
+    [/\bactivites\b/g, "activités"],
+    [/\bannulee\b/g, "annulée"],
+    [/\bAnnulee\b/g, "Annulée"],
+    [/\bcree\b/g, "créé"],
+    [/\bCree\b/g, "Créé"],
+    [/\bcreee\b/g, "créée"],
+    [/\bCreee\b/g, "Créée"],
+    [/\bmodifiee\b/g, "modifiée"],
+    [/\bModifiee\b/g, "Modifiée"],
+    [/\bsupprimee\b/g, "supprimée"],
+    [/\bSupprimee\b/g, "Supprimée"],
+    [/\bliee\b/g, "liée"],
+    [/\bliees\b/g, "liées"],
+    [/\bLies\b/g, "Liés"],
+    [/\blies\b/g, "liés"],
+    [/\bselectionnee\b/g, "sélectionnée"],
+    [/\bSelectionnee\b/g, "Sélectionnée"],
+    [/\bselectionnees\b/g, "sélectionnées"],
+    [/\brenseignee\b/g, "renseignée"],
+    [/\brenseignees\b/g, "renseignées"],
+    [/\bTelephone\b/g, "Téléphone"],
+    [/\btelephone\b/g, "téléphone"],
+    [/\breferent\b/g, "référent"],
+    [/\bReferent\b/g, "Référent"],
+    [/\bmodele\b/g, "modèle"],
+    [/\bModele\b/g, "Modèle"],
+    [/\bpreparation\b/g, "préparation"],
+    [/\bPreparation\b/g, "Préparation"],
+    [/\bselection\b/g, "sélection"],
+    [/\bSelection\b/g, "Sélection"],
+    [/\bcentree\b/g, "centrée"],
+    [/\bCentree\b/g, "Centrée"],
+    [/\ba suivre\b/g, "à suivre"],
+    [/\bA suivre\b/g, "À suivre"],
+    [/\bdonnee\b/g, "donnée"],
+    [/\bdonnees\b/g, "données"],
+    [/\bDonnee\b/g, "Donnée"],
+    [/\bDonnees\b/g, "Données"],
+    [/\breelle\b/g, "réelle"],
+    [/\breelles\b/g, "réelles"],
+    [/\bpedagogique\b/g, "pédagogique"],
+    [/\bpedagogiques\b/g, "pédagogiques"],
+    [/\bPedagogique\b/g, "Pédagogique"],
+    [/\breliee\b/g, "reliée"],
+    [/\breliees\b/g, "reliées"],
+    [/\brelies\b/g, "reliés"]
+  ];
+
   function normalizeDisplayText(value) {
     if (!value) return value;
     let next = value;
     displayFixups.forEach(([pattern, replacement]) => {
       next = next.replace(pattern, replacement);
     });
+    plainFrenchFixups.forEach(([pattern, replacement]) => {
+      next = next.replace(pattern, replacement);
+    });
     next = next.replace(/Session Ã  clÃ´turer/g, "Session Ã  clÃ´turer");
     next = next.replace(/Nouvelle annÃ©e scolaire/g, "Nouvelle annÃ©e scolaire");
     return next;
   }
+
+  window.__normalizeDisplayTextSafe = normalizeDisplayText;
 
   function normalizeElementText(root = document.documentElement) {
     if (!root) return;
@@ -10027,6 +10120,10 @@ function initAccountsPage() {
       .replace(/â€œ/g, "“")
       .replace(/â€\x9D/g, "”")
       .replace(/â„¢/g, "™");
+
+    if (typeof window.__normalizeDisplayTextSafe === "function") {
+      next = window.__normalizeDisplayTextSafe(next);
+    }
 
     return next;
   }
