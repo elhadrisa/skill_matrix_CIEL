@@ -342,6 +342,14 @@ const ADMIN_ONLY_PAGES = new Set(["accounts"]);
 const app = createEmptyApp();
 let persistTimeout = null;
 
+function scheduleReportsPageInitSafe() {
+  window.setTimeout(() => {
+    if (typeof window.__cielRunReportsInitSafe === "function") {
+      window.__cielRunReportsInitSafe();
+    }
+  }, 0);
+}
+
 initializeApp();
 
 function createEmptyApp() {
@@ -402,10 +410,7 @@ async function initializeApp() {
       if (page === "candidate") initCandidatePageFinal();
       if (page === "certification") initCertificationPageFinal();
       if (page === "remediation_pfmp" || page === "remediation_competences") initRemediationPageFinal();
-      if (page === "reports") {
-        initReportsPageFinalSafe();
-        window.setTimeout(enrichReportsPageSafe, 0);
-      }
+      if (page === "reports") scheduleReportsPageInitSafe();
       return;
     }
 
@@ -436,10 +441,7 @@ async function initializeApp() {
     if (page === "candidate") initCandidatePageFinal();
     if (page === "certification") initCertificationPageFinal();
     if (page === "remediation_pfmp" || page === "remediation_competences") initRemediationPageFinal();
-    if (page === "reports") {
-      initReportsPageFinalSafe();
-      window.setTimeout(enrichReportsPageSafe, 0);
-    }
+    if (page === "reports") scheduleReportsPageInitSafe();
 }
 }
 
@@ -15595,6 +15597,11 @@ function initCertificationPageFinal() {
   initEvaluationsPageFinal = function () {
     originalInitEvaluationsPageSafeLot();
     window.setTimeout(renderEvidenceFiltersSafe, 0);
+  };
+
+  window.__cielRunReportsInitSafe = function () {
+    initReportsPageFinalSafe();
+    window.setTimeout(enrichReportsPageSafe, 0);
   };
 
 })();
