@@ -8943,22 +8943,29 @@ function initAccountsPage() {
     if (!total) return [];
     const normalized = normalizeGrade(grade);
     if (normalized === "") return Array.from({ length: total }, () => "non_evalue");
-    const scale = [
-      { score: 1, status: "non_acquis" },
-      { score: 2, status: "en_cours_acquisition" },
-      { score: 3, status: "partiellement_acquis" },
-      { score: 4, status: "acquis" }
-    ];
-    const averageScore = Math.max(1, Math.min(4, (normalized / 20) * 4));
-    const lowerScore = Math.max(1, Math.min(4, Math.floor(averageScore)));
-    const upperScore = Math.max(1, Math.min(4, Math.ceil(averageScore)));
-    const lowerStatus = scale.find((item) => item.score === lowerScore)?.status || "non_acquis";
-    const upperStatus = scale.find((item) => item.score === upperScore)?.status || lowerStatus;
-    if (lowerScore === upperScore) {
-      return Array.from({ length: total }, () => lowerStatus);
+    let lowerStatus = "non_acquis";
+    let upperStatus = "en_cours_acquisition";
+    let ratio = normalized / 5;
+    if (normalized >= 5 && normalized < 10) {
+      lowerStatus = "non_acquis";
+      upperStatus = "en_cours_acquisition";
+      ratio = (normalized - 5) / 5;
+    } else if (normalized >= 10 && normalized < 14) {
+      lowerStatus = "en_cours_acquisition";
+      upperStatus = "partiellement_acquis";
+      ratio = (normalized - 10) / 4;
+    } else if (normalized >= 14) {
+      lowerStatus = "partiellement_acquis";
+      upperStatus = "acquis";
+      ratio = (normalized - 14) / 6;
     }
-    const upperCount = Math.max(0, Math.min(total, Math.round((averageScore - lowerScore) * total)));
-    const lowerCount = Math.max(0, total - upperCount);
+    ratio = Math.max(0, Math.min(1, ratio));
+    let upperCount = Math.round(ratio * total);
+    if (normalized > 0 && normalized < 20 && total > 2) {
+      if (upperCount === 0) upperCount = 1;
+      if (upperCount === total) upperCount = total - 1;
+    }
+    const lowerCount = total - upperCount;
     const distributed = [];
     const upperIndexes = new Set();
     if (upperCount > 0) {
@@ -8976,6 +8983,16 @@ function initAccountsPage() {
       distributed.push(upperIndexes.has(index) ? upperStatus : lowerStatus);
     }
     return distributed;
+  }
+
+  function refreshEvaluationPanelsUltraSafe() {
+    const classId = document.querySelector("#session-class-select")?.value || app.classes[0]?.id || "";
+    const activity = getActivityById(document.querySelector("#activity-select")?.value) || getActivitiesByClass(classId)[0];
+    renderActivitySummary(activity, classId);
+    renderActivityReport(activity, classId);
+    renderActivitySynthesis(classId);
+    renderStudentSheet();
+    renderActivityCardsLayoutUltraSafe();
   }
 
   function applyActivityGlobalGradeUltraSafe(activity, studentId, grade) {
@@ -9153,10 +9170,7 @@ function initAccountsPage() {
         if (!hasPermission("edit_evaluations")) return;
         setActivityIndicatorStatus(target.dataset.activityId, target.dataset.studentId, target.dataset.indicatorId, target.value);
         persistAppData();
-        window.setTimeout(() => {
-          document.querySelector("#activity-select")?.dispatchEvent(new Event("change"));
-          document.querySelector("#eval-student-select")?.dispatchEvent(new Event("change"));
-        }, 0);
+        window.setTimeout(refreshEvaluationPanelsUltraSafe, 0);
       });
     });
 
@@ -9171,10 +9185,7 @@ function initAccountsPage() {
         if (!hasPermission("edit_evaluations")) return;
         applyActivityGlobalGradeUltraSafe(activity, target.dataset.studentId, String(target.value || "").replace(",", "."));
         persistAppData();
-        window.setTimeout(() => {
-          document.querySelector("#activity-select")?.dispatchEvent(new Event("change"));
-          document.querySelector("#eval-student-select")?.dispatchEvent(new Event("change"));
-        }, 0);
+        window.setTimeout(refreshEvaluationPanelsUltraSafe, 0);
       };
       input.addEventListener("change", commit);
       input.addEventListener("blur", commit);
