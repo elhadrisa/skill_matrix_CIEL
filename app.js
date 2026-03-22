@@ -401,7 +401,6 @@ async function initializeApp() {
       if (page === "library") initLibraryPageFinal();
       if (page === "candidate") initCandidatePageFinal();
       if (page === "certification") initCertificationPageFinal();
-      if (page === "reports") initReportsPageFinalSafe();
       if (page === "remediation_pfmp" || page === "remediation_competences") initRemediationPageFinal();
       return;
     }
@@ -432,7 +431,6 @@ async function initializeApp() {
     if (page === "library") initLibraryPageFinal();
     if (page === "candidate") initCandidatePageFinal();
     if (page === "certification") initCertificationPageFinal();
-    if (page === "reports") initReportsPageFinalSafe();
     if (page === "remediation_pfmp" || page === "remediation_competences") initRemediationPageFinal();
 }
 }
