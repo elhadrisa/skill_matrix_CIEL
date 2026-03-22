@@ -1,4 +1,4 @@
-:root {
+﻿:root {
   --line: rgba(96, 255, 215, 0.18);
   --line-strong: rgba(96, 255, 215, 0.38);
   --text: #e7fff8;
@@ -267,6 +267,12 @@ body:not([data-page="home"]) .nav-tabs {
 .nav-dropdown { position: relative; flex: 0 0 auto; }
 .nav-dropdown-toggle { min-height: 36px; list-style: none; cursor: pointer; }
 .nav-dropdown-toggle::-webkit-details-marker { display: none; }
+.nav-dropdown-caret {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  line-height: 1;
+}
 .nav-dropdown.active .nav-dropdown-toggle,
 .nav-dropdown[open] .nav-dropdown-toggle,
 .nav-dropdown:hover .nav-dropdown-toggle,
@@ -432,6 +438,15 @@ body:not([data-page="home"]) .nav-tabs {
 .management-layout { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .evaluation-layout { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .wide-panel { grid-column: 1 / -1; }
+
+body.evaluations-create-view .evaluation-layout {
+  grid-template-columns: 1fr;
+  justify-items: center;
+}
+
+body.evaluations-create-view #activity-creation-panel {
+  width: min(100%, 980px);
+}
 
 .stack-form, .skills-table, .student-directory, .matrix-grid, .pfmp-form-grid, .mini-grid { display: grid; gap: 12px; }
 .periods-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
@@ -1252,3 +1267,4 @@ body:not([data-page="home"]) .nav-tabs {
   50% { transform: translate3d(2%, 1.5%, 0) scale(1.05); }
   100% { transform: translate3d(-1%, 3%, 0) scale(0.98); }
 }
+

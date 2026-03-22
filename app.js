@@ -3488,6 +3488,7 @@ function initEvaluationsPageFinal() {
 
     if (!viewConfig) return;
     if (pageTitle) pageTitle.textContent = viewConfig.title;
+    document.body.classList.toggle("evaluations-create-view", view === "create");
     if (creationPanel) creationPanel.style.display = viewConfig.showCreation ? "" : "none";
     if (selectionPanel) selectionPanel.style.display = viewConfig.showSelection ? "" : "none";
     if (matrixPanel) matrixPanel.style.display = viewConfig.showMatrix ? "" : "none";
@@ -6426,7 +6427,7 @@ function upsertStaticDropdown(nav, label, links, isActive, key = label) {
   }
   dropdown.classList.toggle("active", isActive);
   dropdown.innerHTML = `
-    <summary class="nav-tab nav-dropdown-toggle">${label} â–¾</summary>
+    <summary class="nav-tab nav-dropdown-toggle">${label} <span class="nav-dropdown-caret" aria-hidden="true">▾</span></summary>
     <div class="nav-dropdown-menu">
       ${links.map((item) => item.type === "label"
         ? `<span class="nav-dropdown-group">${item.label}</span>`
@@ -9713,6 +9714,90 @@ function initAccountsPage() {
   }
 
   const observer = new MutationObserver(() => scheduleDisplayNormalization());
+  if (document.body) {
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+  } else {
+    document.addEventListener("DOMContentLoaded", () => {
+      observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    }, { once: true });
+  }
+})();
+
+(() => {
+  const suspiciousPattern = /[ÃÂâ€]/;
+
+  function repairMojibakeSafe(value) {
+    if (typeof value !== "string" || !value || !suspiciousPattern.test(value)) return value;
+    let next = value;
+    for (let index = 0; index < 3; index += 1) {
+      try {
+        const repaired = decodeURIComponent(escape(next));
+        if (!repaired || repaired === next) break;
+        next = repaired;
+      } catch {
+        break;
+      }
+    }
+
+    next = next
+      .replace(/â€“/g, "–")
+      .replace(/â€”/g, "—")
+      .replace(/â€¦/g, "…")
+      .replace(/â€¢/g, "•")
+      .replace(/â€˜/g, "‘")
+      .replace(/â€™/g, "’")
+      .replace(/â€œ/g, "“")
+      .replace(/â€\x9D/g, "”")
+      .replace(/â„¢/g, "™");
+
+    return next;
+  }
+
+  function repairNodeTextSafe(root = document.documentElement) {
+    if (!root) return;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode();
+    while (node) {
+      const fixed = repairMojibakeSafe(node.nodeValue);
+      if (fixed !== node.nodeValue) node.nodeValue = fixed;
+      node = walker.nextNode();
+    }
+
+    root.querySelectorAll("input[placeholder], textarea[placeholder], [title], option, button, h1, h2, h3, p, small, span, a, label").forEach((element) => {
+      if (element.hasAttribute("placeholder")) {
+        const placeholder = element.getAttribute("placeholder");
+        const fixed = repairMojibakeSafe(placeholder);
+        if (fixed !== placeholder) element.setAttribute("placeholder", fixed);
+      }
+      if (element.hasAttribute("title")) {
+        const title = element.getAttribute("title");
+        const fixed = repairMojibakeSafe(title);
+        if (fixed !== title) element.setAttribute("title", fixed);
+      }
+      const fixedText = repairMojibakeSafe(element.textContent);
+      if (fixedText !== element.textContent) element.textContent = fixedText;
+    });
+
+    document.title = repairMojibakeSafe(document.title);
+  }
+
+  let repairQueued = false;
+  function scheduleMojibakeRepairSafe() {
+    if (repairQueued) return;
+    repairQueued = true;
+    window.requestAnimationFrame(() => {
+      repairQueued = false;
+      repairNodeTextSafe();
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", scheduleMojibakeRepairSafe, { once: true });
+  } else {
+    scheduleMojibakeRepairSafe();
+  }
+
+  const observer = new MutationObserver(() => scheduleMojibakeRepairSafe());
   if (document.body) {
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
   } else {
