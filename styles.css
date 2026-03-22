@@ -463,6 +463,19 @@ body.evaluations-create-view #activity-creation-panel {
   outline: none;
   transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
 }
+.field select,
+.skill-select {
+  color-scheme: light;
+  background-color: rgba(5,15,24,0.95);
+  color: var(--text);
+}
+.field select option,
+.field select optgroup,
+.skill-select option,
+.skill-select optgroup {
+  background: #0b1a26;
+  color: #e7fff8;
+}
 .field input:focus, .field select:focus, .field textarea:focus, .skill-select:focus {
   border-color: var(--line-strong);
   box-shadow: 0 0 0 3px rgba(98,245,212,0.08), 0 0 20px rgba(98,245,212,0.08);
