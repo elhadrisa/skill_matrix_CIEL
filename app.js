@@ -10282,6 +10282,7 @@ function initAccountsPage() {
       persistAppData();
       resetActivityEditorSafe();
       window.__cielSyncEvaluationSelectorsSafe?.(targetClassId, targetActivityId);
+      window.__cielRefreshEvaluationSessionPanelSafe?.(targetClassId, targetActivityId);
       sessionClassSelect.value = targetClassId;
       evalClassSelect.value = targetClassId;
       syncSessionActivities(targetActivityId);
@@ -15039,6 +15040,242 @@ function initCertificationPageFinal() {
   } else {
     bindAuthoritativeEvaluationCardsFinalSafe();
     bindAuthoritativeEvaluationCardsWatchdogFinalSafe();
+  }
+})();
+
+(() => {
+  function getAuthoritativeSessionPanelNodesSafe() {
+    const panel = document.querySelector("#activity-selection-panel");
+    if (!panel) return null;
+    const legacyForm = panel.querySelector(".stack-form");
+    let shell = panel.querySelector("#authoritative-evaluation-session-panel");
+    if (!shell) {
+      shell = document.createElement("div");
+      shell.id = "authoritative-evaluation-session-panel";
+      shell.className = "stack-form";
+      shell.innerHTML = `
+        <label class="field">
+          <span>Recherche rapide</span>
+          <input id="authoritative-activity-search-input" type="text" placeholder="Titre, compétence, date...">
+        </label>
+        <label class="field">
+          <span>Classe</span>
+          <select id="authoritative-session-class-select"></select>
+        </label>
+        <label class="field">
+          <span>TP / TD</span>
+          <select id="authoritative-session-activity-select"></select>
+        </label>
+      `;
+      const anchor = legacyForm || panel.querySelector(".section-head");
+      if (anchor?.nextSibling) {
+        anchor.parentNode.insertBefore(shell, anchor.nextSibling);
+      } else {
+        panel.appendChild(shell);
+      }
+    }
+    if (legacyForm) {
+      legacyForm.hidden = true;
+      legacyForm.style.display = "none";
+      legacyForm.setAttribute("aria-hidden", "true");
+    }
+    return {
+      panel,
+      legacyForm,
+      searchInput: shell.querySelector("#authoritative-activity-search-input"),
+      classSelect: shell.querySelector("#authoritative-session-class-select"),
+      activitySelect: shell.querySelector("#authoritative-session-activity-select"),
+      hiddenSessionClassSelect: document.querySelector("#session-class-select"),
+      hiddenEvalClassSelect: document.querySelector("#eval-class-select"),
+      hiddenActivitySelect: document.querySelector("#activity-select"),
+      matrix: document.querySelector("#activity-matrix")
+    };
+  }
+
+  function populateHiddenActivitySelectSafe(hiddenActivitySelect, activities, selectedActivityId) {
+    if (!hiddenActivitySelect) return;
+    hiddenActivitySelect.innerHTML = activities.map((activity) => `<option value="${activity.id}">${escapeHtml(`${activity.type} // ${repairEvalTextFinalSafe(activity.title)}`)}</option>`).join("");
+    if (selectedActivityId && activities.some((activity) => activity.id === selectedActivityId)) {
+      hiddenActivitySelect.value = selectedActivityId;
+    } else if (activities[0]) {
+      hiddenActivitySelect.value = activities[0].id;
+    } else {
+      hiddenActivitySelect.value = "";
+    }
+  }
+
+  function syncAuthoritativeVisibleSessionSafe(classId, activityId) {
+    const nodes = getAuthoritativeSessionPanelNodesSafe();
+    if (!nodes) return;
+    const {
+      hiddenSessionClassSelect,
+      hiddenEvalClassSelect,
+      hiddenActivitySelect,
+      matrix
+    } = nodes;
+    const activities = getActivitiesByClass(classId);
+    const effectiveActivityId = activityId && activities.some((activity) => activity.id === activityId)
+      ? activityId
+      : (activities[0]?.id || "");
+
+    if (hiddenSessionClassSelect) {
+      const classOptions = app.classes.map((classItem) => `<option value="${classItem.id}">${escapeHtml(repairEvalTextFinalSafe(classItem.name))}</option>`).join("");
+      hiddenSessionClassSelect.innerHTML = classOptions;
+      hiddenSessionClassSelect.value = classId || "";
+    }
+    if (hiddenEvalClassSelect) {
+      const classOptions = app.classes.map((classItem) => `<option value="${classItem.id}">${escapeHtml(repairEvalTextFinalSafe(classItem.name))}</option>`).join("");
+      hiddenEvalClassSelect.innerHTML = classOptions;
+      hiddenEvalClassSelect.value = classId || "";
+    }
+
+    populateHiddenActivitySelectSafe(hiddenActivitySelect, activities, effectiveActivityId);
+
+    if (matrix) {
+      matrix.dataset.renderClassId = classId || "";
+      matrix.dataset.renderActivityId = effectiveActivityId || "";
+    }
+
+    if (hiddenEvalClassSelect) {
+      hiddenEvalClassSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    if (hiddenSessionClassSelect) {
+      hiddenSessionClassSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    if (hiddenActivitySelect) {
+      hiddenActivitySelect.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    window.__cielScheduleActivityCardsLayoutSafe?.();
+  }
+
+  function refreshAuthoritativeSessionPanelSafe(targetClassId = "", targetActivityId = "") {
+    if (document.body?.dataset?.page !== "evaluations") return;
+    const nodes = getAuthoritativeSessionPanelNodesSafe();
+    if (!nodes) return;
+    const {
+      searchInput,
+      classSelect,
+      activitySelect,
+      hiddenSessionClassSelect,
+      hiddenEvalClassSelect,
+      hiddenActivitySelect,
+      matrix
+    } = nodes;
+    if (!searchInput || !classSelect || !activitySelect) return;
+
+    const classOptions = app.classes.map((classItem) => `<option value="${classItem.id}">${escapeHtml(repairEvalTextFinalSafe(classItem.name))}</option>`).join("");
+    classSelect.innerHTML = classOptions;
+
+    const effectiveClassId = targetClassId
+      || matrix?.dataset?.renderClassId
+      || hiddenSessionClassSelect?.value
+      || hiddenEvalClassSelect?.value
+      || getActivityById(targetActivityId)?.classId
+      || app.classes.find((classItem) => getActivitiesByClass(classItem.id).length)?.id
+      || app.classes[0]?.id
+      || "";
+
+    if (effectiveClassId && [...classSelect.options].some((option) => option.value === effectiveClassId)) {
+      classSelect.value = effectiveClassId;
+    }
+
+    const searchTerm = String(searchInput.value || "").trim().toLowerCase();
+    const allActivities = getActivitiesByClass(classSelect.value || effectiveClassId);
+    const visibleActivities = searchTerm
+      ? allActivities.filter((activity) => {
+          const haystack = [
+            activity.title,
+            activity.type,
+            activity.startDate,
+            activity.endDate,
+            ...(getActivitySkills(activity).map((skill) => `${skill.code} ${skill.title}`))
+          ].join(" ").toLowerCase();
+          return haystack.includes(searchTerm);
+        })
+      : allActivities;
+
+    activitySelect.innerHTML = visibleActivities.length
+      ? visibleActivities.map((activity) => `<option value="${activity.id}">${escapeHtml(`${activity.type} // ${repairEvalTextFinalSafe(activity.title)}`)}</option>`).join("")
+      : `<option value="">Aucune séance</option>`;
+
+    const effectiveActivityId = targetActivityId && visibleActivities.some((activity) => activity.id === targetActivityId)
+      ? targetActivityId
+      : (hiddenActivitySelect?.value && visibleActivities.some((activity) => activity.id === hiddenActivitySelect.value)
+          ? hiddenActivitySelect.value
+          : (visibleActivities[0]?.id || allActivities[0]?.id || ""));
+
+    if (effectiveActivityId && [...activitySelect.options].some((option) => option.value === effectiveActivityId)) {
+      activitySelect.value = effectiveActivityId;
+    }
+
+    syncAuthoritativeVisibleSessionSafe(classSelect.value || effectiveClassId, effectiveActivityId);
+  }
+
+  function bindAuthoritativeSessionPanelSafe() {
+    if (document.body?.dataset?.page !== "evaluations") return;
+    if (document.documentElement.dataset.authoritativeSessionPanelBound === "true") return;
+    document.documentElement.dataset.authoritativeSessionPanelBound = "true";
+
+    const nodes = getAuthoritativeSessionPanelNodesSafe();
+    if (!nodes) return;
+    const { searchInput, classSelect, activitySelect } = nodes;
+
+    searchInput?.addEventListener("input", () => {
+      refreshAuthoritativeSessionPanelSafe(classSelect?.value || "", activitySelect?.value || "");
+    }, true);
+
+    classSelect?.addEventListener("change", () => {
+      refreshAuthoritativeSessionPanelSafe(classSelect.value || "", "");
+    }, true);
+
+    activitySelect?.addEventListener("change", () => {
+      syncAuthoritativeVisibleSessionSafe(classSelect?.value || "", activitySelect.value || "");
+    }, true);
+
+    document.addEventListener("submit", (event) => {
+      const form = event.target;
+      if (!(form instanceof HTMLFormElement) || form.id !== "activity-form") return;
+      window.setTimeout(() => {
+        const matrix = document.querySelector("#activity-matrix");
+        refreshAuthoritativeSessionPanelSafe(matrix?.dataset?.renderClassId || "", matrix?.dataset?.renderActivityId || "");
+      }, 0);
+      window.setTimeout(() => {
+        const matrix = document.querySelector("#activity-matrix");
+        refreshAuthoritativeSessionPanelSafe(matrix?.dataset?.renderClassId || "", matrix?.dataset?.renderActivityId || "");
+      }, 140);
+    }, true);
+
+    ["#activity-duplicate-button", "#activity-delete-button", "#activity-edit-button", "#activity-cancel-edit"].forEach((selector) => {
+      const button = document.querySelector(selector);
+      if (!button) return;
+      button.addEventListener("click", () => {
+        window.setTimeout(() => {
+          const matrix = document.querySelector("#activity-matrix");
+          refreshAuthoritativeSessionPanelSafe(matrix?.dataset?.renderClassId || "", matrix?.dataset?.renderActivityId || "");
+        }, 120);
+      }, true);
+    });
+
+    let lastSignature = "";
+    window.setInterval(() => {
+      if (document.body?.dataset?.page !== "evaluations") return;
+      const signature = app.evaluationActivities.map((activity) => `${activity.id}:${activity.classId}:${activity.title}`).join("|");
+      if (signature === lastSignature) return;
+      lastSignature = signature;
+      const matrix = document.querySelector("#activity-matrix");
+      refreshAuthoritativeSessionPanelSafe(matrix?.dataset?.renderClassId || "", matrix?.dataset?.renderActivityId || "");
+    }, 400);
+
+    refreshAuthoritativeSessionPanelSafe();
+  }
+
+  window.__cielRefreshEvaluationSessionPanelSafe = refreshAuthoritativeSessionPanelSafe;
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bindAuthoritativeSessionPanelSafe, { once: true });
+  } else {
+    bindAuthoritativeSessionPanelSafe();
   }
 })();
 
