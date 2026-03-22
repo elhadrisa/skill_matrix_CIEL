@@ -20,12 +20,53 @@
       <nav class="nav-tabs app-nav">
         <a class="nav-tab" href="index.html">Accueil</a>
         <a class="nav-tab" href="classes.html">Classes</a>
-        <a class="nav-tab" href="dashboard.html">Dashboard</a>
-        <a class="nav-tab" href="evaluations.html">Évaluations</a>
-        <a class="nav-tab" href="pfmp.html">PFMP</a>
-        <a class="nav-tab" href="bulletin.html">Bulletin</a>
-        <a class="nav-tab active" href="coverage.html">Référentiel</a>
-        <a class="nav-tab" href="remediation-competences.html">Remédiations</a>
+        <details class="nav-dropdown" data-key="dashboard-menu">
+          <summary class="nav-tab nav-dropdown-toggle">Dashboard <span class="nav-dropdown-caret" aria-hidden="true">▾</span></summary>
+          <div class="nav-dropdown-menu">
+            <a class="nav-dropdown-link" href="dashboard.html">Pilotage compétences</a>
+            <a class="nav-dropdown-link" href="dashboard.html?view=pfmp">Pilotage PFMP</a>
+            <a class="nav-dropdown-link" href="dashboard.html?view=calendar">Calendrier pédagogique</a>
+          </div>
+        </details>
+        <details class="nav-dropdown" data-key="evaluations-menu">
+          <summary class="nav-tab nav-dropdown-toggle">Évaluations <span class="nav-dropdown-caret" aria-hidden="true">▾</span></summary>
+          <div class="nav-dropdown-menu">
+            <a class="nav-dropdown-link" href="evaluations.html?view=create">Création de séance</a>
+            <a class="nav-dropdown-link" href="evaluations.html?view=session">Évaluation séance</a>
+            <a class="nav-dropdown-link" href="evaluations.html?view=skills">Compétences élèves</a>
+            <a class="nav-dropdown-link" href="candidate.html">Examen</a>
+          </div>
+        </details>
+        <details class="nav-dropdown" data-key="pfmp-menu">
+          <summary class="nav-tab nav-dropdown-toggle">PFMP <span class="nav-dropdown-caret" aria-hidden="true">▾</span></summary>
+          <div class="nav-dropdown-menu">
+            <a class="nav-dropdown-link" href="pfmp.html">Infos PFMP</a>
+            <a class="nav-dropdown-link" href="pfmp-livret.html">Livret d'évaluation</a>
+          </div>
+        </details>
+        <details class="nav-dropdown" data-key="bulletin-menu">
+          <summary class="nav-tab nav-dropdown-toggle">Bulletin <span class="nav-dropdown-caret" aria-hidden="true">▾</span></summary>
+          <div class="nav-dropdown-menu">
+            <a class="nav-dropdown-link" href="bulletin.html">Bilan annuel</a>
+            <a class="nav-dropdown-link" href="bulletin.html">Synthèse 3 ans</a>
+          </div>
+        </details>
+        <details class="nav-dropdown active" data-key="referential-menu">
+          <summary class="nav-tab nav-dropdown-toggle">Référentiel <span class="nav-dropdown-caret" aria-hidden="true">▾</span></summary>
+          <div class="nav-dropdown-menu">
+            <a class="nav-dropdown-link" href="coverage.html">Couverture</a>
+            <a class="nav-dropdown-link" href="mapping.html">Cartographie</a>
+            <a class="nav-dropdown-link" href="library.html">Bibliothèque de séances</a>
+            <a class="nav-dropdown-link" href="reports.html">Rapports premium</a>
+          </div>
+        </details>
+        <details class="nav-dropdown" data-key="remediations-menu">
+          <summary class="nav-tab nav-dropdown-toggle">Remédiations <span class="nav-dropdown-caret" aria-hidden="true">▾</span></summary>
+          <div class="nav-dropdown-menu">
+            <a class="nav-dropdown-link" href="remediation-pfmp.html">PFMP</a>
+            <a class="nav-dropdown-link" href="remediation-competences.html">Compétences</a>
+          </div>
+        </details>
         <a class="nav-tab" href="accounts.html">Comptes</a>
         <span id="session-role" class="badge accent"></span>
         <button id="logout-button" class="ghost-button" type="button">Déconnexion</button>
