@@ -9235,7 +9235,7 @@ function initAccountsPage() {
         matrix.dataset.openStudentId = target.dataset.studentId || matrix.dataset.openStudentId || "";
         setActivityIndicatorStatus(liveActivity.id, target.dataset.studentId, target.dataset.indicatorId, target.value);
         persistAppData();
-        window.setTimeout(refreshEvaluationPanelsUltraSafe, 0);
+        refreshEvaluationPanelsUltraSafe();
       });
     });
 
@@ -9273,7 +9273,7 @@ function initAccountsPage() {
         matrix.dataset.openStudentId = target.dataset.studentId || matrix.dataset.openStudentId || "";
         applyActivityGlobalGradeUltraSafe(liveActivity, target.dataset.studentId, String(input.value || "").replace(",", "."));
         persistAppData();
-        window.setTimeout(refreshEvaluationPanelsUltraSafe, 0);
+        refreshEvaluationPanelsUltraSafe();
       });
     });
   }
