@@ -9098,6 +9098,75 @@ function initAccountsPage() {
     return summary;
   }
 
+  function renderIndicatorSummaryBadgesUltraSafe(summary) {
+    return [
+      ["acquis", "Acquis"],
+      ["partiellement_acquis", "Partiel"],
+      ["en_cours_acquisition", "En cours"],
+      ["non_acquis", "Non acquis"],
+      ["non_evalue", "Non évalué"]
+    ].filter(([status]) => summary[status] > 0).map(([status, label]) => `
+      <span class="badge ${status === "acquis" ? "success" : status === "partiellement_acquis" ? "accent" : status === "en_cours_acquisition" ? "warning" : "ghost"}">${summary[status]} ${label}</span>
+    `).join("");
+  }
+
+  function recomputeActivitySkillsUltraSafe(activity, studentId) {
+    const student = getStudentById(studentId);
+    if (!activity || !student) return;
+    student.skillGrades = hydrateSkillGrades(student.skillGrades || {});
+    const evaluation = activity.evaluations?.[studentId] || {};
+    const resolvedSkillMap = getResolvedIndicatorSkillMapUltraSafe(activity);
+    getActivitySkillIds(activity).forEach((skillId) => {
+      const relatedIndicators = (activity.indicators || []).filter((indicator) => resolvedSkillMap.get(indicator.id) === skillId);
+      if (!relatedIndicators.length) return;
+      const scores = relatedIndicators.map((indicator) => levelScores[evaluation[indicator.id]] || 0);
+      const averageScore = scores.length ? scores.reduce((sum, value) => sum + value, 0) / scores.length : 0;
+      const gradeFromIndicators = Math.round((averageScore / 4) * 20 * 2) / 2;
+      student.skillGrades[skillId] = gradeFromIndicators;
+      student.skills[skillId] = mapGradeToStatus(gradeFromIndicators);
+    });
+  }
+
+  function syncStudentActivityCardUltraSafe(activity, studentId) {
+    const matrix = document.querySelector("#activity-matrix");
+    const card = matrix?.querySelector(`.activity-student-card[data-student-id="${studentId}"]`);
+    const student = getStudentById(studentId);
+    if (!matrix || !card || !student || !activity) return;
+
+    const evaluation = activity.evaluations?.[studentId] || {};
+    const globalGrade = normalizeGrade(evaluation.__globalGrade);
+    const mappedStatus = mapGradeToStatus(globalGrade);
+    const groups = getActivityIndicatorGroupsUltraSafe(activity);
+
+    card.querySelectorAll(".activity-status-select").forEach((select) => {
+      select.value = getActivityIndicatorStatus(activity, studentId, select.dataset.indicatorId);
+    });
+
+    const gradeInput = card.querySelector(".activity-student-global-grade");
+    if (gradeInput) gradeInput.value = globalGrade === "" ? "" : globalGrade;
+    const gradeHint = card.querySelector(".activity-global-grade-hint");
+    if (gradeHint) gradeHint.textContent = getLevelLabelSafe(mappedStatus) || "Non évalué";
+
+    const metaText = card.querySelector(".activity-student-head-main .muted-copy");
+    if (metaText) {
+      metaText.textContent = `${getStudentProgress(student)}% validé // ${repairInlineLabelUltraSafe(getClassById(student.classId)?.name || "")}`;
+    }
+    const statusBadge = card.querySelector(".activity-student-card-meta .badge:last-child");
+    if (statusBadge) {
+      statusBadge.className = `badge ${mappedStatus === "acquis" ? "success" : mappedStatus === "partiellement_acquis" ? "accent" : mappedStatus === "en_cours_acquisition" ? "warning" : "ghost"}`;
+      statusBadge.textContent = getLevelLabelSafe(mappedStatus) || "Non évalué";
+    }
+
+    card.querySelectorAll(".activity-skill-group").forEach((section) => {
+      const summaryContainer = section.querySelector(".activity-skill-group-summary");
+      if (!summaryContainer) return;
+      const title = section.querySelector(".activity-skill-group-heading strong")?.textContent || "";
+      const group = groups.find((item) => item.title === title);
+      if (!group) return;
+      summaryContainer.innerHTML = renderIndicatorSummaryBadgesUltraSafe(getIndicatorStatusSummaryUltraSafe(activity, studentId, group.indicators));
+    });
+  }
+
   function renderActivityCardsLayoutUltraSafe() {
     if (document.body?.dataset?.page !== "evaluations") return;
     const matrix = document.querySelector("#activity-matrix");
@@ -9159,15 +9228,7 @@ function initAccountsPage() {
                   <div class="activity-skill-group-summary">
                     ${(() => {
                       const summary = getIndicatorStatusSummaryUltraSafe(activity, student.id, group.indicators);
-                      return [
-                        ["acquis", "Acquis"],
-                        ["partiellement_acquis", "Partiel"],
-                        ["en_cours_acquisition", "En cours"],
-                        ["non_acquis", "Non acquis"],
-                        ["non_evalue", "Non évalué"]
-                      ].filter(([status]) => summary[status] > 0).map(([status, label]) => `
-                        <span class="badge ${status === "acquis" ? "success" : status === "partiellement_acquis" ? "accent" : status === "en_cours_acquisition" ? "warning" : status === "non_acquis" ? "ghost" : "ghost"}">${summary[status]} ${label}</span>
-                      `).join("");
+                      return renderIndicatorSummaryBadgesUltraSafe(summary);
                     })()}
                   </div>
                 </div>
@@ -9234,8 +9295,14 @@ function initAccountsPage() {
         const liveActivity = getActivityById(target.dataset.activityId) || activity;
         matrix.dataset.openStudentId = target.dataset.studentId || matrix.dataset.openStudentId || "";
         setActivityIndicatorStatus(liveActivity.id, target.dataset.studentId, target.dataset.indicatorId, target.value);
+        recomputeActivitySkillsUltraSafe(liveActivity, target.dataset.studentId);
         persistAppData();
-        refreshEvaluationPanelsUltraSafe();
+        syncStudentActivityCardUltraSafe(liveActivity, target.dataset.studentId);
+        const classId = document.querySelector("#session-class-select")?.value || app.classes[0]?.id || "";
+        renderActivitySummary(liveActivity, classId);
+        renderActivityReport(liveActivity, classId);
+        renderActivitySynthesis(classId);
+        renderStudentSheet();
       });
     });
 
@@ -9273,7 +9340,12 @@ function initAccountsPage() {
         matrix.dataset.openStudentId = target.dataset.studentId || matrix.dataset.openStudentId || "";
         applyActivityGlobalGradeUltraSafe(liveActivity, target.dataset.studentId, String(input.value || "").replace(",", "."));
         persistAppData();
-        refreshEvaluationPanelsUltraSafe();
+        syncStudentActivityCardUltraSafe(liveActivity, target.dataset.studentId);
+        const classId = document.querySelector("#session-class-select")?.value || app.classes[0]?.id || "";
+        renderActivitySummary(liveActivity, classId);
+        renderActivityReport(liveActivity, classId);
+        renderActivitySynthesis(classId);
+        renderStudentSheet();
       });
     });
   }
