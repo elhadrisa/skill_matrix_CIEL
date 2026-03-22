@@ -8406,6 +8406,154 @@ function initAccountsPage() {
 })();
 
 (() => {
+  const UTF8_SUSPECT_PATTERN = /[ÃÂâ€œ”€™�]/;
+
+  function repairUtf8StringDeepSafe(value) {
+    if (typeof value !== "string" || !value) return value;
+    let next = value;
+    for (let index = 0; index < 4; index += 1) {
+      if (!UTF8_SUSPECT_PATTERN.test(next)) break;
+      const repaired = typeof repairDisplaySourceString === "function" ? repairDisplaySourceString(next) : next;
+      if (!repaired || repaired === next) break;
+      next = repaired;
+    }
+    return next;
+  }
+
+  function repairUtf8StructuredDataSafe(node, seen = new WeakSet()) {
+    if (!node || typeof node !== "object") return node;
+    if (seen.has(node)) return node;
+    seen.add(node);
+    if (Array.isArray(node)) {
+      node.forEach((item) => repairUtf8StructuredDataSafe(item, seen));
+      return node;
+    }
+    Object.keys(node).forEach((key) => {
+      const value = node[key];
+      if (typeof value === "string") {
+        if (typeof shouldRepairStructuredText === "function" ? shouldRepairStructuredText(key, value) : UTF8_SUSPECT_PATTERN.test(value)) {
+          node[key] = repairUtf8StringDeepSafe(value);
+        }
+        return;
+      }
+      if (value && typeof value === "object") {
+        repairUtf8StructuredDataSafe(value, seen);
+      }
+    });
+    return node;
+  }
+
+  function normalizeElementAttributesSafe(element) {
+    if (!(element instanceof Element)) return;
+    ["title", "aria-label", "placeholder", "alt"].forEach((attribute) => {
+      if (!element.hasAttribute(attribute)) return;
+      const current = element.getAttribute(attribute) || "";
+      const fixed = repairUtf8StringDeepSafe(current);
+      if (fixed !== current) element.setAttribute(attribute, fixed);
+    });
+    if (element instanceof HTMLInputElement && /^(button|submit|reset)$/i.test(element.type)) {
+      const fixed = repairUtf8StringDeepSafe(element.value);
+      if (fixed !== element.value) element.value = fixed;
+    }
+  }
+
+  function normalizeNodeTreeSafe(root) {
+    if (!root) return;
+    if (root.nodeType === Node.TEXT_NODE) {
+      if (root.parentElement && /^(SCRIPT|STYLE|TEXTAREA)$/i.test(root.parentElement.tagName)) return;
+      const fixed = repairUtf8StringDeepSafe(root.nodeValue || "");
+      if (fixed !== root.nodeValue) root.nodeValue = fixed;
+      return;
+    }
+
+    if (!(root instanceof Element) && !(root instanceof Document) && !(root instanceof DocumentFragment)) return;
+    if (root instanceof Element) normalizeElementAttributesSafe(root);
+
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+    let current = walker.currentNode;
+    while (current) {
+      if (current.nodeType === Node.TEXT_NODE) {
+        if (!(current.parentElement && /^(SCRIPT|STYLE|TEXTAREA)$/i.test(current.parentElement.tagName))) {
+          const fixed = repairUtf8StringDeepSafe(current.nodeValue || "");
+          if (fixed !== current.nodeValue) current.nodeValue = fixed;
+        }
+      } else if (current.nodeType === Node.ELEMENT_NODE) {
+        normalizeElementAttributesSafe(current);
+      }
+      current = walker.nextNode();
+    }
+    document.title = repairUtf8StringDeepSafe(document.title);
+  }
+
+  function repairGlobalUtf8StateSafe() {
+    [
+      typeof skillCatalog !== "undefined" ? skillCatalog : null,
+      typeof defaultClasses !== "undefined" ? defaultClasses : null,
+      typeof defaultStudents !== "undefined" ? defaultStudents : null,
+      typeof defaultPfmpRecords !== "undefined" ? defaultPfmpRecords : null,
+      typeof defaultIndicatorBank !== "undefined" ? defaultIndicatorBank : null,
+      typeof defaultLessonLibrary !== "undefined" ? defaultLessonLibrary : null,
+      typeof defaultAccounts !== "undefined" ? defaultAccounts : null,
+      typeof roleCatalog !== "undefined" ? roleCatalog : null,
+      typeof skillDomainOverrides !== "undefined" ? skillDomainOverrides : null,
+      typeof referentialDomains !== "undefined" ? referentialDomains : null,
+      typeof PFMP_PERIODS !== "undefined" ? PFMP_PERIODS : null,
+      typeof app !== "undefined" ? app : null
+    ].forEach((entry) => {
+      if (entry) repairUtf8StructuredDataSafe(entry);
+    });
+  }
+
+  function bindUtf8DomObserverSafe() {
+    if (document.body?.dataset?.utf8ObserverBound === "true") return;
+    if (!document.body) return;
+    document.body.dataset.utf8ObserverBound = "true";
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => normalizeNodeTreeSafe(node));
+      });
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+
+  function bootUtf8RepairsSafe() {
+    repairGlobalUtf8StateSafe();
+    normalizeNodeTreeSafe(document.body || document.documentElement);
+    bindUtf8DomObserverSafe();
+  }
+
+  const originalReplaceAppStateUtf8Safe = typeof replaceAppState === "function" ? replaceAppState : null;
+  if (originalReplaceAppStateUtf8Safe) {
+    replaceAppState = function (data) {
+      if (data && typeof data === "object") repairUtf8StructuredDataSafe(data);
+      originalReplaceAppStateUtf8Safe(data);
+      window.setTimeout(() => normalizeNodeTreeSafe(document.body || document.documentElement), 0);
+    };
+  }
+
+  const originalInitEvaluationsPageUtf8Final = typeof initEvaluationsPageFinal === "function" ? initEvaluationsPageFinal : null;
+  if (originalInitEvaluationsPageUtf8Final) {
+    initEvaluationsPageFinal = function () {
+      originalInitEvaluationsPageUtf8Final();
+      window.setTimeout(() => {
+        normalizeNodeTreeSafe(document.body);
+        window.__cielScheduleActivityCardsLayoutSafe?.();
+      }, 0);
+      window.setTimeout(() => {
+        normalizeNodeTreeSafe(document.body);
+        window.__cielScheduleActivityCardsLayoutSafe?.();
+      }, 120);
+    };
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bootUtf8RepairsSafe, { once: true });
+  } else {
+    bootUtf8RepairsSafe();
+  }
+})();
+
+(() => {
   const DEFAULT_PREMIUM_SETTINGS_SAFE = {
     gradePolicy: {
       nonAcquisMax: 5,
@@ -9303,12 +9451,7 @@ function initAccountsPage() {
   }
 
   function repairInlineLabelUltraSafe(value) {
-    if (typeof value !== "string" || !value || !/[ÃÂâ€]/.test(value)) return value;
-    try {
-      return decodeURIComponent(escape(value));
-    } catch {
-      return value;
-    }
+    return repairDisplaySourceString(value);
   }
 
   function formatSkillTitleUltraSafe(skill) {
@@ -9653,21 +9796,68 @@ function initAccountsPage() {
     });
   }
 
+  let activityCardsRenderQueuedUltraSafe = false;
+  function scheduleActivityCardsLayoutUltraSafe(delay = 0) {
+    const trigger = () => {
+      if (activityCardsRenderQueuedUltraSafe) return;
+      activityCardsRenderQueuedUltraSafe = true;
+      window.requestAnimationFrame(() => {
+        activityCardsRenderQueuedUltraSafe = false;
+        renderActivityCardsLayoutUltraSafe();
+      });
+    };
+    if (delay > 0) {
+      window.setTimeout(trigger, delay);
+    } else {
+      trigger();
+    }
+  }
+
   const originalInitEvaluationsPageCardsUltraSafe = initEvaluationsPageFinal;
   initEvaluationsPageFinal = function () {
     originalInitEvaluationsPageCardsUltraSafe();
-    window.setTimeout(renderActivityCardsLayoutUltraSafe, 0);
-    window.setTimeout(renderActivityCardsLayoutUltraSafe, 160);
+    scheduleActivityCardsLayoutUltraSafe();
+    scheduleActivityCardsLayoutUltraSafe(160);
   };
 
   function bindActivityCardsObserverUltraSafe() {
-    return;
+    if (document.body?.dataset?.page !== "evaluations") return;
+    const matrix = document.querySelector("#activity-matrix");
+    if (!matrix || matrix.dataset.cardsObserverBound === "true") return;
+    matrix.dataset.cardsObserverBound = "true";
+
+    const shouldConvertMatrix = () => {
+      const currentMatrix = document.querySelector("#activity-matrix");
+      if (!currentMatrix) return false;
+      if (currentMatrix.querySelector(".activity-student-card")) return false;
+      return currentMatrix.classList.contains("activity-grid")
+        || Boolean(currentMatrix.querySelector(".matrix-header, .matrix-row, .activity-header, .activity-row"));
+    };
+
+    const observer = new MutationObserver(() => {
+      if (shouldConvertMatrix()) scheduleActivityCardsLayoutUltraSafe();
+    });
+    observer.observe(matrix, {
+      childList: true,
+      subtree: false,
+      attributes: true,
+      attributeFilter: ["class"]
+    });
+
+    ["#activity-select", "#session-class-select", "#eval-class-select", "#eval-student-select"].forEach((selector) => {
+      const field = document.querySelector(selector);
+      if (!field || field.dataset.cardsObserverFieldBound === "true") return;
+      field.dataset.cardsObserverFieldBound = "true";
+      field.addEventListener("change", () => scheduleActivityCardsLayoutUltraSafe(0));
+    });
+
+    scheduleActivityCardsLayoutUltraSafe();
   }
 
   const originalRenderEvaluationPageUltraSafe = renderEvaluationPage;
   renderEvaluationPage = function (...args) {
     originalRenderEvaluationPageUltraSafe.apply(this, args);
-    window.setTimeout(renderActivityCardsLayoutUltraSafe, 0);
+    scheduleActivityCardsLayoutUltraSafe();
   };
 
   renderActivityMatrix = function () {
@@ -9676,7 +9866,7 @@ function initAccountsPage() {
       matrix.className = "activity-cards-layout";
       matrix.innerHTML = "";
     }
-    window.setTimeout(renderActivityCardsLayoutUltraSafe, 0);
+    scheduleActivityCardsLayoutUltraSafe();
   };
 
   if (document.readyState === "loading") {
@@ -9686,8 +9876,11 @@ function initAccountsPage() {
     }, { once: true });
   } else {
     bindActivityCardsObserverUltraSafe();
-    window.setTimeout(renderActivityCardsLayoutUltraSafe, 0);
+    scheduleActivityCardsLayoutUltraSafe();
   }
+
+  window.__cielRenderActivityCardsLayoutSafe = renderActivityCardsLayoutUltraSafe;
+  window.__cielScheduleActivityCardsLayoutSafe = scheduleActivityCardsLayoutUltraSafe;
 })();
 
 ;(function () {
@@ -14109,5 +14302,17 @@ function initCertificationPageFinal() {
     initReportsPageFinalSafe();
     window.setTimeout(enrichReportsPageSafe, 0);
   }
+})();
+
+(() => {
+  const originalInitEvaluationsPageFinalLastSafe = typeof initEvaluationsPageFinal === "function" ? initEvaluationsPageFinal : null;
+  if (!originalInitEvaluationsPageFinalLastSafe) return;
+
+  initEvaluationsPageFinal = function () {
+    originalInitEvaluationsPageFinalLastSafe();
+    window.setTimeout(() => window.__cielScheduleActivityCardsLayoutSafe?.(), 0);
+    window.setTimeout(() => window.__cielScheduleActivityCardsLayoutSafe?.(), 120);
+    window.setTimeout(() => window.__cielScheduleActivityCardsLayoutSafe?.(), 260);
+  };
 })();
 
