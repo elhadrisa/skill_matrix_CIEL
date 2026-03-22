@@ -6785,7 +6785,10 @@ function upsertBulletinDropdown(nav) {
 
 function upsertEvaluationsDropdown(nav) {
   nav.querySelector('a[href="evaluations.html"]')?.remove();
-  const links = app.classes.flatMap((classItem) => {
+  const links = [
+    { type: "label", label: "Assistant" },
+    { href: "cielai.html", label: "CielAI" },
+    ...app.classes.flatMap((classItem) => {
     const classLinks = [
       { type: "label", label: getClassNavLabel(classItem) },
       { href: `evaluations.html?class=${encodeURIComponent(classItem.id)}&view=create`, label: "Creation de seance" },
@@ -6799,11 +6802,8 @@ function upsertEvaluationsDropdown(nav) {
       });
     }
     return classLinks;
-  });
-  links.push(
-    { type: "label", label: "Assistant" },
-    { href: "cielai.html", label: "CielAI" }
-  );
+  })
+  ];
   upsertStaticDropdown(nav, "Evaluations", links, page === "evaluations" || page === "candidate" || page === "certification" || page === "cielai", "evaluations-menu");
 }
 
