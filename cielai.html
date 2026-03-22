@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CIEL Matrix // CielAI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="cielai">
+  <div class="noise"></div>
+  <div class="page-shell">
+    <header class="topbar panel">
+      <div>
+        <p class="eyebrow">Bac Pro CIEL // Skill Matrix</p>
+        <h1 class="topbar-title">CielAI</h1>
+      </div>
+      <nav class="nav-tabs">
+        <a class="nav-tab" href="index.html">Accueil</a>
+        <a class="nav-tab" href="classes.html">Classes</a>
+        <a class="nav-tab" href="dashboard.html">Dashboard</a>
+        <a class="nav-tab" href="evaluations.html">Evaluations</a>
+        <a class="nav-tab" href="pfmp.html">PFMP</a>
+        <span id="session-role" class="badge accent"></span>
+        <button id="logout-button" class="ghost-button" type="button">Déconnexion</button>
+      </nav>
+      <a class="topbar-brandmark" href="index.html" aria-label="CIEL Matrix"><img src="ciel-matrix-logo.svg" alt="CIEL Matrix"></a>
+    </header>
+
+    <section class="hero panel">
+      <div class="hero-copy">
+        <p class="eyebrow">Assistant Gratuit</p>
+        <h2 class="hero-title">Analyse un TP et crée la séance</h2>
+        <p class="hero-text">Charge un PDF ou un Word, laisse CielAI proposer le type, le titre, les compétences et les indicateurs, puis crée directement la séance avec dates de début et de fin.</p>
+      </div>
+      <section class="hero-side">
+        <div class="hero-side-head">
+          <div>
+            <h2>Flux de travail</h2>
+            <p class="results-count">Import document → analyse → vérification → création de séance</p>
+          </div>
+        </div>
+        <div class="stats-grid">
+          <article class="stat-card">
+            <span class="stat-value">PDF</span>
+            <span class="stat-label">Lecture locale navigateur</span>
+          </article>
+          <article class="stat-card">
+            <span class="stat-value">DOCX</span>
+            <span class="stat-label">Analyse sans API payante</span>
+          </article>
+        </div>
+      </section>
+    </section>
+
+    <main class="management-layout cielai-layout">
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Import</p>
+            <h2>Document source</h2>
+          </div>
+          <p id="cielai-feedback" class="results-count"></p>
+        </div>
+        <div class="stack-form">
+          <label class="field">
+            <span>Fichier TP / TD</span>
+            <input id="cielai-file" type="file" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain">
+            <small>Formats pris en charge : PDF, Word .docx, TXT.</small>
+          </label>
+          <label class="field">
+            <span>Classe</span>
+            <select id="cielai-class"></select>
+          </label>
+          <div class="mini-grid">
+            <label class="field">
+              <span>Date de début</span>
+              <input id="cielai-start-date" type="date">
+            </label>
+            <label class="field">
+              <span>Date de fin</span>
+              <input id="cielai-end-date" type="date">
+            </label>
+          </div>
+          <div class="student-badges">
+            <button id="cielai-analyze" class="primary-button" type="button">Analyser le document</button>
+            <button id="cielai-create" class="ghost-button" type="button" disabled>Créer la séance</button>
+            <button id="cielai-create-open" class="ghost-button" type="button" disabled>Créer et ouvrir l'évaluation</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Résultat</p>
+            <h2>Proposition CielAI</h2>
+          </div>
+        </div>
+        <div class="stack-form">
+          <label class="field">
+            <span>Type</span>
+            <select id="cielai-type">
+              <option value="TP">TP</option>
+              <option value="TD">TD</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Titre</span>
+            <input id="cielai-title" type="text" placeholder="Titre généré">
+          </label>
+          <label class="field">
+            <span>Compétences retenues</span>
+            <select id="cielai-skills" multiple size="8"></select>
+            <small>Tu peux ajuster la sélection avant création.</small>
+          </label>
+          <label class="field">
+            <span>Commentaire enseignant</span>
+            <textarea id="cielai-comment" rows="6" placeholder="Résumé ou consignes générées"></textarea>
+          </label>
+        </div>
+      </section>
+
+      <section class="panel wide-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Indicateurs</p>
+            <h2>Indicateurs proposés par compétence</h2>
+          </div>
+        </div>
+        <div id="cielai-indicators-groups" class="class-cards"></div>
+      </section>
+
+      <section class="panel wide-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Texte extrait</p>
+            <h2>Aperçu du document analysé</h2>
+          </div>
+        </div>
+        <pre id="cielai-preview" class="cielai-preview">Aucun document analysé.</pre>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+  <script src="https://unpkg.com/mammoth@1.8.0/mammoth.browser.min.js"></script>
+  <script src="app.js"></script>
+  <script src="cielai.js"></script>
+  <script src="custom-selects.js"></script>
+</body>
+</html>

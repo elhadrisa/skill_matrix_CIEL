@@ -553,6 +553,43 @@ body:not([data-page="home"]) .nav-tabs {
 .evaluation-layout { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .wide-panel { grid-column: 1 / -1; }
 
+body[data-page="cielai"]::after {
+  background:
+    radial-gradient(circle at 18% 22%, rgba(89, 198, 255, 0.16), transparent 22%),
+    radial-gradient(circle at 82% 20%, rgba(98, 245, 212, 0.16), transparent 22%),
+    radial-gradient(circle at 52% 84%, rgba(127, 140, 255, 0.14), transparent 24%);
+}
+
+.cielai-layout {
+  align-items: start;
+}
+
+.cielai-layout > .panel {
+  min-width: 0;
+}
+
+.cielai-layout .class-cards {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.cielai-skill-card textarea {
+  min-height: 180px;
+}
+
+.cielai-preview {
+  margin: 0;
+  padding: 18px;
+  min-height: 220px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line);
+  background: rgba(5, 15, 24, 0.86);
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.7;
+  overflow: auto;
+}
+
 body.evaluations-create-view .evaluation-layout {
   grid-template-columns: 1fr;
   justify-items: center;

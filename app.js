@@ -337,7 +337,7 @@ function repairStructuredTextInPlace(node, seen = new WeakSet()) {
 ].forEach((entry) => repairStructuredTextInPlace(entry));
 
 const page = document.body.dataset.page;
-const PROTECTED_PAGES = new Set(["dashboard", "classes", "evaluations", "pfmp", "pfmp_livret", "accounts", "bulletin", "candidate", "certification", "remediation_pfmp", "remediation_competences", "coverage", "mapping", "library", "reports"]);
+const PROTECTED_PAGES = new Set(["dashboard", "classes", "evaluations", "cielai", "pfmp", "pfmp_livret", "accounts", "bulletin", "candidate", "certification", "remediation_pfmp", "remediation_competences", "coverage", "mapping", "library", "reports"]);
 const ADMIN_ONLY_PAGES = new Set(["accounts"]);
 const app = createEmptyApp();
 let persistTimeout = null;
@@ -346,6 +346,14 @@ function scheduleReportsPageInitSafe() {
   window.setTimeout(() => {
     if (typeof window.__cielRunReportsInitSafe === "function") {
       window.__cielRunReportsInitSafe();
+    }
+  }, 0);
+}
+
+function scheduleCielAiPageInitSafe() {
+  window.setTimeout(() => {
+    if (typeof window.__cielInitCielAiPageSafe === "function") {
+      window.__cielInitCielAiPageSafe();
     }
   }, 0);
 }
@@ -411,6 +419,7 @@ async function initializeApp() {
       if (page === "certification") initCertificationPageFinal();
       if (page === "remediation_pfmp" || page === "remediation_competences") initRemediationPageFinal();
       if (page === "reports") scheduleReportsPageInitSafe();
+      if (page === "cielai") scheduleCielAiPageInitSafe();
       return;
     }
 
@@ -442,6 +451,7 @@ async function initializeApp() {
     if (page === "certification") initCertificationPageFinal();
     if (page === "remediation_pfmp" || page === "remediation_competences") initRemediationPageFinal();
     if (page === "reports") scheduleReportsPageInitSafe();
+    if (page === "cielai") scheduleCielAiPageInitSafe();
 }
 }
 
@@ -6790,7 +6800,11 @@ function upsertEvaluationsDropdown(nav) {
     }
     return classLinks;
   });
-  upsertStaticDropdown(nav, "Evaluations", links, page === "evaluations" || page === "candidate" || page === "certification", "evaluations-menu");
+  links.push(
+    { type: "label", label: "Assistant" },
+    { href: "cielai.html", label: "CielAI" }
+  );
+  upsertStaticDropdown(nav, "Evaluations", links, page === "evaluations" || page === "candidate" || page === "certification" || page === "cielai", "evaluations-menu");
 }
 
 function upsertPfmpDropdown(nav) {

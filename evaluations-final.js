@@ -316,16 +316,29 @@
     }
 
     function chooseClassId(preferredClassId = "", preferredActivityId = "") {
+      const storedClassId = localStorage.getItem("cielai-last-created-class-id") || "";
       if (preferredClassId && getClassById(preferredClassId)) return preferredClassId;
       const fromActivity = getActivityById(preferredActivityId)?.classId;
       if (fromActivity && getClassById(fromActivity)) return fromActivity;
+      if (storedClassId && getClassById(storedClassId)) return storedClassId;
       if (state.classId && getClassById(state.classId)) return state.classId;
       return app.classes.find((classItem) => getActivitiesByClass(classItem.id).length)?.id || app.classes[0]?.id || "";
     }
 
     function chooseActivityId(classId, preferredActivityId = "") {
+      const storedActivityId = localStorage.getItem("cielai-last-created-activity-id") || "";
       const visibleActivities = getVisibleActivities(classId, state.search);
       const allActivities = getActivitiesByClass(classId);
+      if (storedActivityId && visibleActivities.some((activity) => activity.id === storedActivityId)) {
+        localStorage.removeItem("cielai-last-created-activity-id");
+        localStorage.removeItem("cielai-last-created-class-id");
+        return storedActivityId;
+      }
+      if (storedActivityId && allActivities.some((activity) => activity.id === storedActivityId)) {
+        localStorage.removeItem("cielai-last-created-activity-id");
+        localStorage.removeItem("cielai-last-created-class-id");
+        return storedActivityId;
+      }
       if (preferredActivityId && visibleActivities.some((activity) => activity.id === preferredActivityId)) return preferredActivityId;
       if (preferredActivityId && allActivities.some((activity) => activity.id === preferredActivityId)) return preferredActivityId;
       if (state.activityId && visibleActivities.some((activity) => activity.id === state.activityId)) return state.activityId;
