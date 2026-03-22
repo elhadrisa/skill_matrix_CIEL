@@ -8787,12 +8787,7 @@ function initAccountsPage() {
   };
 
   function bindMatrixReadabilityObserverSafe() {
-    if (document.body?.dataset?.page !== "evaluations") return;
-    const matrix = document.querySelector("#activity-matrix");
-    if (!matrix || matrix.dataset.readabilityObserverBound === "true") return;
-    matrix.dataset.readabilityObserverBound = "true";
-    const observer = new MutationObserver(() => window.setTimeout(enhanceActivityMatrixReadabilitySafe, 0));
-    observer.observe(matrix, { childList: true, subtree: true });
+    return;
   }
 
   if (document.readyState === "loading") {
@@ -8961,6 +8956,15 @@ function initAccountsPage() {
     logAction("Note de sÃ©ance appliquÃ©e", student.name, `${activity.title} // ${normalized}/20 // ${levelLabels[autoStatus] || autoStatus}`);
   }
 
+  function repairInlineLabelUltraSafe(value) {
+    if (typeof value !== "string" || !value || !/[ÃÂâ€]/.test(value)) return value;
+    try {
+      return decodeURIComponent(escape(value));
+    } catch {
+      return value;
+    }
+  }
+
   function getActivityIndicatorGroupsUltraSafe(activity) {
     const groups = [];
     const pushGroup = (skillId, indicators) => {
@@ -8968,8 +8972,8 @@ function initAccountsPage() {
       const skill = skillId ? getSkillById(skillId) : null;
       groups.push({
         id: skillId || "common",
-        title: skill ? `${skill.code} // ${skill.title}` : "Indicateurs transversaux",
-        domain: skill ? getSkillDomain(skill) : "SÃ©ance",
+        title: repairInlineLabelUltraSafe(skill ? `${skill.code} // ${skill.title}` : "Indicateurs transversaux"),
+        domain: repairInlineLabelUltraSafe(skill ? getSkillDomain(skill) : "Séance"),
         indicators
       });
     };
@@ -9016,8 +9020,8 @@ function initAccountsPage() {
           <div class="activity-student-toggle" role="button" tabindex="0" aria-expanded="${isOpen ? "true" : "false"}">
             <div class="activity-student-card-head">
               <div class="activity-student-head-main">
-                <h3>${escapeHtml(student.name)}</h3>
-                <p class="muted-copy">${getStudentProgress(student)}% validé // ${escapeHtml(getClassById(student.classId)?.name || "")}</p>
+                <h3>${escapeHtml(repairInlineLabelUltraSafe(student.name))}</h3>
+                <p class="muted-copy">${getStudentProgress(student)}% validé // ${escapeHtml(repairInlineLabelUltraSafe(getClassById(student.classId)?.name || ""))}</p>
               </div>
               <div class="activity-student-card-meta">
                 <span class="badge">${groups.length} bloc(s)</span>
@@ -9131,13 +9135,14 @@ function initAccountsPage() {
   };
 
   function bindActivityCardsObserverUltraSafe() {
-    if (document.body?.dataset?.page !== "evaluations") return;
-    const matrix = document.querySelector("#activity-matrix");
-    if (!matrix || matrix.dataset.ultraCardsObserverBound === "true") return;
-    matrix.dataset.ultraCardsObserverBound = "true";
-    const observer = new MutationObserver(() => window.setTimeout(renderActivityCardsLayoutUltraSafe, 0));
-    observer.observe(matrix, { childList: true, subtree: true });
+    return;
   }
+
+  const originalRenderEvaluationPageUltraSafe = renderEvaluationPage;
+  renderEvaluationPage = function (...args) {
+    originalRenderEvaluationPageUltraSafe.apply(this, args);
+    window.setTimeout(renderActivityCardsLayoutUltraSafe, 0);
+  };
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
@@ -9607,14 +9612,9 @@ function initAccountsPage() {
       const matrix = document.querySelector("#activity-matrix");
       if (matrix) {
         matrix.dataset.globalGradeBound = "true";
-        const observer = new MutationObserver(() => window.setTimeout(renderGlobalGradeControlsSafe, 0));
-        observer.observe(matrix, { childList: true, subtree: true });
       }
     }
-    document.querySelector("#session-class-select")?.addEventListener("change", () => window.setTimeout(renderGlobalGradeControlsSafe, 0));
-    document.querySelector("#activity-select")?.addEventListener("change", () => window.setTimeout(renderGlobalGradeControlsSafe, 0));
     window.setTimeout(enhanceStudentSkillRowsSafe, 0);
-    window.setTimeout(renderGlobalGradeControlsSafe, 0);
   }
 
   const originalInitEvaluationsPageStructuredSafe = initEvaluationsPageFinal;
@@ -9764,13 +9764,15 @@ function initAccountsPage() {
     scheduleDisplayNormalization();
   }
 
-  const observer = new MutationObserver(() => scheduleDisplayNormalization());
-  if (document.body) {
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-  } else {
-    document.addEventListener("DOMContentLoaded", () => {
+  if (document.body?.dataset?.page !== "evaluations") {
+    const observer = new MutationObserver(() => scheduleDisplayNormalization());
+    if (document.body) {
       observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-    }, { once: true });
+    } else {
+      document.addEventListener("DOMContentLoaded", () => {
+        observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+      }, { once: true });
+    }
   }
 })();
 
@@ -9853,13 +9855,15 @@ function initAccountsPage() {
     scheduleMojibakeRepairSafe();
   }
 
-  const observer = new MutationObserver(() => scheduleMojibakeRepairSafe());
-  if (document.body) {
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-  } else {
-    document.addEventListener("DOMContentLoaded", () => {
+  if (document.body?.dataset?.page !== "evaluations") {
+    const observer = new MutationObserver(() => scheduleMojibakeRepairSafe());
+    if (document.body) {
       observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-    }, { once: true });
+    } else {
+      document.addEventListener("DOMContentLoaded", () => {
+        observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+      }, { once: true });
+    }
   }
 })();
 
