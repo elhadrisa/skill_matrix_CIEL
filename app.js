@@ -9020,6 +9020,10 @@ function initAccountsPage() {
     };
 
     const groupedSkillIds = getActivitySkillIds(activity);
+    if (groupedSkillIds.length === 1) {
+      pushGroup(groupedSkillIds[0], activity.indicators || []);
+      return groups;
+    }
     groupedSkillIds.forEach((skillId) => {
       pushGroup(skillId, (activity.indicators || []).filter((indicator) => indicator.skillId === skillId));
     });
@@ -9028,6 +9032,21 @@ function initAccountsPage() {
       pushGroup("", activity.indicators || []);
     }
     return groups;
+  }
+
+  function getIndicatorStatusSummaryUltraSafe(activity, studentId, indicators) {
+    const summary = {
+      acquis: 0,
+      partiellement_acquis: 0,
+      en_cours_acquisition: 0,
+      non_acquis: 0,
+      non_evalue: 0
+    };
+    indicators.forEach((indicator) => {
+      const status = getActivityIndicatorStatus(activity, studentId, indicator.id) || "non_evalue";
+      summary[status] = (summary[status] || 0) + 1;
+    });
+    return summary;
   }
 
   function renderActivityCardsLayoutUltraSafe() {
@@ -9081,15 +9100,32 @@ function initAccountsPage() {
             ${groups.map((group) => `
               <section class="activity-skill-group">
                 <div class="activity-skill-group-head">
-                  <div>
+                  <div class="activity-skill-group-heading">
                     <strong>${escapeHtml(group.title)}</strong>
                     <p class="muted-copy">${escapeHtml(group.domain)} // ${group.indicators.length} indicateur(s)</p>
                   </div>
+                  <div class="activity-skill-group-summary">
+                    ${(() => {
+                      const summary = getIndicatorStatusSummaryUltraSafe(activity, student.id, group.indicators);
+                      return [
+                        ["acquis", "Acquis"],
+                        ["partiellement_acquis", "Partiel"],
+                        ["en_cours_acquisition", "En cours"],
+                        ["non_acquis", "Non acquis"],
+                        ["non_evalue", "Non évalué"]
+                      ].filter(([status]) => summary[status] > 0).map(([status, label]) => `
+                        <span class="badge ${status === "acquis" ? "success" : status === "partiellement_acquis" ? "accent" : status === "en_cours_acquisition" ? "warning" : status === "non_acquis" ? "ghost" : "ghost"}">${summary[status]} ${label}</span>
+                      `).join("");
+                    })()}
+                  </div>
                 </div>
-                <div class="activity-indicator-card-grid">
-                  ${group.indicators.map((indicator) => `
-                    <label class="activity-indicator-card">
-                      <span class="activity-indicator-card-label">${escapeHtml(repairInlineLabelUltraSafe(indicator.label))}</span>
+                <div class="activity-indicator-list">
+                  ${group.indicators.map((indicator, indicatorIndex) => `
+                    <label class="activity-indicator-row">
+                      <span class="activity-indicator-row-index">I${indicatorIndex + 1}</span>
+                      <span class="activity-indicator-row-body">
+                        <span class="activity-indicator-card-label">${escapeHtml(repairInlineLabelUltraSafe(indicator.label))}</span>
+                      </span>
                       <select data-activity-id="${activity.id}" data-student-id="${student.id}" data-indicator-id="${indicator.id}" class="activity-status-select"${hasPermission("edit_evaluations") ? "" : " disabled"}>
                         ${renderStatusOptions(getActivityIndicatorStatus(activity, student.id, indicator.id))}
                       </select>

@@ -1166,9 +1166,17 @@ body.evaluations-create-view #activity-creation-panel {
 }
 
 .activity-skill-group-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: start;
   margin-bottom: 16px;
-  padding-bottom: 12px;
+  padding-bottom: 14px;
   border-bottom: 1px solid rgba(98,245,212,0.08);
+}
+
+.activity-skill-group-heading {
+  min-width: 0;
 }
 
 .activity-skill-group-head strong {
@@ -1178,28 +1186,61 @@ body.evaluations-create-view #activity-creation-panel {
   font-size: 1rem;
 }
 
-.activity-indicator-card-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 14px;
+.activity-skill-group-summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
-.activity-indicator-card {
+.activity-indicator-list {
   display: grid;
   gap: 12px;
-  padding: 16px;
+}
+
+.activity-indicator-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(220px, 280px);
+  gap: 16px;
+  align-items: center;
+  padding: 14px 16px;
   border-radius: 16px;
   border: 1px solid rgba(89, 198, 255, 0.16);
   background: linear-gradient(180deg, rgba(9, 21, 33, 0.94), rgba(7, 18, 28, 0.86));
 }
 
+.activity-indicator-row-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  height: 44px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(89, 198, 255, 0.24);
+  background: rgba(16, 48, 70, 0.55);
+  color: var(--text);
+  font-family: "Orbitron", sans-serif;
+  font-size: 0.82rem;
+}
+
+.activity-indicator-row-body {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.activity-indicator-row-help {
+  font-size: 0.8rem;
+}
+
 .activity-indicator-card-label {
-  line-height: 1.55;
+  line-height: 1.5;
   color: var(--text);
   font-size: 1rem;
 }
 
-.activity-indicator-card .activity-status-select {
+.activity-indicator-row .activity-status-select {
   width: 100%;
 }
 
@@ -1248,9 +1289,18 @@ body.evaluations-create-view #activity-creation-panel {
   .premium-analytics-grid,
   .premium-skill-average-list,
   .premium-weight-grid,
-  .activity-student-card-head,
-  .activity-indicator-card-grid {
+  .activity-student-card-head {
     grid-template-columns: 1fr;
+  }
+  .activity-skill-group-head,
+  .activity-indicator-row {
+    grid-template-columns: 1fr;
+  }
+  .activity-skill-group-summary {
+    justify-content: flex-start;
+  }
+  .activity-indicator-row-index {
+    width: fit-content;
   }
 }
 
