@@ -14630,6 +14630,26 @@ function initCertificationPageFinal() {
     }
   }
 
+  function isolateVisibleActivityMatrixFinalSafe() {
+    if (document.body?.dataset?.page !== "evaluations") return;
+    const currentMatrix = document.querySelector("#activity-matrix");
+    if (!currentMatrix || currentMatrix.dataset.authoritativeSurface === "true") return;
+    const isolatedMatrix = currentMatrix.cloneNode(false);
+    isolatedMatrix.id = "activity-matrix";
+    isolatedMatrix.className = currentMatrix.className || "activity-cards-layout";
+    isolatedMatrix.dataset.authoritativeSurface = "true";
+    if (currentMatrix.dataset.renderActivityId) {
+      isolatedMatrix.dataset.renderActivityId = currentMatrix.dataset.renderActivityId;
+    }
+    if (currentMatrix.dataset.renderClassId) {
+      isolatedMatrix.dataset.renderClassId = currentMatrix.dataset.renderClassId;
+    }
+    if (currentMatrix.dataset.openStudentId) {
+      isolatedMatrix.dataset.openStudentId = currentMatrix.dataset.openStudentId;
+    }
+    currentMatrix.replaceWith(isolatedMatrix);
+  }
+
   function getEvalDistributedStatusesFinalSafe(grade, count) {
     const total = Math.max(0, Number.parseInt(count, 10) || 0);
     if (!total) return [];
@@ -14940,6 +14960,7 @@ function initCertificationPageFinal() {
     if (document.body?.dataset?.page !== "evaluations") return;
     if (document.documentElement.dataset.authoritativeEvalCardsBound === "true") return;
     document.documentElement.dataset.authoritativeEvalCardsBound = "true";
+    isolateVisibleActivityMatrixFinalSafe();
 
     ["#activity-select", "#session-class-select", "#eval-class-select", "#eval-student-select", "#activity-search-input"].forEach((selector) => {
       const element = document.querySelector(selector);
@@ -14990,6 +15011,7 @@ function initCertificationPageFinal() {
 
     window.setInterval(() => {
       if (document.body?.dataset?.page !== "evaluations") return;
+      isolateVisibleActivityMatrixFinalSafe();
       const context = getAuthoritativeEvaluationContextFinalSafe();
       if (!context?.matrix || !context.activity) return;
       const students = getStudentsByClass(context.classId);
