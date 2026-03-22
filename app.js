@@ -9028,7 +9028,7 @@ function initAccountsPage() {
             <section class="activity-skill-group activity-global-grade-box">
               <label class="field compact-field">
                 <span>Note globale /20</span>
-                <input class="activity-student-global-grade" type="number" min="0" max="20" step="0.5" data-activity-id="${activity.id}" data-student-id="${student.id}" value="${globalGrade === "" ? "" : globalGrade}" placeholder="Ex. 13.5">
+                <input class="activity-student-global-grade" type="text" inputmode="decimal" data-activity-id="${activity.id}" data-student-id="${student.id}" value="${globalGrade === "" ? "" : globalGrade}" placeholder="Ex. 13.5">
                 <small>${escapeHtml(levelLabels[mapGradeToStatus(globalGrade)] || "Non évalué")}</small>
               </label>
             </section>
@@ -9095,16 +9095,18 @@ function initAccountsPage() {
     matrix.querySelectorAll(".activity-student-global-grade").forEach((input) => {
       if (input.dataset.ultraBound === "true") return;
       input.dataset.ultraBound = "true";
-      input.addEventListener("change", (event) => {
+      const commit = (event) => {
         const target = event.target;
         if (!hasPermission("edit_evaluations")) return;
-        applyActivityGlobalGradeUltraSafe(activity, target.dataset.studentId, target.value);
+        applyActivityGlobalGradeUltraSafe(activity, target.dataset.studentId, String(target.value || "").replace(",", "."));
         persistAppData();
         window.setTimeout(() => {
           document.querySelector("#activity-select")?.dispatchEvent(new Event("change"));
           document.querySelector("#eval-student-select")?.dispatchEvent(new Event("change"));
         }, 0);
-      });
+      };
+      input.addEventListener("change", commit);
+      input.addEventListener("blur", commit);
     });
   }
 

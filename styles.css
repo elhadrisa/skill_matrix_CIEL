@@ -1090,6 +1090,8 @@ body.evaluations-create-view #activity-creation-panel {
   color: inherit;
   text-align: left;
   cursor: pointer;
+  position: relative;
+  z-index: 1;
 }
 
 .activity-student-card-head {
@@ -1141,6 +1143,8 @@ body.evaluations-create-view #activity-creation-panel {
   gap: 18px;
   padding: 0 28px 28px;
   border-top: 1px solid rgba(98,245,212,0.1);
+  position: relative;
+  z-index: 2;
 }
 
 .activity-student-card:not(.is-open) .activity-student-groups {
