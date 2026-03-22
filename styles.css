@@ -561,7 +561,7 @@ body.evaluations-create-view #activity-creation-panel {
 
 .stack-form, .skills-table, .student-directory, .matrix-grid, .pfmp-form-grid, .mini-grid { display: grid; gap: 12px; }
 .periods-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
-.field { display: grid; gap: 8px; }
+.field { display: grid; gap: 8px; min-width: 0; }
 .field span { color: var(--muted); font-size: 0.84rem; }
 .field input, .field select, .field textarea, .skill-select {
   width: 100%;
@@ -583,7 +583,27 @@ body.evaluations-create-view #activity-creation-panel {
 .field small { color: var(--muted); font-size: 0.72rem; }
 .inline-field { min-width: 240px; }
 .pfmp-form-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 18px; }
-.mini-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 18px; }
+.mini-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 18px; align-items: start; }
+.mini-grid > * { min-width: 0; }
+
+#activity-creation-panel .exam-grid-panel .mini-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 18px;
+  row-gap: 12px;
+}
+
+#activity-creation-panel .exam-grid-panel .field,
+#activity-creation-panel .exam-grid-panel .cmx-select,
+#activity-creation-panel .exam-grid-panel .cmx-select-trigger,
+#activity-creation-panel .exam-grid-panel .cmx-select-label,
+#activity-creation-panel .exam-grid-panel #activity-indicator-label {
+  min-width: 0;
+  max-width: 100%;
+}
+
+#activity-creation-panel .exam-grid-panel .cmx-select-trigger {
+  overflow: hidden;
+}
 .wide-field { grid-column: span 2; }
 
 .chart-box { min-height: 280px; margin-top: 16px; }
