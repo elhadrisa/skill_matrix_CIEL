@@ -8201,7 +8201,8 @@ function initAccountsPage() {
     const globalGrade = normalizeGrade(evaluation.__globalGrade);
     if (globalGrade !== "") return globalGrade;
 
-    const relatedIndicators = (activity?.indicators || []).filter((indicator) => !indicator.skillId || indicator.skillId === skillId);
+    const resolvedSkillMap = getResolvedIndicatorSkillMapUltraSafe(activity);
+    const relatedIndicators = (activity?.indicators || []).filter((indicator) => resolvedSkillMap.get(indicator.id) === skillId);
     const statuses = relatedIndicators
       .map((indicator) => evaluation[indicator.id])
       .filter((status) => Object.hasOwn(levelLabels, status));
@@ -8981,8 +8982,9 @@ function initAccountsPage() {
       activity.evaluations[studentId][indicator.id] = distributedStatuses[index] || autoStatus;
     });
     student.skillGrades = hydrateSkillGrades(student.skillGrades || {});
+    const resolvedSkillMap = getResolvedIndicatorSkillMapUltraSafe(activity);
     getActivitySkillIds(activity).forEach((skillId) => {
-      const relatedIndicators = (activity.indicators || []).filter((indicator) => (indicator.skillId || "") === skillId);
+      const relatedIndicators = (activity.indicators || []).filter((indicator) => resolvedSkillMap.get(indicator.id) === skillId);
       if (!relatedIndicators.length) {
         student.skillGrades[skillId] = normalized;
         student.skills[skillId] = autoStatus;
@@ -9013,8 +9015,48 @@ function initAccountsPage() {
     return `${normalizedCode} - ${repairInlineLabelUltraSafe(skill.title || "")}`.trim();
   }
 
+  function getResolvedIndicatorSkillMapUltraSafe(activity) {
+    const skillIds = getActivitySkillIds(activity);
+    const indicators = activity?.indicators || [];
+    const resolved = new Map();
+
+    indicators.forEach((indicator) => {
+      if (indicator?.skillId && skillIds.includes(indicator.skillId)) {
+        resolved.set(indicator.id, indicator.skillId);
+      }
+    });
+
+    if (!skillIds.length) return resolved;
+
+    if (skillIds.length === 1) {
+      indicators.forEach((indicator) => {
+        if (!resolved.has(indicator.id)) resolved.set(indicator.id, skillIds[0]);
+      });
+      return resolved;
+    }
+
+    const unassigned = indicators.filter((indicator) => !resolved.has(indicator.id));
+    if (!unassigned.length) return resolved;
+
+    if (resolved.size === 0) {
+      const baseCount = Math.floor(unassigned.length / skillIds.length);
+      const remainder = unassigned.length % skillIds.length;
+      let cursor = 0;
+      skillIds.forEach((skillId, index) => {
+        const allocation = baseCount + (index < remainder ? 1 : 0);
+        unassigned.slice(cursor, cursor + allocation).forEach((indicator) => {
+          resolved.set(indicator.id, skillId);
+        });
+        cursor += allocation;
+      });
+    }
+
+    return resolved;
+  }
+
   function getActivityIndicatorGroupsUltraSafe(activity) {
     const groups = [];
+    const resolvedSkillMap = getResolvedIndicatorSkillMapUltraSafe(activity);
     const pushGroup = (skillId, indicators) => {
       if (!indicators.length) return;
       const skill = skillId ? getSkillById(skillId) : null;
@@ -9032,9 +9074,9 @@ function initAccountsPage() {
       return groups;
     }
     groupedSkillIds.forEach((skillId) => {
-      pushGroup(skillId, (activity.indicators || []).filter((indicator) => indicator.skillId === skillId));
+      pushGroup(skillId, (activity.indicators || []).filter((indicator) => resolvedSkillMap.get(indicator.id) === skillId));
     });
-    pushGroup("", (activity.indicators || []).filter((indicator) => !indicator.skillId));
+    pushGroup("", (activity.indicators || []).filter((indicator) => !resolvedSkillMap.has(indicator.id)));
     if (!groups.length) {
       pushGroup("", activity.indicators || []);
     }
@@ -9127,9 +9169,9 @@ function initAccountsPage() {
                   </div>
                 </div>
                 <div class="activity-indicator-list">
-                  ${group.indicators.map((indicator, indicatorIndex) => `
+                  ${group.indicators.map((indicator) => `
                     <label class="activity-indicator-row">
-                      <span class="activity-indicator-row-index">I${indicatorIndex + 1}</span>
+                      <span class="activity-indicator-row-index">I${(activity.indicators || []).findIndex((item) => item.id === indicator.id) + 1}</span>
                       <span class="activity-indicator-row-body">
                         <span class="activity-indicator-card-label">${escapeHtml(repairInlineLabelUltraSafe(indicator.label))}</span>
                       </span>
@@ -9146,10 +9188,10 @@ function initAccountsPage() {
       `;
     }).join("");
 
-    matrix.querySelectorAll(".activity-student-toggle").forEach((toggle) => {
-      if (toggle.dataset.ultraBound === "true") return;
-      toggle.dataset.ultraBound = "true";
-      const handleToggle = () => {
+    if (matrix.dataset.ultraDelegated !== "true") {
+      matrix.dataset.ultraDelegated = "true";
+
+      const toggleCard = (toggle) => {
         const card = toggle.closest(".activity-student-card");
         if (!card) return;
         const shouldOpen = !card.classList.contains("is-open");
@@ -9164,47 +9206,55 @@ function initAccountsPage() {
           toggle.setAttribute("aria-expanded", "true");
         }
       };
-      toggle.addEventListener("click", handleToggle);
-      toggle.addEventListener("keydown", (event) => {
+
+      matrix.addEventListener("click", (event) => {
+        if (event.target.closest(".activity-status-select, .activity-student-global-grade")) return;
+        const toggle = event.target.closest(".activity-student-toggle");
+        if (!toggle) return;
+        toggleCard(toggle);
+      });
+
+      matrix.addEventListener("keydown", (event) => {
+        const toggle = event.target.closest(".activity-student-toggle");
+        if (!toggle) return;
         if (event.key !== "Enter" && event.key !== " ") return;
         event.preventDefault();
-        handleToggle();
+        toggleCard(toggle);
       });
-    });
 
-    matrix.querySelectorAll(".activity-status-select").forEach((select) => {
-      if (select.dataset.ultraBound === "true") return;
-      select.dataset.ultraBound = "true";
-      ["click", "mousedown", "focus"].forEach((eventName) => {
-        select.addEventListener(eventName, (event) => event.stopPropagation());
+      matrix.addEventListener("change", (event) => {
+        const statusSelect = event.target.closest(".activity-status-select");
+        if (statusSelect) {
+          if (!hasPermission("edit_evaluations")) return;
+          matrix.dataset.openStudentId = statusSelect.dataset.studentId || matrix.dataset.openStudentId || "";
+          setActivityIndicatorStatus(statusSelect.dataset.activityId, statusSelect.dataset.studentId, statusSelect.dataset.indicatorId, statusSelect.value);
+          persistAppData();
+          window.setTimeout(refreshEvaluationPanelsUltraSafe, 0);
+          return;
+        }
+
+        const gradeInput = event.target.closest(".activity-student-global-grade");
+        if (gradeInput) {
+          if (!hasPermission("edit_evaluations")) return;
+          const liveActivity = getActivityById(gradeInput.dataset.activityId) || activity;
+          matrix.dataset.openStudentId = gradeInput.dataset.studentId || matrix.dataset.openStudentId || "";
+          applyActivityGlobalGradeUltraSafe(liveActivity, gradeInput.dataset.studentId, String(gradeInput.value || "").replace(",", "."));
+          persistAppData();
+          window.setTimeout(refreshEvaluationPanelsUltraSafe, 0);
+        }
       });
-      select.addEventListener("change", (event) => {
-        const target = event.target;
+
+      matrix.addEventListener("focusout", (event) => {
+        const gradeInput = event.target.closest(".activity-student-global-grade");
+        if (!gradeInput) return;
         if (!hasPermission("edit_evaluations")) return;
-        matrix.dataset.openStudentId = target.dataset.studentId || matrix.dataset.openStudentId || "";
-        setActivityIndicatorStatus(target.dataset.activityId, target.dataset.studentId, target.dataset.indicatorId, target.value);
+        const liveActivity = getActivityById(gradeInput.dataset.activityId) || activity;
+        matrix.dataset.openStudentId = gradeInput.dataset.studentId || matrix.dataset.openStudentId || "";
+        applyActivityGlobalGradeUltraSafe(liveActivity, gradeInput.dataset.studentId, String(gradeInput.value || "").replace(",", "."));
         persistAppData();
         window.setTimeout(refreshEvaluationPanelsUltraSafe, 0);
       });
-    });
-
-    matrix.querySelectorAll(".activity-student-global-grade").forEach((input) => {
-      if (input.dataset.ultraBound === "true") return;
-      input.dataset.ultraBound = "true";
-      ["click", "mousedown", "focus"].forEach((eventName) => {
-        input.addEventListener(eventName, (event) => event.stopPropagation());
-      });
-      const commit = (event) => {
-        const target = event.target;
-        if (!hasPermission("edit_evaluations")) return;
-        matrix.dataset.openStudentId = target.dataset.studentId || matrix.dataset.openStudentId || "";
-        applyActivityGlobalGradeUltraSafe(activity, target.dataset.studentId, String(target.value || "").replace(",", "."));
-        persistAppData();
-        window.setTimeout(refreshEvaluationPanelsUltraSafe, 0);
-      };
-      input.addEventListener("change", commit);
-      input.addEventListener("blur", commit);
-    });
+    }
   }
 
   const originalInitEvaluationsPageCardsUltraSafe = initEvaluationsPageFinal;
