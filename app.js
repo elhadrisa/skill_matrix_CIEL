@@ -16203,3 +16203,19 @@ function initCertificationPageFinal() {
   }
 })();
 
+(() => {
+  if (typeof window === "undefined" || window.__cielCustomSelectsRequested) return;
+  window.__cielCustomSelectsRequested = true;
+  const load = () => {
+    if (document.querySelector('script[data-ciel-custom-selects="true"]')) return;
+    const script = document.createElement("script");
+    script.src = "custom-selects.js";
+    script.dataset.cielCustomSelects = "true";
+    document.head.appendChild(script);
+  };
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", load, { once: true });
+  } else {
+    load();
+  }
+})();
