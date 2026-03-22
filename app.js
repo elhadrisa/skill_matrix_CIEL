@@ -3212,20 +3212,8 @@ function initEvaluationsPageFinal() {
 
   function syncIndicatorSkillOptions() {
     if (!activityIndicatorSkill) return;
-    let selectedSkillIds = [];
-    try {
-      selectedSkillIds = JSON.parse(activityForm?.dataset?.appliedSkillIds || "[]");
-    } catch {}
-    if (!Array.isArray(selectedSkillIds) || !selectedSkillIds.length) {
-      selectedSkillIds = getSelectedValues(activitySkill);
-    }
-    const selectedSkills = selectedSkillIds.map((skillId) => getSkillById(skillId)).filter(Boolean);
-    const placeholder = selectedSkills.length ? "Toutes les compétences sélectionnées" : "Choisis d'abord les compétences";
-    activityIndicatorSkill.innerHTML = `<option value="">${placeholder}</option>${selectedSkills.map((skill) => `<option value="${skill.id}">${skill.code} - ${skill.title}</option>`).join("")}`;
-    activityIndicatorSkill.disabled = !selectedSkills.length;
-    if (selectedSkills.length === 1) {
-      activityIndicatorSkill.value = selectedSkills[0].id;
-    }
+    const selectedSkillIds = getActivitySkillIdsForIndicatorPickerSafe(activitySkill, activityForm);
+    renderActivityIndicatorSkillSelectSafe(activityIndicatorSkill, selectedSkillIds);
   }
 
   function syncIndicatorTextareaFromDraft() {
@@ -3262,8 +3250,10 @@ function initEvaluationsPageFinal() {
   function resetActivityEditor() {
     activityForm.reset();
     clearMultiSelect(activitySkill);
+    setPendingActivitySkillIdsForIndicatorPickerSafe(activityForm, []);
+    activityForm.dataset.appliedSkillIds = "[]";
     activityIndicatorDraft = [];
-    syncIndicatorSkillOptions();
+    renderActivityIndicatorSkillSelectSafe(activityIndicatorSkill, []);
     syncIndicatorTextareaFromDraft();
     renderIndicatorDraft();
     populateIndicatorBankSelect(indicatorBankSelect);
@@ -3274,6 +3264,7 @@ function initEvaluationsPageFinal() {
 
   function loadActivityIntoEditor(activity) {
     if (!activity) return;
+    const activitySkillIds = getActivitySkillIds(activity);
     activityForm.dataset.editingId = activity.id;
     activityType.value = activity.type || "TP";
     activityTitle.value = activity.title || "";
@@ -3281,20 +3272,22 @@ function initEvaluationsPageFinal() {
     activityDateStart.value = activity.startDate || activity.date || "";
     activityDateEnd.value = activity.endDate || activity.startDate || activity.date || "";
     activityComment.value = activity.comment || "";
-    setMultiSelectValues(activitySkill, getActivitySkillIds(activity));
+    setMultiSelectValues(activitySkill, activitySkillIds);
+    setPendingActivitySkillIdsForIndicatorPickerSafe(activityForm, activitySkillIds);
+    activityForm.dataset.appliedSkillIds = JSON.stringify(activitySkillIds);
     activityIndicatorDraft = (activity.indicators || []).map((indicator, index) => ({
       id: indicator.id || slugify(`${activity.id}-${index}`),
       label: indicator.label,
       skillId: indicator.skillId || ""
     }));
-    syncIndicatorSkillOptions();
+    renderActivityIndicatorSkillSelectSafe(activityIndicatorSkill, activitySkillIds);
     syncIndicatorTextareaFromDraft();
     renderIndicatorDraft();
-    populateIndicatorBankSelect(indicatorBankSelect, getActivitySkillIds(activity), indicatorBankDomain?.value || "all");
+    populateIndicatorBankSelect(indicatorBankSelect, activitySkillIds, indicatorBankDomain?.value || "all");
     if (activitySubmitButton) activitySubmitButton.textContent = "Enregistrer les modifications";
     if (activityCancelEditButton) activityCancelEditButton.hidden = false;
     applyEvaluationsView("create");
-    activityFeedback.textContent = `Edition de la seance : ${activity.title}`;
+    activityFeedback.textContent = `Édition de la séance : ${activity.title}`;
   }
 
   enforcePermission("edit_evaluations", activityType, activityTitle, activityClass, activitySkill, activityDateStart, activityDateEnd, activityIndicators, activityComment, activityEditButton, activityDeleteButton);
@@ -3303,14 +3296,14 @@ function initEvaluationsPageFinal() {
   activityForm.addEventListener("submit", (event) => {
     event.preventDefault();
     if (!canEditEvaluations) return;
-    const selectedSkillIds = getSelectedValues(activitySkill);
+    const selectedSkillIds = getActivitySkillIdsForIndicatorPickerSafe(activitySkill, activityForm);
     const indicators = (activityIndicatorDraft.length ? activityIndicatorDraft : buildIndicatorsFromTextarea()).map((indicator, index) => ({
       id: indicator.id || slugify(`${activityTitle.value}-${index}-${Date.now()}`),
       label: indicator.label,
       skillId: indicator.skillId || ""
     }));
     if (!activityTitle.value.trim() || !activityClass.value || !selectedSkillIds.length || !indicators.length) {
-      activityFeedback.textContent = "Renseigne un titre, une classe, une compÃ©tence et au moins un indicateur.";
+      activityFeedback.textContent = "Renseigne un titre, une classe, une compétence et au moins un indicateur.";
       return;
     }
     app.evaluationActivities.push({
@@ -3327,12 +3320,15 @@ function initEvaluationsPageFinal() {
       indicators,
       evaluations: {}
     });
-    logAction("SÃ©ance crÃ©Ã©e", activityTitle.value.trim(), `${activityType.value} // ${getClassById(activityClass.value)?.name || ""}`);
+    logAction("Séance créée", activityTitle.value.trim(), `${activityType.value} // ${getClassById(activityClass.value)?.name || ""}`);
     persistAppData();
     activityForm.reset();
     clearMultiSelect(activitySkill);
+    setPendingActivitySkillIdsForIndicatorPickerSafe(activityForm, []);
+    activityForm.dataset.appliedSkillIds = "[]";
+    renderActivityIndicatorSkillSelectSafe(activityIndicatorSkill, []);
     populateIndicatorBankSelect(indicatorBankSelect);
-    activityFeedback.textContent = "SÃ©ance crÃ©Ã©e.";
+    activityFeedback.textContent = "Séance créée.";
     sessionClassSelect.value = activityClass.value;
     syncSessionActivities();
     renderEvaluationPage();
@@ -3343,7 +3339,10 @@ function initEvaluationsPageFinal() {
     renderEvaluationPage();
   });
   activitySkill.addEventListener("change", () => {
-    populateIndicatorBankSelect(indicatorBankSelect, getSelectedValues(activitySkill), indicatorBankDomain?.value || "all");
+    const selectedSkillIds = getSelectedValues(activitySkill);
+    setPendingActivitySkillIdsForIndicatorPickerSafe(activityForm, selectedSkillIds);
+    populateIndicatorBankSelect(indicatorBankSelect, selectedSkillIds, indicatorBankDomain?.value || "all");
+    renderActivityIndicatorSkillSelectSafe(activityIndicatorSkill, getActivitySkillIdsForIndicatorPickerSafe(activitySkill, activityForm));
   });
   indicatorBankDomain?.addEventListener("change", () => {
     populateIndicatorBankSelect(indicatorBankSelect, getSelectedValues(activitySkill), indicatorBankDomain.value || "all");
@@ -5005,6 +5004,57 @@ function setMultiSelectValues(select, values) {
   });
 }
 
+function getActivitySkillIdsForIndicatorPickerSafe(skillSelect, form, fallbackSkillIds = []) {
+  let skillIds = [];
+  try {
+    const parsed = JSON.parse(form?.dataset?.appliedSkillIds || "[]");
+    if (Array.isArray(parsed) && parsed.length) {
+      skillIds = parsed.filter(Boolean);
+    }
+  } catch {}
+  if (!skillIds.length) {
+    try {
+      const parsed = JSON.parse(form?.dataset?.pendingSkillIds || "[]");
+      if (Array.isArray(parsed) && parsed.length) {
+        skillIds = parsed.filter(Boolean);
+      }
+    } catch {}
+  }
+  if (!skillIds.length) {
+    skillIds = getSelectedValues(skillSelect);
+  }
+  if (!skillIds.length && Array.isArray(fallbackSkillIds) && fallbackSkillIds.length) {
+    skillIds = fallbackSkillIds.filter(Boolean);
+  }
+  return [...new Set(skillIds)];
+}
+
+function setPendingActivitySkillIdsForIndicatorPickerSafe(form, skillIds) {
+  if (!form) return [];
+  const normalized = [...new Set((skillIds || []).filter(Boolean))];
+  form.dataset.pendingSkillIds = JSON.stringify(normalized);
+  return normalized;
+}
+
+function renderActivityIndicatorSkillSelectSafe(select, skillIds) {
+  if (!select) return;
+  const selectedSkills = (skillIds || []).map((skillId) => getSkillById(skillId)).filter(Boolean);
+  const previousValue = select.value || "";
+  const placeholder = selectedSkills.length ? "Toutes les compétences sélectionnées" : "Choisis d'abord les compétences";
+  select.innerHTML = [
+    `<option value="">${placeholder}</option>`,
+    ...selectedSkills.map((skill) => `<option value="${skill.id}">${skill.code} - ${skill.title}</option>`)
+  ].join("");
+  select.disabled = !selectedSkills.length;
+  if (previousValue && selectedSkills.some((skill) => skill.id === previousValue)) {
+    select.value = previousValue;
+  } else if (selectedSkills.length === 1) {
+    select.value = selectedSkills[0].id;
+  } else {
+    select.value = "";
+  }
+}
+
 function populateIndicatorBankSelect(select, skillIds = [], domain = "all") {
   if (!select) return;
   const domains = [...new Set((skillIds || []).map((skillId) => getSkillDomain(getSkillById(skillId) || {})).filter(Boolean))];
@@ -6123,7 +6173,7 @@ function initEvaluationsPage() {
       .filter(Boolean)
       .map((label, index) => ({ id: slugify(`${activityTitle.value}-${index}-${Date.now()}`), label }));
     if (!activityTitle.value.trim() || !activityClass.value || !activitySkill.value || !indicators.length) {
-      activityFeedback.textContent = "Renseigne un titre, une classe, une compÃ©tence et au moins un indicateur.";
+      activityFeedback.textContent = "Renseigne un titre, une classe, une compétence et au moins un indicateur.";
       return;
     }
     const activity = {
@@ -6137,10 +6187,10 @@ function initEvaluationsPage() {
       evaluations: {}
     };
     app.evaluationActivities.push(activity);
-    logAction("SÃ©ance crÃ©Ã©e", activity.title, `${activity.type} // ${getClassById(activity.classId)?.name || activity.classId}`);
+    logAction("Séance créée", activity.title, `${activity.type} // ${getClassById(activity.classId)?.name || activity.classId}`);
     persistAppData();
     activityForm.reset();
-    activityFeedback.textContent = "SÃ©ance crÃ©Ã©e.";
+    activityFeedback.textContent = "Séance créée.";
     populateClassSelect(activityClass);
     populateSkillSelect(activitySkill);
     sessionClassSelect.value = activity.classId;
@@ -6890,7 +6940,7 @@ function initEvaluationsPage() {
       .filter(Boolean)
       .map((label, index) => ({ id: slugify(`${activityTitle.value}-${index}-${Date.now()}`), label }));
     if (!activityTitle.value.trim() || !activityClass.value || !activitySkill.value || !indicators.length) {
-      activityFeedback.textContent = "Renseigne un titre, une classe, une compÃ©tence et au moins un indicateur.";
+      activityFeedback.textContent = "Renseigne un titre, une classe, une compétence et au moins un indicateur.";
       return;
     }
     const activity = {
@@ -6906,7 +6956,7 @@ function initEvaluationsPage() {
     app.evaluationActivities.push(activity);
     persistAppData();
     activityForm.reset();
-    activityFeedback.textContent = "SÃ©ance crÃ©Ã©e.";
+    activityFeedback.textContent = "Séance créée.";
     populateClassSelect(activityClass);
     populateSkillSelect(activitySkill);
     sessionClassSelect.value = activity.classId;
@@ -8989,7 +9039,7 @@ function initAccountsPage() {
       <article class="directory-row compact">
         <div>
           <strong>${escapeHtml(indicator.label || "")}</strong>
-          <p>${escapeHtml(indicator.skillId ? getActivitySkillLabel({ skillIds: [indicator.skillId], skillId: indicator.skillId }) : "Toutes les compÃ©tences de la sÃ©ance")}</p>
+          <p>${escapeHtml(indicator.skillId ? getActivitySkillLabel({ skillIds: [indicator.skillId], skillId: indicator.skillId }) : "Toutes les compétences de la séance")}</p>
         </div>
       </article>
     `).join("");
@@ -9014,11 +9064,14 @@ function initAccountsPage() {
       return false;
     }
 
+    const activitySkillIds = getActivitySkillIds(activity);
     form.dataset.editingId = activity.id;
     typeInput.value = activity.type || "TP";
     titleInput.value = activity.title || "";
     classInput.value = activity.classId || "";
-    setMultiSelectValues(skillInput, getActivitySkillIds(activity));
+    setMultiSelectValues(skillInput, activitySkillIds);
+    setPendingActivitySkillIdsForIndicatorPickerSafe(form, activitySkillIds);
+    form.dataset.appliedSkillIds = JSON.stringify(activitySkillIds);
     startInput.value = activity.startDate || activity.date || "";
     endInput.value = activity.endDate || activity.startDate || activity.date || "";
     indicatorsInput.value = (activity.indicators || []).map((indicator) => indicator.label || "").filter(Boolean).join("\n");
@@ -9026,10 +9079,7 @@ function initAccountsPage() {
     submitButton.textContent = "Enregistrer les modifications";
     cancelButton.hidden = false;
 
-    if (indicatorSkill) {
-      const selected = getActivitySkillIds(activity).map((id) => getSkillById(id)).filter(Boolean);
-      indicatorSkill.innerHTML = `<option value="">Toutes les compÃ©tences</option>${selected.map((skill) => `<option value="${skill.id}">${skill.code} // ${skill.title}</option>`).join("")}`;
-    }
+    if (indicatorSkill) renderActivityIndicatorSkillSelectSafe(indicatorSkill, activitySkillIds);
 
     renderInlineIndicatorPreviewUltimateSafe(activity);
 
@@ -9037,7 +9087,7 @@ function initAccountsPage() {
       applyEvaluationsView("create");
     }
     form.scrollIntoView({ behavior: "smooth", block: "start" });
-    if (feedback) feedback.textContent = `Ã‰dition de la sÃ©ance : ${activity.title}`;
+    if (feedback) feedback.textContent = `Édition de la séance : ${activity.title}`;
     return true;
   }
 
@@ -9048,10 +9098,12 @@ function initAccountsPage() {
     const feedback = document.querySelector("#activity-feedback");
     if (!form || !submitButton || !cancelButton) return;
     delete form.dataset.editingId;
-    submitButton.textContent = "CrÃ©er la sÃ©ance";
+    setPendingActivitySkillIdsForIndicatorPickerSafe(form, []);
+    form.dataset.appliedSkillIds = "[]";
+    submitButton.textContent = "Créer la séance";
     cancelButton.hidden = true;
-    if (feedback && /Ã‰dition de la sÃ©ance|Edition de la seance/i.test(feedback.textContent || "")) {
-      feedback.textContent = "Ã‰dition annulÃ©e.";
+    if (feedback && /Édition de la séance|Edition de la seance/i.test(feedback.textContent || "")) {
+      feedback.textContent = "Édition annulée.";
     }
   }
 
@@ -9582,35 +9634,35 @@ function initAccountsPage() {
     const feedback = document.querySelector("#activity-feedback");
     if (!activity || !form || !typeInput || !titleInput || !classInput || !skillInput || !startInput || !endInput || !indicatorsInput || !commentInput || !submitButton || !cancelButton) return;
 
+    const activitySkillIds = getActivitySkillIds(activity);
     form.dataset.editingId = activity.id;
     typeInput.value = activity.type || "TP";
     titleInput.value = activity.title || "";
     classInput.value = activity.classId || "";
-    setMultiSelectValues(skillInput, getActivitySkillIds(activity));
+    setMultiSelectValues(skillInput, activitySkillIds);
+    setPendingActivitySkillIdsForIndicatorPickerSafe(form, activitySkillIds);
+    form.dataset.appliedSkillIds = JSON.stringify(activitySkillIds);
     startInput.value = activity.startDate || activity.date || "";
     endInput.value = activity.endDate || activity.startDate || activity.date || "";
     indicatorsInput.value = (activity.indicators || []).map((indicator) => indicator.label).join("\n");
     commentInput.value = activity.comment || "";
     submitButton.textContent = "Enregistrer les modifications";
     cancelButton.hidden = false;
-    if (indicatorSkill) {
-      const selected = getActivitySkillIds(activity).map((id) => getSkillById(id)).filter(Boolean);
-      indicatorSkill.innerHTML = `<option value="">Toutes les competences</option>${selected.map((skill) => `<option value="${skill.id}">${skill.code} // ${skill.title}</option>`).join("")}`;
-    }
+    if (indicatorSkill) renderActivityIndicatorSkillSelectSafe(indicatorSkill, activitySkillIds);
     if (indicatorList) {
       indicatorList.innerHTML = (activity.indicators || []).length
         ? activity.indicators.map((indicator) => `
           <article class="directory-row compact">
             <div>
               <strong>${escapeHtml(indicator.label)}</strong>
-              <p>${escapeHtml(indicator.skillId ? getActivitySkillLabel({ skillIds: [indicator.skillId], skillId: indicator.skillId }) : "Toutes les competences de la seance")}</p>
+              <p>${escapeHtml(indicator.skillId ? getActivitySkillLabel({ skillIds: [indicator.skillId], skillId: indicator.skillId }) : "Toutes les compétences de la séance")}</p>
             </div>
           </article>
         `).join("")
-        : `<article class="directory-row"><div><strong>Aucun indicateur structure</strong><p>Utilise la saisie rapide ou ajoute des indicateurs ci-dessus.</p></div></article>`;
+        : `<article class="directory-row"><div><strong>Aucun indicateur structuré</strong><p>Utilise la saisie rapide ou ajoute des indicateurs ci-dessus.</p></div></article>`;
     }
     if (typeof applyEvaluationsView === "function") applyEvaluationsView("create");
-    if (feedback) feedback.textContent = `Edition de la seance : ${activity.title}`;
+    if (feedback) feedback.textContent = `Édition de la séance : ${activity.title}`;
   }
 
   function resetActivityEditorFallbackSafe() {
@@ -9623,10 +9675,12 @@ function initAccountsPage() {
     const skillInput = document.querySelector("#activity-skill");
     if (!form || !submitButton || !cancelButton) return;
     delete form.dataset.editingId;
-    submitButton.textContent = "CrÃ©er la sÃ©ance";
+    setPendingActivitySkillIdsForIndicatorPickerSafe(form, []);
+    form.dataset.appliedSkillIds = "[]";
+    submitButton.textContent = "Créer la séance";
     cancelButton.hidden = true;
     if (indicatorList) {
-      indicatorList.innerHTML = `<article class="directory-row"><div><strong>Aucun indicateur structure</strong><p>Ajoute des indicateurs lies a une competence ou utilise la saisie rapide.</p></div></article>`;
+      indicatorList.innerHTML = `<article class="directory-row"><div><strong>Aucun indicateur structuré</strong><p>Ajoute des indicateurs liés à une compétence ou utilise la saisie rapide.</p></div></article>`;
     }
     if (skillInput) clearMultiSelect(skillInput);
     if (feedback) feedback.textContent = "Edition annulee.";
@@ -9746,26 +9800,11 @@ function initAccountsPage() {
     let indicatorDraft = [];
 
     function getSelectedSkillIds() {
-      return getSelectedValues(activitySkill);
+      return getActivitySkillIdsForIndicatorPickerSafe(activitySkill, activityForm);
     }
 
     function syncIndicatorSkillOptionsSafe() {
-      let selectedSkillIds = getSelectedSkillIds();
-      if (!selectedSkillIds.length && activityForm.dataset.appliedSkillIds) {
-        try {
-          const parsed = JSON.parse(activityForm.dataset.appliedSkillIds);
-          if (Array.isArray(parsed) && parsed.length) {
-            selectedSkillIds = parsed.filter(Boolean);
-          }
-        } catch {}
-      }
-      const selected = selectedSkillIds.map((id) => getSkillById(id)).filter(Boolean);
-      const placeholder = selected.length ? "Toutes les compétences sélectionnées" : "Choisis d'abord les compétences";
-      activityIndicatorSkill.innerHTML = `<option value="">${placeholder}</option>${selected.map((skill) => `<option value="${skill.id}">${skill.code} - ${skill.title}</option>`).join("")}`;
-      activityIndicatorSkill.disabled = !selected.length;
-      if (selected.length === 1) {
-        activityIndicatorSkill.value = selected[0].id;
-      }
+      renderActivityIndicatorSkillSelectSafe(activityIndicatorSkill, getSelectedSkillIds());
     }
 
     function syncTextareaFromDraftSafe() {
@@ -9800,8 +9839,10 @@ function initAccountsPage() {
     function resetActivityEditorSafe() {
       activityForm.reset();
       clearMultiSelect(activitySkill);
+      setPendingActivitySkillIdsForIndicatorPickerSafe(activityForm, []);
+      activityForm.dataset.appliedSkillIds = "[]";
       indicatorDraft = [];
-      syncIndicatorSkillOptionsSafe();
+      renderActivityIndicatorSkillSelectSafe(activityIndicatorSkill, []);
       syncTextareaFromDraftSafe();
       renderIndicatorDraftSafe();
       if (activitySubmitButton) activitySubmitButton.textContent = "Créer la séance";
@@ -9811,6 +9852,7 @@ function initAccountsPage() {
 
     function loadActivityForEditSafe(activity) {
       if (!activity) return;
+      const activitySkillIds = getActivitySkillIds(activity);
       activityForm.dataset.editingId = activity.id;
       activityType.value = activity.type || "TP";
       activityTitle.value = activity.title || "";
@@ -9818,13 +9860,15 @@ function initAccountsPage() {
       activityDateStart.value = activity.startDate || activity.date || "";
       activityDateEnd.value = activity.endDate || activity.startDate || activity.date || "";
       activityComment.value = activity.comment || "";
-      setMultiSelectValues(activitySkill, getActivitySkillIds(activity));
+      setMultiSelectValues(activitySkill, activitySkillIds);
+      setPendingActivitySkillIdsForIndicatorPickerSafe(activityForm, activitySkillIds);
+      activityForm.dataset.appliedSkillIds = JSON.stringify(activitySkillIds);
       indicatorDraft = (activity.indicators || []).map((indicator, index) => ({
         id: indicator.id || slugify(`${activity.id}-indicator-${index}`),
         label: indicator.label,
         skillId: indicator.skillId || ""
       }));
-      syncIndicatorSkillOptionsSafe();
+      renderActivityIndicatorSkillSelectSafe(activityIndicatorSkill, activitySkillIds);
       syncTextareaFromDraftSafe();
       renderIndicatorDraftSafe();
       if (activitySubmitButton) activitySubmitButton.textContent = "Enregistrer les modifications";
@@ -10307,31 +10351,13 @@ function initAccountsPage() {
     if (document.body?.dataset?.page !== "evaluations") return;
     const skillSelect = document.querySelector("#activity-skill");
     const indicatorSkillSelect = document.querySelector("#activity-indicator-skill");
-    if (!skillSelect || !indicatorSkillSelect) return;
+    const form = document.querySelector("#activity-form");
+    if (!skillSelect || !indicatorSkillSelect || !form) return;
 
-    const currentValue = indicatorSkillSelect.value || "";
-    let selectedSkills = getSelectedValues(skillSelect).map((skillId) => getSkillById(skillId)).filter(Boolean);
-
-    if (!selectedSkills.length) {
-      const editingId = document.querySelector("#activity-form")?.dataset?.editingId;
-      const editingActivity = editingId ? getActivityById(editingId) : null;
-      if (editingActivity) {
-        selectedSkills = getActivitySkillIds(editingActivity).map((skillId) => getSkillById(skillId)).filter(Boolean);
-      }
-    }
-
-    const placeholder = selectedSkills.length
-      ? "Toutes les compétences sélectionnées"
-      : "Choisis d'abord une compétence";
-
-    indicatorSkillSelect.innerHTML = [
-      `<option value="">${escapeHtml(placeholder)}</option>`,
-      ...selectedSkills.map((skill) => `<option value="${skill.id}">${escapeHtml(`${skill.code} - ${skill.title}`)}</option>`)
-    ].join("");
-
-    const canRestore = currentValue && selectedSkills.some((skill) => skill.id === currentValue);
-    indicatorSkillSelect.value = canRestore ? currentValue : "";
-    indicatorSkillSelect.disabled = selectedSkills.length === 0;
+    const editingId = form.dataset?.editingId;
+    const editingActivity = editingId ? getActivityById(editingId) : null;
+    const activitySkillIds = getActivitySkillIdsForIndicatorPickerSafe(skillSelect, form, editingActivity ? getActivitySkillIds(editingActivity) : []);
+    renderActivityIndicatorSkillSelectSafe(indicatorSkillSelect, activitySkillIds);
   }
 
   function scheduleActivityIndicatorSkillPickerUltraSafe() {
@@ -10471,11 +10497,15 @@ function initAccountsPage() {
 
   function applyActivitySkillsToSessionUltraSafe(showFeedback = true) {
     if (document.body?.dataset?.page !== "evaluations") return false;
+    const form = document.querySelector("#activity-form");
     const selectedSkillIds = getActivitySkillSelectionUltraSafe();
     const indicatorBankDomain = document.querySelector("#indicator-bank-domain");
     const indicatorBankSelect = document.querySelector("#indicator-bank-select");
+    const effectiveSkillIds = selectedSkillIds.length
+      ? selectedSkillIds
+      : getActivitySkillIdsForIndicatorPickerSafe(document.querySelector("#activity-skill"), form);
 
-    if (!selectedSkillIds.length) {
+    if (!effectiveSkillIds.length) {
       setAppliedActivitySkillIdsUltraSafe([]);
       renderAppliedActivitySkillOptionsUltraSafe([]);
       if (typeof populateIndicatorBankSelect === "function") {
@@ -10487,7 +10517,8 @@ function initAccountsPage() {
       return false;
     }
 
-    const appliedSkillIds = setAppliedActivitySkillIdsUltraSafe(selectedSkillIds);
+    setPendingActivitySkillIdsForIndicatorPickerSafe(form, effectiveSkillIds);
+    const appliedSkillIds = setAppliedActivitySkillIdsUltraSafe(effectiveSkillIds);
     renderAppliedActivitySkillOptionsUltraSafe(appliedSkillIds);
     if (typeof populateIndicatorBankSelect === "function") {
       populateIndicatorBankSelect(indicatorBankSelect, appliedSkillIds, indicatorBankDomain?.value || "all");
@@ -10508,21 +10539,28 @@ function initAccountsPage() {
     const form = document.querySelector("#activity-form");
     const cancelEditButton = document.querySelector("#activity-cancel-edit");
 
+    const syncPendingSelection = () => {
+      setPendingActivitySkillIdsForIndicatorPickerSafe(form, getActivitySkillSelectionUltraSafe());
+    };
+
     applyButton?.addEventListener("click", () => {
       applyActivitySkillsToSessionUltraSafe(true);
     });
 
     skillSelect?.addEventListener("change", () => {
+      syncPendingSelection();
       updateActivitySkillApplyFeedbackUltraSafe("Sélection modifiée. Clique sur « Appliquer les compétences » pour mettre à jour les indicateurs.");
     });
 
     skillSelect?.addEventListener("mouseup", () => {
       window.setTimeout(() => {
+        syncPendingSelection();
         updateActivitySkillApplyFeedbackUltraSafe("Sélection modifiée. Clique sur « Appliquer les compétences » pour mettre à jour les indicateurs.");
       }, 0);
     });
 
     skillSelect?.addEventListener("keyup", () => {
+      syncPendingSelection();
       updateActivitySkillApplyFeedbackUltraSafe("Sélection modifiée. Clique sur « Appliquer les compétences » pour mettre à jour les indicateurs.");
     });
 
@@ -10558,6 +10596,7 @@ function initAccountsPage() {
     });
 
     const initialSkillIds = getActivitySkillSelectionUltraSafe();
+    setPendingActivitySkillIdsForIndicatorPickerSafe(form, initialSkillIds);
     setAppliedActivitySkillIdsUltraSafe(initialSkillIds);
     renderAppliedActivitySkillOptionsUltraSafe(initialSkillIds);
   }
