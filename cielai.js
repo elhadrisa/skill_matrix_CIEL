@@ -5,47 +5,57 @@
 
   const AI_SKILL_RULES = {
     c1: {
-      keywords: ["compte rendu", "présentation", "presentation", "restitution", "documentation", "support", "communication", "oral", "client", "consigne"],
-      defaults: ["Restituer clairement la démarche et les résultats", "Employer un vocabulaire technique adapté", "Produire une trace écrite exploitable"]
+      keywords: ["communication", "compte rendu", "restitution", "documentation", "présentation", "oral", "support", "consigne", "rapport", "justification"],
+      defaults: ["Restituer clairement la démarche et les résultats", "Employer un vocabulaire technique adapté", "Produire une trace écrite exploitable"],
+      domain: "Cybersécurité"
     },
     c3: {
-      keywords: ["projet", "jalon", "planning", "équipe", "equipe", "cahier des charges", "organisation", "coordination", "livrable"],
-      defaults: ["Identifier les étapes du projet", "Respecter l'organisation et les rôles", "Produire un livrable conforme"]
+      keywords: ["projet", "planning", "jalon", "organisation", "coordination", "livrable", "cahier des charges", "équipe", "étape"],
+      defaults: ["Identifier les étapes du projet", "Respecter l'organisation attendue", "Produire un livrable conforme au besoin"],
+      domain: "Cybersécurité"
     },
     c4: {
-      keywords: ["analyse", "architecture", "matérielle", "materielle", "logicielle", "structure", "schéma", "schema", "adressage", "plan d'adressage", "besoin"],
-      defaults: ["Analyser la structure matérielle et logicielle", "Identifier les éléments techniques utiles", "Justifier les choix techniques retenus"]
+      keywords: ["analyse", "architecture", "matérielle", "logicielle", "structure", "schéma", "adressage", "besoin", "topologie", "préfixe"],
+      defaults: ["Analyser la structure matérielle et logicielle", "Identifier les éléments techniques utiles", "Justifier les choix techniques retenus"],
+      domain: "Réseau Informatique"
     },
     c6: {
-      keywords: ["conformité", "conformite", "validation", "vérifier", "verifier", "recette", "test", "contrôle", "controle", "attendu"],
-      defaults: ["Vérifier la conformité au besoin", "Réaliser les tests attendus", "Conclure sur la validité de la solution"]
+      keywords: ["validation", "conformité", "test", "contrôle", "vérifier", "attendu", "recette", "mesure", "comparaison"],
+      defaults: ["Vérifier la conformité au besoin", "Réaliser les tests attendus", "Conclure sur la validité de la solution"],
+      domain: "Réseau Informatique"
     },
     c7: {
-      keywords: ["maquette", "prototype", "proof of concept", "preuve de concept", "simulation", "prototypage", "essai"],
-      defaults: ["Réaliser une maquette exploitable", "Tester le prototype en conditions définies", "Valider la solution avant déploiement"]
+      keywords: ["prototype", "maquette", "simulation", "preuve de concept", "prototypage", "essai", "montage d'essai"],
+      defaults: ["Réaliser une maquette exploitable", "Tester le prototype en conditions définies", "Valider la solution avant déploiement"],
+      domain: "Electronique"
     },
     c8: {
-      keywords: ["code", "coder", "script", "python", "programme", "automatisation", "automatiser", "algorithm", "fonction", "débug", "debug"],
-      defaults: ["Produire un code lisible et structuré", "Automatiser la tâche demandée", "Valider le fonctionnement du code"]
+      keywords: ["code", "coder", "script", "python", "programme", "automatisation", "fonction", "algorithme", "débogage", "débug"],
+      defaults: ["Produire un code lisible et structuré", "Automatiser la tâche demandée", "Valider le fonctionnement du code"],
+      domain: "Cybersécurité"
     },
     c9: {
-      keywords: ["installation", "installer", "montage", "câblage", "cablage", "mise en service", "composant", "équipement", "equipement"],
-      defaults: ["Installer les éléments dans le bon ordre", "Réaliser une mise en service cohérente", "Contrôler le fonctionnement après installation"]
+      keywords: ["installation", "installer", "montage", "câblage", "mise en service", "composant", "équipement", "déploiement", "raccordement"],
+      defaults: ["Installer les éléments dans le bon ordre", "Réaliser une mise en service cohérente", "Contrôler le fonctionnement après installation"],
+      domain: "Electronique"
     },
     c10: {
-      keywords: ["réseau", "reseau", "vlan", "ip", "ipv4", "ipv6", "routage", "switch", "routeur", "supervision", "broadcast", "passerelle", "masque", "pkt"],
-      defaults: ["Configurer le réseau conformément au besoin", "Valider le fonctionnement des services réseau", "Analyser le trafic ou l'adressage avec cohérence"]
+      keywords: ["réseau", "vlan", "ipv4", "ipv6", "ip", "routage", "switch", "routeur", "broadcast", "passerelle", "masque", "pkt", "adresse"],
+      defaults: ["Configurer le réseau conformément au besoin", "Valider le fonctionnement des services réseau", "Analyser le trafic ou l'adressage avec cohérence"],
+      domain: "Réseau Informatique"
     },
     c11: {
-      keywords: ["maintenance", "maintenir", "diagnostic", "panne", "incident", "dépannage", "depannage", "correction", "erreur", "résolution", "resolution"],
-      defaults: ["Diagnostiquer le dysfonctionnement", "Corriger l'incident ou l'erreur constatée", "Vérifier le rétablissement du service"]
+      keywords: ["maintenance", "diagnostic", "panne", "incident", "erreur", "dépannage", "correction", "résolution", "rétablissement"],
+      defaults: ["Diagnostiquer le dysfonctionnement", "Corriger l'incident ou l'erreur constatée", "Vérifier le rétablissement du service"],
+      domain: "Réseau Informatique"
     }
   };
 
   const state = {
     analyzed: false,
-    extractedText: "",
-    groupedIndicators: []
+    insights: null,
+    groupedIndicators: [],
+    sourceStats: null
   };
 
   function safeRepair(value) {
@@ -75,7 +85,7 @@
       titleInput: document.querySelector("#cielai-title"),
       skillsSelect: document.querySelector("#cielai-skills"),
       commentInput: document.querySelector("#cielai-comment"),
-      preview: document.querySelector("#cielai-preview"),
+      insights: document.querySelector("#cielai-insights"),
       groups: document.querySelector("#cielai-indicators-groups")
     };
   }
@@ -132,15 +142,21 @@
     return safeRepair(line)
       .replace(/^[\s•\-–—*]+/, "")
       .replace(/^\d+[\.\)]\s+/, "")
+      .replace(/\s+/g, " ")
       .trim();
+  }
+
+  function extractRawLines(text) {
+    return String(text || "")
+      .split(/\r?\n+/)
+      .map(normalizeLine)
+      .filter(Boolean);
   }
 
   function extractUsefulLines(text) {
     const seen = new Set();
-    return String(text || "")
-      .split(/\r?\n+/)
-      .map(normalizeLine)
-      .filter((line) => line.length >= 12 && line.length <= 180)
+    return extractRawLines(text)
+      .filter((line) => line.length >= 10 && line.length <= 180)
       .filter((line) => /[a-zàâçéèêëîïôûùüÿñæœ]/i.test(line))
       .filter((line) => {
         const key = normalizeText(line);
@@ -150,14 +166,24 @@
       });
   }
 
+  function tokenizeWords(text) {
+    return normalizeText(text)
+      .split(/[^a-z0-9]+/i)
+      .map((item) => item.trim())
+      .filter((item) => item.length >= 3);
+  }
+
   function inferType(text, fileName) {
-    const haystack = `${text}\n${fileName}`.toLowerCase();
-    if (/(^|\b)(td|travaux dirigés|travaux diriges|questionnaire|exercice|exercices)\b/.test(haystack)) return "TD";
+    const haystack = normalizeText(`${text}\n${fileName}`);
+    if (/(^|\b)(td|travaux diriges|questionnaire|exercice|exercices)\b/.test(haystack)) return "TD";
     return "TP";
   }
 
   function inferTitle(lines, fileName, inferredType) {
-    const candidate = lines.find((line) => line.length <= 90 && !/^nom|prénom|prenom|classe|durée|duree|compétence|competence/i.test(line));
+    const candidate = lines.find((line) =>
+      line.length <= 96
+      && !/^(nom|prénom|prenom|classe|durée|duree|compétence|competence|objectifs?|consignes?)/i.test(normalizeText(line))
+    );
     if (candidate) return candidate;
     const base = safeRepair(fileName || "Séance")
       .replace(/\.[^.]+$/, "")
@@ -166,30 +192,37 @@
     return `${inferredType} ${base || "CIEL"}`.trim();
   }
 
-  function scoreSkill(skillId, normalizedText, lines) {
+  function scoreSkill(skillId, fullText, lines, fileName) {
     const rule = AI_SKILL_RULES[skillId];
     if (!rule) return 0;
-    const haystack = normalizeText(normalizedText);
+    const haystack = normalizeText(`${fullText}\n${fileName}`);
     let score = 0;
     rule.keywords.forEach((keyword) => {
       const key = normalizeText(keyword);
-      if (haystack.includes(key)) score += 2;
-      score += lines.filter((line) => normalizeText(line).includes(key)).length;
+      const haystackMatches = haystack.includes(key) ? 3 : 0;
+      const lineMatches = lines.filter((line) => normalizeText(line).includes(key)).length;
+      score += haystackMatches + lineMatches;
     });
     return score;
   }
 
-  function inferSkillIds(text, lines) {
-    const scored = skillCatalog
-      .map((skill) => ({ skillId: skill.id, score: scoreSkill(skill.id, text, lines) }))
+  function inferSkillScores(text, lines, fileName) {
+    return skillCatalog
+      .map((skill) => ({
+        skillId: skill.id,
+        score: scoreSkill(skill.id, text, lines, fileName)
+      }))
       .sort((a, b) => b.score - a.score);
-    const selected = scored.filter((item) => item.score > 0).slice(0, 3).map((item) => item.skillId);
-    if (selected.length) return selected;
-    const fallback = normalizeText(text);
-    if (/(vlan|ipv4|ipv6|routeur|switch|reseau|réseau)/.test(fallback)) return ["c10", "c11"];
-    if (/(python|script|code|automatisation)/.test(fallback)) return ["c8", "c1"];
-    if (/(prototype|maquette|cablage|câblage|montage)/.test(fallback)) return ["c7", "c9"];
-    return ["c1"];
+  }
+
+  function inferSkillIds(scored) {
+    const positive = scored.filter((item) => item.score > 0);
+    if (!positive.length) return ["c1"];
+    const best = positive[0].score;
+    const kept = positive
+      .filter((item, index) => index < 4 && item.score >= Math.max(1, best * 0.35))
+      .map((item) => item.skillId);
+    return kept.length ? kept : [positive[0].skillId];
   }
 
   function inferSkillForLine(line, selectedSkillIds) {
@@ -208,20 +241,35 @@
     return bestSkillId;
   }
 
+  function lineLooksLikeIndicator(line) {
+    const normalized = normalizeText(line);
+    if (normalized.length < 8) return false;
+    if (/^(nom|prenom|classe|date|consignes?|documents?|ressources?|materiel|bar[eè]me|objectif|competence|dur[ée]e)$/.test(normalized)) return false;
+    return /(?:configur|verifi|analyse|identifier|installer|mettre en service|coder|documenter|diagnosti|corriger|tester|realiser|utiliser|presenter|organiser|calcul|attribuer|interpreter|detecter|superviser|maintenir)/i.test(normalized);
+  }
+
+  function cleanIndicatorLabel(line) {
+    return normalizeLine(line)
+      .replace(/[.;:]+$/, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
   function pickIndicatorCandidates(lines, selectedSkillIds) {
-    const useful = lines.filter((line) => {
-      const normalized = normalizeText(line);
-      if (normalized.length < 12) return false;
-      if (/^(objectifs?|contexte|consignes?|documents?|ressources?|materiel|durée|duree|nom|prénom|prenom|classe|bar[eè]me)$/i.test(normalized)) return false;
-      return /(?:configur|verifi|analyse|identifier|installer|mettre en service|coder|documenter|diagnosti|corriger|tester|r[eé]aliser|utiliser|pr[eé]senter|organiser|calcul)/i.test(normalized);
-    });
+    const useful = lines
+      .filter(lineLooksLikeIndicator)
+      .map(cleanIndicatorLabel)
+      .filter(Boolean);
 
     const grouped = new Map(selectedSkillIds.map((skillId) => [skillId, []]));
+
     useful.forEach((line) => {
       const skillId = inferSkillForLine(line, selectedSkillIds);
-      if (!grouped.has(skillId)) grouped.set(skillId, []);
-      const current = grouped.get(skillId);
-      if (current.length < 5) current.push(line);
+      const current = grouped.get(skillId) || [];
+      if (!current.some((item) => normalizeText(item) === normalizeText(line)) && current.length < 6) {
+        current.push(line);
+      }
+      grouped.set(skillId, current);
     });
 
     selectedSkillIds.forEach((skillId) => {
@@ -229,20 +277,62 @@
       const defaults = AI_SKILL_RULES[skillId]?.defaults || [];
       let cursor = 0;
       while (current.length < 3 && defaults[cursor]) {
-        if (!current.some((item) => normalizeText(item) === normalizeText(defaults[cursor]))) {
-          current.push(defaults[cursor]);
+        const fallback = safeRepair(defaults[cursor]);
+        if (!current.some((item) => normalizeText(item) === normalizeText(fallback))) {
+          current.push(fallback);
         }
         cursor += 1;
       }
-      grouped.set(skillId, current.slice(0, 5));
+      grouped.set(skillId, current.slice(0, 6));
     });
+
     return grouped;
   }
 
   function buildComment(lines, selectedSkillIds) {
-    const intro = lines.slice(0, 3).join(" ");
+    const intro = lines.slice(0, 4).join(" ");
     const skills = selectedSkillIds.map((skillId) => getSkillById(skillId)?.code).filter(Boolean).join(", ");
     return `Séance analysée par CielAI. Compétences pressenties : ${skills || "à vérifier"}.\n${intro}`.trim();
+  }
+
+  function buildInsights(lines, selectedSkillIds, scoredSkills, fileName) {
+    const topScores = scoredSkills
+      .filter((item) => selectedSkillIds.includes(item.skillId))
+      .map((item) => {
+        const skill = getSkillById(item.skillId);
+        return {
+          skillId: item.skillId,
+          label: skill ? `${skill.code} - ${safeRepair(skill.title)}` : item.skillId,
+          score: item.score
+        };
+      });
+    const maxScore = Math.max(...topScores.map((item) => item.score), 1);
+    const skillConfidence = topScores.map((item) => ({
+      ...item,
+      confidence: Math.max(35, Math.min(98, Math.round((item.score / maxScore) * 100)))
+    }));
+
+    const domains = [...new Set(selectedSkillIds.map((skillId) => AI_SKILL_RULES[skillId]?.domain || getSkillDomain(getSkillById(skillId))) )].filter(Boolean);
+    const tokens = tokenizeWords(lines.join(" "));
+    const frequency = new Map();
+    tokens.forEach((token) => {
+      frequency.set(token, (frequency.get(token) || 0) + 1);
+    });
+    const cues = [...frequency.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .filter(([token]) => token.length >= 4)
+      .slice(0, 8)
+      .map(([token]) => token);
+
+    return {
+      domains,
+      cues,
+      skillConfidence,
+      stats: {
+        fileName: safeRepair(fileName),
+        usefulLines: lines.length
+      }
+    };
   }
 
   function analyzeDocument(text, fileName) {
@@ -250,19 +340,21 @@
     const lines = extractUsefulLines(repairedText);
     const type = inferType(repairedText, fileName);
     const title = inferTitle(lines, fileName, type);
-    const skillIds = inferSkillIds(repairedText, lines);
+    const scoredSkills = inferSkillScores(repairedText, lines, fileName);
+    const skillIds = inferSkillIds(scoredSkills);
     const groupedIndicatorsMap = pickIndicatorCandidates(lines, skillIds);
     const groupedIndicators = skillIds.map((skillId) => ({
       skillId,
       indicators: groupedIndicatorsMap.get(skillId) || []
     }));
+
     return {
       type,
       title,
       skillIds,
       groupedIndicators,
       comment: buildComment(lines, skillIds),
-      preview: repairedText
+      insights: buildInsights(lines, skillIds, scoredSkills, fileName)
     };
   }
 
@@ -273,11 +365,56 @@
         const textarea = section.querySelector("textarea");
         const indicators = String(textarea?.value || "")
           .split(/\r?\n/)
-          .map((line) => normalizeLine(line))
+          .map((line) => cleanIndicatorLabel(line))
           .filter(Boolean);
         return { skillId, indicators };
       })
       .filter((group) => group.skillId && group.indicators.length);
+  }
+
+  function renderInsights() {
+    const { insights } = getNodes();
+    if (!insights) return;
+    if (!state.insights) {
+      insights.innerHTML = `
+        <article class="summary-card">
+          <h3>En attente</h3>
+          <p class="muted-copy">Charge un document pour obtenir une lecture pédagogique et les compétences pressenties.</p>
+        </article>
+      `;
+      return;
+    }
+
+    const domains = state.insights.domains.length
+      ? state.insights.domains.map((domain) => `<span class="badge accent">${escapeHtmlSafe(domain)}</span>`).join("")
+      : `<span class="badge">À préciser</span>`;
+
+    const cues = state.insights.cues.length
+      ? state.insights.cues.map((cue) => `<span class="badge">${escapeHtmlSafe(cue)}</span>`).join("")
+      : `<span class="badge">Aucun mot-clé dominant</span>`;
+
+    const confidence = state.insights.skillConfidence.length
+      ? state.insights.skillConfidence.map((item) => `
+          <article class="summary-card">
+            <h3>${escapeHtmlSafe(item.label)}</h3>
+            <p class="muted-copy">Confiance estimée</p>
+            <span class="stat-value">${item.confidence}%</span>
+          </article>
+        `).join("")
+      : `<article class="summary-card"><h3>Compétences</h3><p class="muted-copy">Aucune compétence détectée.</p></article>`;
+
+    insights.innerHTML = `
+      <article class="summary-card">
+        <h3>Lecture du document</h3>
+        <p class="muted-copy">${escapeHtmlSafe(state.insights.stats.fileName)} // ${state.insights.stats.usefulLines} ligne(s) utiles retenue(s)</p>
+        <div class="student-badges">${domains}</div>
+      </article>
+      <article class="summary-card">
+        <h3>Indices détectés</h3>
+        <div class="student-badges">${cues}</div>
+      </article>
+      ${confidence}
+    `;
   }
 
   function renderGroupedIndicators() {
@@ -316,18 +453,18 @@
 
   function setAnalysisResult(result) {
     const nodes = getNodes();
-    if (!nodes.typeSelect || !nodes.titleInput || !nodes.skillsSelect || !nodes.commentInput || !nodes.preview) return;
+    if (!nodes.typeSelect || !nodes.titleInput || !nodes.skillsSelect || !nodes.commentInput) return;
     nodes.typeSelect.value = result.type;
     nodes.titleInput.value = result.title;
     setMultiSelectValues(nodes.skillsSelect, result.skillIds);
     nodes.commentInput.value = result.comment;
-    nodes.preview.textContent = result.preview.slice(0, 12000) || "Aucun texte exploitable.";
-    state.extractedText = result.preview;
     state.groupedIndicators = result.groupedIndicators.map((group) => ({
       skillId: group.skillId,
       indicators: [...group.indicators]
     }));
+    state.insights = result.insights;
     state.analyzed = true;
+    renderInsights();
     renderGroupedIndicators();
     nodes.createButton.disabled = false;
     nodes.createOpenButton.disabled = false;
@@ -345,6 +482,7 @@
       }))),
       selectedSkillIds
     );
+
     return {
       title: (nodes.titleInput.value || "").trim(),
       type: nodes.typeSelect.value || "TP",
@@ -439,6 +577,7 @@
       if (!nodes.endDate.value) nodes.endDate.value = nodes.startDate.value;
     });
 
+    renderInsights();
     renderGroupedIndicators();
   }
 

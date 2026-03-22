@@ -576,18 +576,21 @@ body[data-page="cielai"]::after {
   min-height: 180px;
 }
 
-.cielai-preview {
-  margin: 0;
-  padding: 18px;
+.cielai-layout #cielai-insights.class-cards {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.cielai-layout #cielai-insights .summary-card .student-badges {
+  margin-top: 12px;
+}
+
+.cielai-layout #cielai-insights .stat-value {
+  font-size: 1.5rem;
+  margin-top: 8px;
+}
+
+.cielai-layout #cielai-skills {
   min-height: 220px;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--line);
-  background: rgba(5, 15, 24, 0.86);
-  color: var(--text);
-  white-space: pre-wrap;
-  word-break: break-word;
-  line-height: 1.7;
-  overflow: auto;
 }
 
 body.evaluations-create-view .evaluation-layout {

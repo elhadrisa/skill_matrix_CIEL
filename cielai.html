@@ -33,13 +33,13 @@
       <div class="hero-copy">
         <p class="eyebrow">Assistant Gratuit</p>
         <h2 class="hero-title">Analyse un TP et crée la séance</h2>
-        <p class="hero-text">Charge un PDF ou un Word, laisse CielAI proposer le type, le titre, les compétences et les indicateurs, puis crée directement la séance avec dates de début et de fin.</p>
+        <p class="hero-text">Charge un PDF ou un Word, laisse CielAI proposer le type, le titre, les compétences, les indicateurs et la logique pédagogique, puis crée directement la séance avec dates de début et de fin.</p>
       </div>
       <section class="hero-side">
         <div class="hero-side-head">
           <div>
             <h2>Flux de travail</h2>
-            <p class="results-count">Import document → analyse → vérification → création de séance</p>
+            <p class="results-count">Import document → analyse locale → vérification enseignant → création de séance</p>
           </div>
         </div>
         <div class="stats-grid">
@@ -49,7 +49,7 @@
           </article>
           <article class="stat-card">
             <span class="stat-value">DOCX</span>
-            <span class="stat-label">Analyse sans API payante</span>
+            <span class="stat-label">Aucune API payante</span>
           </article>
         </div>
       </section>
@@ -118,8 +118,23 @@
           </label>
           <label class="field">
             <span>Commentaire enseignant</span>
-            <textarea id="cielai-comment" rows="6" placeholder="Résumé ou consignes générées"></textarea>
+            <textarea id="cielai-comment" rows="6" placeholder="Résumé pédagogique et consignes générées"></textarea>
           </label>
+        </div>
+      </section>
+
+      <section class="panel wide-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Lecture CielAI</p>
+            <h2>Synthèse d’analyse</h2>
+          </div>
+        </div>
+        <div id="cielai-insights" class="class-cards">
+          <article class="summary-card">
+            <h3>En attente</h3>
+            <p class="muted-copy">Charge un document pour obtenir une lecture pédagogique et les compétences pressenties.</p>
+          </article>
         </div>
       </section>
 
@@ -131,16 +146,6 @@
           </div>
         </div>
         <div id="cielai-indicators-groups" class="class-cards"></div>
-      </section>
-
-      <section class="panel wide-panel">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Texte extrait</p>
-            <h2>Aperçu du document analysé</h2>
-          </div>
-        </div>
-        <pre id="cielai-preview" class="cielai-preview">Aucun document analysé.</pre>
       </section>
     </main>
   </div>
