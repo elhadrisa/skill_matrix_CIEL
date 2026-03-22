@@ -14711,6 +14711,7 @@ function initCertificationPageFinal() {
     const students = getStudentsByClass(classId);
     matrix.dataset.renderActivityId = activity.id;
     matrix.dataset.renderClassId = classId;
+    matrix.dataset.authoritativeEvalSignature = `${activity.id}::${classId}::${students.length}::${(activity.indicators || []).length}`;
 
     if (sessionClassSelect && getClassById(classId) && sessionClassSelect.value !== classId) {
       sessionClassSelect.value = classId;
@@ -14927,13 +14928,39 @@ function initCertificationPageFinal() {
     scheduleAuthoritativeEvaluationCardsFinalSafe(260);
   }
 
+  function bindAuthoritativeEvaluationCardsWatchdogFinalSafe() {
+    if (document.body?.dataset?.page !== "evaluations") return;
+    if (document.documentElement.dataset.authoritativeEvalCardsWatchdogBound === "true") return;
+    document.documentElement.dataset.authoritativeEvalCardsWatchdogBound = "true";
+
+    window.setInterval(() => {
+      if (document.body?.dataset?.page !== "evaluations") return;
+      const context = getAuthoritativeEvaluationContextFinalSafe();
+      if (!context?.matrix || !context.activity) return;
+      const students = getStudentsByClass(context.classId);
+      const expectedSignature = `${context.activity.id}::${context.classId}::${students.length}::${(context.activity.indicators || []).length}`;
+      const renderedCards = context.matrix.querySelectorAll(".activity-student-card").length;
+      const shouldRepair = context.matrix.dataset.authoritativeEvalSignature !== expectedSignature
+        || (students.length > 0 && renderedCards !== students.length)
+        || (students.length > 0 && !context.matrix.querySelector(".activity-student-card"))
+        || (students.length === 0 && !context.matrix.textContent.trim());
+      if (shouldRepair) {
+        scheduleAuthoritativeEvaluationCardsFinalSafe(0);
+      }
+    }, 300);
+  }
+
   window.__cielRenderActivityCardsLayoutSafe = renderAuthoritativeEvaluationCardsFinalSafe;
   window.__cielScheduleActivityCardsLayoutSafe = scheduleAuthoritativeEvaluationCardsFinalSafe;
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", bindAuthoritativeEvaluationCardsFinalSafe, { once: true });
+    document.addEventListener("DOMContentLoaded", () => {
+      bindAuthoritativeEvaluationCardsFinalSafe();
+      bindAuthoritativeEvaluationCardsWatchdogFinalSafe();
+    }, { once: true });
   } else {
     bindAuthoritativeEvaluationCardsFinalSafe();
+    bindAuthoritativeEvaluationCardsWatchdogFinalSafe();
   }
 })();
 
