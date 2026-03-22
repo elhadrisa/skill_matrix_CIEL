@@ -35,6 +35,7 @@
     return select instanceof HTMLSelectElement
       && !select.multiple
       && Number(select.size || 1) <= 1
+      && !select.classList.contains("activity-status-select")
       && !select.dataset.noCustomSelect
       && !select.closest(".cmx-select");
   }

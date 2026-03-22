@@ -478,7 +478,7 @@
                         <span class="activity-indicator-row-body">
                           <span class="activity-indicator-card-label">${escapeHtml(repair(indicator.label))}</span>
                         </span>
-                        <select class="activity-status-select" data-activity-id="${activity.id}" data-student-id="${student.id}" data-indicator-id="${indicator.id}"${hasPermission("edit_evaluations") ? "" : " disabled"}>
+                        <select class="activity-status-select" data-no-custom-select="true" data-activity-id="${activity.id}" data-student-id="${student.id}" data-indicator-id="${indicator.id}"${hasPermission("edit_evaluations") ? "" : " disabled"}>
                           ${renderStatusOptions(getActivityIndicatorStatus(activity, student.id, indicator.id))}
                         </select>
                       </label>

@@ -3129,6 +3129,7 @@ function renderRemediationCard(item) {
 
 function initEvaluationsPageFinal() {
   bindProtectedChrome();
+  const hasFinalEvaluationsSurface = Boolean(document.querySelector('script[src="evaluations-final.js"]'));
   const pageTitle = document.querySelector("#evaluations-page-title");
   const creationPanel = document.querySelector("#activity-creation-panel");
   const selectionPanel = document.querySelector("#activity-selection-panel");
@@ -3550,10 +3551,12 @@ function initEvaluationsPageFinal() {
     const classId = sessionClassSelect.value || app.classes[0]?.id || "";
     const activities = getActivitiesByClass(classId);
     const activity = getActivityById(activitySelect.value) || activities[0];
-    renderActivitySummary(activity, classId);
-    renderActivityMatrix(activity, classId);
-    renderActivityReport(activity, classId);
-    renderActivitySynthesis(classId);
+    if (!hasFinalEvaluationsSurface) {
+      renderActivitySummary(activity, classId);
+      renderActivityMatrix(activity, classId);
+      renderActivityReport(activity, classId);
+      renderActivitySynthesis(classId);
+    }
     renderStudentSheet();
   }
 
