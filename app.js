@@ -9614,20 +9614,24 @@ function initAccountsPage() {
     const sessionClassSelect = document.querySelector("#session-class-select");
     const evalClassSelect = document.querySelector("#eval-class-select");
     const activitySelect = document.querySelector("#activity-select");
-    const selectedClassId = sessionClassSelect?.value || app.classes[0]?.id || "";
-    const selectedActivity = getActivityById(activitySelect?.value);
-    const fallbackActivity = getActivitiesByClass(selectedClassId)[0];
-    const activity = selectedActivity || fallbackActivity;
     if (!matrix) return;
+    const requestedActivityId = matrix.dataset.renderActivityId || activitySelect?.value || "";
+    const requestedActivity = getActivityById(requestedActivityId);
+    const selectedActivity = getActivityById(activitySelect?.value || "");
+    const selectedClassId = requestedActivity?.classId || selectedActivity?.classId || sessionClassSelect?.value || evalClassSelect?.value || app.classes[0]?.id || "";
+    const fallbackActivity = getActivitiesByClass(selectedClassId)[0];
+    const activity = requestedActivity || selectedActivity || fallbackActivity;
     if (legend) legend.remove();
     if (!activity) {
       matrix.className = "activity-cards-layout";
       matrix.innerHTML = "";
       delete matrix.dataset.openStudentId;
+      delete matrix.dataset.renderActivityId;
       return;
     }
 
     const classId = activity.classId || selectedClassId;
+    matrix.dataset.renderActivityId = activity.id;
     if (sessionClassSelect && sessionClassSelect.value !== classId && getClassById(classId)) {
       sessionClassSelect.value = classId;
     }
@@ -9840,6 +9844,9 @@ function initAccountsPage() {
       const currentMatrix = document.querySelector("#activity-matrix");
       if (!currentMatrix) return false;
       if (currentMatrix.querySelector(".activity-student-card")) return false;
+      const explicitActivityId = currentMatrix.dataset.renderActivityId || document.querySelector("#activity-select")?.value || "";
+      const explicitActivity = getActivityById(explicitActivityId);
+      if (explicitActivity && !currentMatrix.children.length) return true;
       return currentMatrix.classList.contains("activity-grid")
         || Boolean(currentMatrix.querySelector(".matrix-header, .matrix-row, .activity-header, .activity-row"));
     };
@@ -10219,6 +10226,7 @@ function initAccountsPage() {
       }
       const editingId = activityForm.dataset.editingId;
       let targetActivityId = editingId || "";
+      let targetClassId = activityClass.value;
       if (editingId) {
         const activity = getActivityById(editingId);
         if (!activity) {
@@ -10236,6 +10244,7 @@ function initAccountsPage() {
         activity.comment = activityComment.value.trim();
         activity.indicators = indicators;
         Object.assign(activity, hydrateEvaluationActivity(activity, app.evaluationActivities.findIndex((item) => item.id === activity.id)));
+        targetClassId = activity.classId;
         logAction("Séance modifiée", activity.title, `${activity.type} // ${getClassById(activity.classId)?.name || ""}`);
         activityFeedback.textContent = "Séance mise à jour.";
       } else {
@@ -10255,14 +10264,23 @@ function initAccountsPage() {
         }, app.evaluationActivities.length);
         app.evaluationActivities.push(newActivity);
         targetActivityId = newActivity.id;
+        targetClassId = newActivity.classId;
         logAction("Séance créée", activityTitle.value.trim(), `${activityType.value} // ${getClassById(activityClass.value)?.name || ""}`);
         activityFeedback.textContent = "Séance créée.";
       }
       persistAppData();
-      sessionClassSelect.value = activityClass.value;
-      evalClassSelect.value = activityClass.value;
       resetActivityEditorSafe();
+      sessionClassSelect.value = targetClassId;
+      evalClassSelect.value = targetClassId;
       syncSessionActivities(targetActivityId);
+      const syncedActivitySelect = document.querySelector("#activity-select");
+      if (syncedActivitySelect && [...(syncedActivitySelect.options || [])].some((option) => option.value === targetActivityId)) {
+        syncedActivitySelect.value = targetActivityId;
+      }
+      const matrix = document.querySelector("#activity-matrix");
+      if (matrix && targetActivityId) {
+        matrix.dataset.renderActivityId = targetActivityId;
+      }
       syncEvalStudents();
       renderEvaluationPage();
       window.__cielScheduleActivityCardsLayoutSafe?.();
@@ -14339,6 +14357,9 @@ function initCertificationPageFinal() {
     const matrix = document.querySelector("#activity-matrix");
     if (!matrix) return false;
     if (matrix.querySelector(".activity-student-card")) return false;
+    const explicitActivityId = matrix.dataset.renderActivityId || document.querySelector("#activity-select")?.value || "";
+    const explicitActivity = getActivityById(explicitActivityId);
+    if (explicitActivity && !matrix.children.length) return true;
     return matrix.classList.contains("activity-grid")
       || Boolean(matrix.querySelector(".matrix-header, .matrix-row, .activity-header, .activity-row"));
   }
