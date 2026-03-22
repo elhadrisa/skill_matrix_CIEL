@@ -3576,6 +3576,8 @@ function initEvaluationsPageFinal() {
     if (!activity) {
       activityMatrix.className = "activity-cards-layout";
       activityMatrix.innerHTML = "";
+      delete activityMatrix.dataset.renderActivityId;
+      delete activityMatrix.dataset.renderClassId;
       return;
     }
     if (activitySelect?.value !== activity.id && [...(activitySelect?.options || [])].some((option) => option.value === activity.id)) {
@@ -3584,6 +3586,7 @@ function initEvaluationsPageFinal() {
     activityMatrix.className = "activity-cards-layout";
     activityMatrix.innerHTML = "";
     activityMatrix.dataset.renderActivityId = activity.id;
+    activityMatrix.dataset.renderClassId = classId || activity.classId || "";
     const renderCards = window.__cielRenderActivityCardsLayoutSafe;
     if (typeof renderCards === "function") {
       renderCards();
@@ -6361,6 +6364,8 @@ function initEvaluationsPage() {
     if (!activity) {
       activityMatrix.className = "activity-cards-layout";
       activityMatrix.innerHTML = "";
+      delete activityMatrix.dataset.renderActivityId;
+      delete activityMatrix.dataset.renderClassId;
       return;
     }
     if (activitySelect?.value !== activity.id && [...(activitySelect?.options || [])].some((option) => option.value === activity.id)) {
@@ -6369,6 +6374,7 @@ function initEvaluationsPage() {
     activityMatrix.className = "activity-cards-layout";
     activityMatrix.innerHTML = "";
     activityMatrix.dataset.renderActivityId = activity.id;
+    activityMatrix.dataset.renderClassId = classId || activity.classId || "";
     const renderCards = window.__cielRenderActivityCardsLayoutSafe;
     if (typeof renderCards === "function") {
       renderCards();
@@ -7110,6 +7116,8 @@ function initEvaluationsPage() {
     if (!activity) {
       activityMatrix.className = "activity-cards-layout";
       activityMatrix.innerHTML = "";
+      delete activityMatrix.dataset.renderActivityId;
+      delete activityMatrix.dataset.renderClassId;
       return;
     }
     if (activitySelect?.value !== activity.id && [...(activitySelect?.options || [])].some((option) => option.value === activity.id)) {
@@ -7118,6 +7126,7 @@ function initEvaluationsPage() {
     activityMatrix.className = "activity-cards-layout";
     activityMatrix.innerHTML = "";
     activityMatrix.dataset.renderActivityId = activity.id;
+    activityMatrix.dataset.renderClassId = classId || activity.classId || "";
     const renderCards = window.__cielRenderActivityCardsLayoutSafe;
     if (typeof renderCards === "function") {
       renderCards();
@@ -9617,8 +9626,9 @@ function initAccountsPage() {
     if (!matrix) return;
     const requestedActivityId = matrix.dataset.renderActivityId || activitySelect?.value || "";
     const requestedActivity = getActivityById(requestedActivityId);
+    const requestedClassId = matrix.dataset.renderClassId || "";
     const selectedActivity = getActivityById(activitySelect?.value || "");
-    const selectedClassId = requestedActivity?.classId || selectedActivity?.classId || sessionClassSelect?.value || evalClassSelect?.value || app.classes[0]?.id || "";
+    const selectedClassId = requestedClassId || requestedActivity?.classId || selectedActivity?.classId || sessionClassSelect?.value || evalClassSelect?.value || app.classes[0]?.id || "";
     const fallbackActivity = getActivitiesByClass(selectedClassId)[0];
     const activity = requestedActivity || selectedActivity || fallbackActivity;
     if (legend) legend.remove();
@@ -9632,6 +9642,7 @@ function initAccountsPage() {
 
     const classId = activity.classId || selectedClassId;
     matrix.dataset.renderActivityId = activity.id;
+    matrix.dataset.renderClassId = classId;
     if (sessionClassSelect && sessionClassSelect.value !== classId && getClassById(classId)) {
       sessionClassSelect.value = classId;
     }
@@ -10280,6 +10291,7 @@ function initAccountsPage() {
       const matrix = document.querySelector("#activity-matrix");
       if (matrix && targetActivityId) {
         matrix.dataset.renderActivityId = targetActivityId;
+        matrix.dataset.renderClassId = targetClassId;
       }
       syncEvalStudents();
       renderEvaluationPage();
