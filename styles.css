@@ -1248,12 +1248,24 @@ body.evaluations-create-view #activity-creation-panel {
   background: linear-gradient(180deg, rgba(7, 20, 31, 0.96), rgba(7, 18, 28, 0.82));
 }
 
+.activity-global-grade-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: end;
+}
+
 .activity-global-grade-box .field {
   margin: 0;
 }
 
 .activity-global-grade-box small {
   font-size: 0.82rem;
+}
+
+.activity-global-grade-apply {
+  min-width: 150px;
+  white-space: nowrap;
 }
 
 @media (max-width: 1160px) {
@@ -1293,7 +1305,8 @@ body.evaluations-create-view #activity-creation-panel {
     grid-template-columns: 1fr;
   }
   .activity-skill-group-head,
-  .activity-indicator-row {
+  .activity-indicator-row,
+  .activity-global-grade-actions {
     grid-template-columns: 1fr;
   }
   .activity-skill-group-summary {

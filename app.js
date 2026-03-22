@@ -9140,11 +9140,14 @@ function initAccountsPage() {
           </div>
           <div class="activity-student-groups">
             <section class="activity-skill-group activity-global-grade-box">
-              <label class="field compact-field">
-                <span>Note globale /20</span>
-                <input class="activity-student-global-grade" type="text" inputmode="decimal" data-activity-id="${activity.id}" data-student-id="${student.id}" value="${globalGrade === "" ? "" : globalGrade}" placeholder="Ex. 13.5">
-                <small>${escapeHtml(getLevelLabelSafe(mapGradeToStatus(globalGrade)) || "Non évalué")}</small>
-              </label>
+              <div class="activity-global-grade-actions">
+                <label class="field compact-field">
+                  <span>Note globale /20</span>
+                  <input class="activity-student-global-grade" type="text" inputmode="decimal" data-activity-id="${activity.id}" data-student-id="${student.id}" value="${globalGrade === "" ? "" : globalGrade}" placeholder="Ex. 13.5">
+                  <small class="activity-global-grade-hint">${escapeHtml(getLevelLabelSafe(mapGradeToStatus(globalGrade)) || "Non évalué")}</small>
+                </label>
+                <button class="primary-button activity-global-grade-apply" type="button" data-activity-id="${activity.id}" data-student-id="${student.id}"${hasPermission("edit_evaluations") ? "" : " disabled"}>Appliquer</button>
+              </div>
             </section>
             ${groups.map((group) => `
               <section class="activity-skill-group">
@@ -9242,21 +9245,35 @@ function initAccountsPage() {
       ["click", "mousedown", "focus"].forEach((eventName) => {
         input.addEventListener(eventName, (event) => event.stopPropagation());
       });
-      const commit = (event) => {
-        if (!hasPermission("edit_evaluations")) return;
+      input.addEventListener("input", (event) => {
         const target = event.currentTarget;
-        const liveActivity = getActivityById(target.dataset.activityId) || activity;
-        matrix.dataset.openStudentId = target.dataset.studentId || matrix.dataset.openStudentId || "";
-        applyActivityGlobalGradeUltraSafe(liveActivity, target.dataset.studentId, String(target.value || "").replace(",", "."));
-        persistAppData();
-        window.setTimeout(refreshEvaluationPanelsUltraSafe, 0);
-      };
-      input.addEventListener("change", commit);
-      input.addEventListener("blur", commit);
+        const hint = target.closest(".activity-global-grade-actions")?.querySelector(".activity-global-grade-hint");
+        if (!hint) return;
+        const normalized = normalizeGrade(String(target.value || "").replace(",", "."));
+        hint.textContent = getLevelLabelSafe(mapGradeToStatus(normalized)) || "Non évalué";
+      });
       input.addEventListener("keydown", (event) => {
         if (event.key !== "Enter") return;
         event.preventDefault();
-        commit(event);
+        const target = event.currentTarget;
+        target.closest(".activity-global-grade-actions")?.querySelector(".activity-global-grade-apply")?.click();
+      });
+    });
+
+    matrix.querySelectorAll(".activity-global-grade-apply").forEach((button) => {
+      if (button.dataset.ultraBound === "true") return;
+      button.dataset.ultraBound = "true";
+      button.addEventListener("click", (event) => {
+        if (!hasPermission("edit_evaluations")) return;
+        const target = event.currentTarget;
+        const wrapper = target.closest(".activity-global-grade-actions");
+        const input = wrapper?.querySelector(".activity-student-global-grade");
+        if (!input) return;
+        const liveActivity = getActivityById(target.dataset.activityId) || activity;
+        matrix.dataset.openStudentId = target.dataset.studentId || matrix.dataset.openStudentId || "";
+        applyActivityGlobalGradeUltraSafe(liveActivity, target.dataset.studentId, String(input.value || "").replace(",", "."));
+        persistAppData();
+        window.setTimeout(refreshEvaluationPanelsUltraSafe, 0);
       });
     });
   }
@@ -9863,10 +9880,6 @@ function initAccountsPage() {
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     let node = walker.nextNode();
     while (node) {
-      if (node.parentElement?.closest?.("#activity-matrix")) {
-        node = walker.nextNode();
-        continue;
-      }
       const fixed = normalizeDisplayText(node.nodeValue);
       if (fixed !== node.nodeValue) {
         node.nodeValue = fixed;
@@ -9874,7 +9887,6 @@ function initAccountsPage() {
       node = walker.nextNode();
     }
     root.querySelectorAll("input[placeholder], textarea[placeholder], [title], option, button, h1, h2, h3, p, small, span, a, label").forEach((element) => {
-      if (element.closest?.("#activity-matrix")) return;
       if (element.hasAttribute("placeholder")) {
         const fixed = normalizeDisplayText(element.getAttribute("placeholder"));
         if (fixed !== element.getAttribute("placeholder")) element.setAttribute("placeholder", fixed);
@@ -9907,15 +9919,13 @@ function initAccountsPage() {
     scheduleDisplayNormalization();
   }
 
-  if (document.body?.dataset?.page !== "evaluations") {
-    const observer = new MutationObserver(() => scheduleDisplayNormalization());
-    if (document.body) {
+  const observer = new MutationObserver(() => scheduleDisplayNormalization());
+  if (document.body) {
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+  } else {
+    document.addEventListener("DOMContentLoaded", () => {
       observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-    } else {
-      document.addEventListener("DOMContentLoaded", () => {
-        observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-      }, { once: true });
-    }
+    }, { once: true });
   }
 })();
 
@@ -9954,17 +9964,12 @@ function initAccountsPage() {
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     let node = walker.nextNode();
     while (node) {
-      if (node.parentElement?.closest?.("#activity-matrix")) {
-        node = walker.nextNode();
-        continue;
-      }
       const fixed = repairMojibakeSafe(node.nodeValue);
       if (fixed !== node.nodeValue) node.nodeValue = fixed;
       node = walker.nextNode();
     }
 
     root.querySelectorAll("input[placeholder], textarea[placeholder], [title], option, button, h1, h2, h3, p, small, span, a, label").forEach((element) => {
-      if (element.closest?.("#activity-matrix")) return;
       if (element.hasAttribute("placeholder")) {
         const placeholder = element.getAttribute("placeholder");
         const fixed = repairMojibakeSafe(placeholder);
@@ -9998,15 +10003,13 @@ function initAccountsPage() {
     scheduleMojibakeRepairSafe();
   }
 
-  if (document.body?.dataset?.page !== "evaluations") {
-    const observer = new MutationObserver(() => scheduleMojibakeRepairSafe());
-    if (document.body) {
+  const observer = new MutationObserver(() => scheduleMojibakeRepairSafe());
+  if (document.body) {
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+  } else {
+    document.addEventListener("DOMContentLoaded", () => {
       observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-    } else {
-      document.addEventListener("DOMContentLoaded", () => {
-        observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-      }, { once: true });
-    }
+    }, { once: true });
   }
 })();
 
