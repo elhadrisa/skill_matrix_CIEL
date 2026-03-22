@@ -80,8 +80,8 @@
               </label>
             </div>
             <div class="student-badges">
-              <button id="activity-indicator-add" class="ghost-button" type="button">Ajouter l'indicateur</button>
-              <button id="activity-indicator-clear" class="ghost-button" type="button">Vider la liste</button>
+              <button id="activity-indicator-add" class="ghost-button" type="button" onclick="return window.__cielAddIndicatorDirectSafe ? (window.__cielAddIndicatorDirectSafe(), false) : false;">Ajouter l'indicateur</button>
+              <button id="activity-indicator-clear" class="ghost-button" type="button" onclick="return window.__cielClearIndicatorDirectSafe ? (window.__cielClearIndicatorDirectSafe(), false) : false;">Vider la liste</button>
             </div>
             <div id="activity-indicator-list" class="student-directory"></div>
           </section>
