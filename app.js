@@ -9808,7 +9808,15 @@ function initAccountsPage() {
       event.preventDefault();
       event.stopImmediatePropagation();
       if (!hasPermission("edit_evaluations")) return;
-      const selectedSkillIds = getSelectedSkillIds();
+      let selectedSkillIds = getSelectedSkillIds();
+      if (!selectedSkillIds.length && activityForm.dataset.appliedSkillIds) {
+        try {
+          const parsed = JSON.parse(activityForm.dataset.appliedSkillIds);
+          if (Array.isArray(parsed)) {
+            selectedSkillIds = parsed.filter(Boolean);
+          }
+        } catch {}
+      }
       const indicators = (indicatorDraft.length ? indicatorDraft : buildStructuredIndicatorsFromTextareaSafe(activityTitle.value.trim(), activityIndicators)).map((indicator, index) => ({
         id: indicator.id || slugify(`${activityTitle.value.trim()}-${index}-${Date.now()}`),
         label: indicator.label,
@@ -10372,6 +10380,176 @@ function initAccountsPage() {
   } else if (document.body?.dataset?.page === "evaluations") {
     bindActivityIndicatorSkillPickerUltraSafe();
     rebuildActivityIndicatorSkillPickerUltraSafe();
+  }
+})();
+
+(() => {
+  function getActivitySkillSelectionUltraSafe() {
+    const skillSelect = document.querySelector("#activity-skill");
+    if (!skillSelect) return [];
+    return [...skillSelect.options].filter((option) => option.selected).map((option) => option.value).filter(Boolean);
+  }
+
+  function setAppliedActivitySkillIdsUltraSafe(skillIds) {
+    const form = document.querySelector("#activity-form");
+    if (!form) return [];
+    const normalized = [...new Set((skillIds || []).filter(Boolean))];
+    form.dataset.appliedSkillIds = JSON.stringify(normalized);
+    return normalized;
+  }
+
+  function getAppliedActivitySkillIdsUltraSafe() {
+    const form = document.querySelector("#activity-form");
+    if (!form?.dataset?.appliedSkillIds) return [];
+    try {
+      const parsed = JSON.parse(form.dataset.appliedSkillIds);
+      return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function renderAppliedActivitySkillOptionsUltraSafe(skillIds) {
+    const indicatorSkillSelect = document.querySelector("#activity-indicator-skill");
+    if (!indicatorSkillSelect) return;
+    const selectedSkills = (skillIds || []).map((skillId) => getSkillById(skillId)).filter(Boolean);
+    const previousValue = indicatorSkillSelect.value || "";
+    const placeholder = selectedSkills.length
+      ? "Toutes les compétences sélectionnées"
+      : "Choisis d'abord les compétences";
+
+    indicatorSkillSelect.innerHTML = [
+      `<option value="">${escapeHtml(placeholder)}</option>`,
+      ...selectedSkills.map((skill) => `<option value="${skill.id}">${escapeHtml(`${skill.code} - ${skill.title}`)}</option>`)
+    ].join("");
+    indicatorSkillSelect.disabled = selectedSkills.length === 0;
+
+    if (previousValue && selectedSkills.some((skill) => skill.id === previousValue)) {
+      indicatorSkillSelect.value = previousValue;
+    } else if (selectedSkills.length === 1) {
+      indicatorSkillSelect.value = selectedSkills[0].id;
+    } else {
+      indicatorSkillSelect.value = "";
+    }
+  }
+
+  function updateActivitySkillApplyFeedbackUltraSafe(message, isError = false) {
+    const feedback = document.querySelector("#activity-skill-apply-feedback");
+    if (!feedback) return;
+    feedback.textContent = message;
+    feedback.style.color = isError ? "#ff9a9a" : "";
+  }
+
+  function applyActivitySkillsToSessionUltraSafe(showFeedback = true) {
+    if (document.body?.dataset?.page !== "evaluations") return false;
+    const selectedSkillIds = getActivitySkillSelectionUltraSafe();
+    const indicatorBankDomain = document.querySelector("#indicator-bank-domain");
+    const indicatorBankSelect = document.querySelector("#indicator-bank-select");
+
+    if (!selectedSkillIds.length) {
+      setAppliedActivitySkillIdsUltraSafe([]);
+      renderAppliedActivitySkillOptionsUltraSafe([]);
+      if (typeof populateIndicatorBankSelect === "function") {
+        populateIndicatorBankSelect(indicatorBankSelect, [], indicatorBankDomain?.value || "all");
+      }
+      if (showFeedback) {
+        updateActivitySkillApplyFeedbackUltraSafe("Choisis au moins une compétence puis clique sur « Appliquer les compétences ».", true);
+      }
+      return false;
+    }
+
+    const appliedSkillIds = setAppliedActivitySkillIdsUltraSafe(selectedSkillIds);
+    renderAppliedActivitySkillOptionsUltraSafe(appliedSkillIds);
+    if (typeof populateIndicatorBankSelect === "function") {
+      populateIndicatorBankSelect(indicatorBankSelect, appliedSkillIds, indicatorBankDomain?.value || "all");
+    }
+    if (showFeedback) {
+      updateActivitySkillApplyFeedbackUltraSafe(`${appliedSkillIds.length} compétence(s) appliquée(s) à la séance.`);
+    }
+    return true;
+  }
+
+  function bindActivitySkillsApplyButtonUltraSafe() {
+    if (document.body?.dataset?.page !== "evaluations") return;
+    if (document.body.dataset.activitySkillsApplyUltraSafeBound === "true") return;
+    document.body.dataset.activitySkillsApplyUltraSafeBound = "true";
+
+    const applyButton = document.querySelector("#activity-apply-skills");
+    const skillSelect = document.querySelector("#activity-skill");
+    const form = document.querySelector("#activity-form");
+    const cancelEditButton = document.querySelector("#activity-cancel-edit");
+
+    applyButton?.addEventListener("click", () => {
+      applyActivitySkillsToSessionUltraSafe(true);
+    });
+
+    skillSelect?.addEventListener("change", () => {
+      updateActivitySkillApplyFeedbackUltraSafe("Sélection modifiée. Clique sur « Appliquer les compétences » pour mettre à jour les indicateurs.");
+    });
+
+    skillSelect?.addEventListener("mouseup", () => {
+      window.setTimeout(() => {
+        updateActivitySkillApplyFeedbackUltraSafe("Sélection modifiée. Clique sur « Appliquer les compétences » pour mettre à jour les indicateurs.");
+      }, 0);
+    });
+
+    skillSelect?.addEventListener("keyup", () => {
+      updateActivitySkillApplyFeedbackUltraSafe("Sélection modifiée. Clique sur « Appliquer les compétences » pour mettre à jour les indicateurs.");
+    });
+
+    cancelEditButton?.addEventListener("click", () => {
+      window.setTimeout(() => {
+        setAppliedActivitySkillIdsUltraSafe([]);
+        renderAppliedActivitySkillOptionsUltraSafe([]);
+        updateActivitySkillApplyFeedbackUltraSafe("Sélectionne les compétences du TP / TD puis clique sur le bouton pour les appliquer aux indicateurs.");
+      }, 0);
+    });
+
+    form?.addEventListener("reset", () => {
+      window.setTimeout(() => {
+        setAppliedActivitySkillIdsUltraSafe([]);
+        renderAppliedActivitySkillOptionsUltraSafe([]);
+        updateActivitySkillApplyFeedbackUltraSafe("Sélectionne les compétences du TP / TD puis clique sur le bouton pour les appliquer aux indicateurs.");
+      }, 0);
+    });
+
+    document.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (target.id === "activity-edit-button" || target.id === "activity-duplicate-button") {
+        window.setTimeout(() => {
+          const selectedSkillIds = getActivitySkillSelectionUltraSafe();
+          setAppliedActivitySkillIdsUltraSafe(selectedSkillIds);
+          renderAppliedActivitySkillOptionsUltraSafe(selectedSkillIds);
+          if (selectedSkillIds.length) {
+            updateActivitySkillApplyFeedbackUltraSafe(`${selectedSkillIds.length} compétence(s) appliquée(s) à la séance.`);
+          }
+        }, 80);
+      }
+    });
+
+    const initialSkillIds = getActivitySkillSelectionUltraSafe();
+    setAppliedActivitySkillIdsUltraSafe(initialSkillIds);
+    renderAppliedActivitySkillOptionsUltraSafe(initialSkillIds);
+  }
+
+  const originalInitEvaluationsPageFinalApplySkillsSafe = initEvaluationsPageFinal;
+  initEvaluationsPageFinal = function () {
+    originalInitEvaluationsPageFinalApplySkillsSafe();
+    window.setTimeout(bindActivitySkillsApplyButtonUltraSafe, 0);
+    window.setTimeout(() => applyActivitySkillsToSessionUltraSafe(false), 80);
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => {
+      if (document.body?.dataset?.page === "evaluations") {
+        bindActivitySkillsApplyButtonUltraSafe();
+        applyActivitySkillsToSessionUltraSafe(false);
+      }
+    }, { once: true });
+  } else if (document.body?.dataset?.page === "evaluations") {
+    bindActivitySkillsApplyButtonUltraSafe();
+    applyActivitySkillsToSessionUltraSafe(false);
   }
 })();
 
