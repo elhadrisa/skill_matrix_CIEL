@@ -67,6 +67,8 @@
       commentInput: bySelector("#cielai-comment"),
       insights: bySelector("#cielai-insights"),
       pedagogyKit: bySelector("#cielai-pedagogy-kit"),
+      teacherSheet: bySelector("#cielai-teacher-sheet"),
+      printSheetButton: bySelector("#cielai-print-sheet"),
       inductivePlan: bySelector("#cielai-inductive-plan"),
       groups: bySelector("#cielai-indicators-groups")
     };
@@ -117,6 +119,14 @@
 
   function normalizeLine(line) {
     return safeRepair(line).replace(/^[\s•\-–—*]+/, "").replace(/^\d+[\.\)]\s+/, "").replace(/\s+/g, " ").trim();
+  }
+
+  function tokenizeWords(text) {
+    return normalizeText(String(text || ""))
+      .split(/[^a-z0-9]+/g)
+      .map((token) => token.trim())
+      .filter((token) => token.length >= 3)
+      .filter((token) => !/^(avec|dans|pour|sans|plus|moins|tres|faire|etape|etapes|objectif|objectifs|competence|competences|consigne|consignes|travail|document|documents|eleve|eleves|classe|seance|analyse|resultat|resultats)$/.test(token));
   }
 
   function extractUsefulUnits(text) {
@@ -742,6 +752,212 @@
     `;
   }
 
+  function buildTeacherSheetData() {
+    if (!state.insights) return null;
+    const nodes = getNodes();
+    const selectedClass = getClassById(nodes.classSelect?.value || "") || getClassById(state.insights.suggestedClassId || "");
+    const selectedSkills = getSelectedValues(nodes.skillsSelect || { selectedOptions: [] })
+      .map((skillId) => getSkillById(skillId))
+      .filter(Boolean)
+      .map((skill) => `${safeRepair(skill.code)} - ${safeRepair(skill.title)}`);
+    const kit = state.insights.teachingKit || {};
+    const plan = state.insights.inductivePlan || [];
+    return {
+      title: safeRepair(nodes.titleInput?.value || "Seance CielAI"),
+      type: safeRepair(nodes.typeSelect?.value || "TP"),
+      className: safeRepair(selectedClass?.name || "Classe a confirmer"),
+      level: safeRepair(state.insights.levelEstimate?.label || "A confirmer"),
+      duration: safeRepair(state.insights.durationEstimate?.label || "A confirmer"),
+      domain: safeRepair(state.insights.dominantDomain || "A confirmer"),
+      startDate: safeRepair(nodes.startDate?.value || ""),
+      endDate: safeRepair(nodes.endDate?.value || nodes.startDate?.value || ""),
+      modality: safeRepair(kit.modality?.title || ""),
+      objectives: (kit.objectives || []).slice(0, 3),
+      prerequisites: (kit.prerequisites || []).slice(0, 3),
+      deliverables: (kit.deliverables || []).slice(0, 3),
+      traceWriting: safeRepair(kit.traceWriting || ""),
+      assessmentAdvice: safeRepair(kit.assessmentAdvice || ""),
+      differentiation: {
+        support: (kit.differentiation?.support || []).slice(0, 2),
+        standard: (kit.differentiation?.standard || []).slice(0, 2),
+        extension: (kit.differentiation?.extension || []).slice(0, 2)
+      },
+      skills: selectedSkills.slice(0, 4),
+      inductiveSteps: plan.slice(0, 4).map((step) => ({
+        title: safeRepair(step.title || ""),
+        duration: safeRepair(step.durationLabel || ""),
+        output: safeRepair(step.output || "")
+      }))
+    };
+  }
+
+  function renderTeacherSheet() {
+    const sheetNode = getNodes().teacherSheet;
+    const printButton = getNodes().printSheetButton;
+    if (!sheetNode) return;
+    const data = buildTeacherSheetData();
+    if (!data) {
+      sheetNode.innerHTML = `<article class="summary-card"><h3>En attente</h3><p class="muted-copy">L'analyse generera ici une fiche prof courte, prete a imprimer.</p></article>`;
+      if (printButton) printButton.disabled = true;
+      return;
+    }
+    sheetNode.innerHTML = `
+      <article class="summary-card cielai-sheet-card">
+        <div class="cielai-sheet-head">
+          <div>
+            <h3>${escapeHtmlSafe(data.title)}</h3>
+            <p class="muted-copy">${escapeHtmlSafe(data.type)} // ${escapeHtmlSafe(data.className)} // ${escapeHtmlSafe(data.duration)}</p>
+          </div>
+          <div class="student-badges">
+            <span class="badge accent">${escapeHtmlSafe(data.domain)}</span>
+            <span class="badge">${escapeHtmlSafe(data.level)}</span>
+          </div>
+        </div>
+        <div class="cielai-sheet-meta">
+          <span><strong>Dates :</strong> ${escapeHtmlSafe(data.startDate || "-")} -> ${escapeHtmlSafe(data.endDate || "-")}</span>
+          <span><strong>Modalite :</strong> ${escapeHtmlSafe(data.modality || "A confirmer")}</span>
+        </div>
+      </article>
+      <article class="summary-card cielai-sheet-card">
+        <h3>Competences et objectifs</h3>
+        <div class="student-badges">${data.skills.map((item) => `<span class="badge">${escapeHtmlSafe(item)}</span>`).join("")}</div>
+        <ul class="cielai-kit-list">
+          ${data.objectives.map((item) => `<li>${escapeHtmlSafe(item)}</li>`).join("")}
+        </ul>
+      </article>
+      <article class="summary-card cielai-sheet-card">
+        <h3>Prerequis et livrables</h3>
+        <span class="eyebrow">Prerequis</span>
+        <ul class="cielai-kit-list">
+          ${data.prerequisites.map((item) => `<li>${escapeHtmlSafe(item)}</li>`).join("")}
+        </ul>
+        <span class="eyebrow">Livrables</span>
+        <ul class="cielai-kit-list">
+          ${data.deliverables.map((item) => `<li>${escapeHtmlSafe(item)}</li>`).join("")}
+        </ul>
+      </article>
+      <article class="summary-card cielai-sheet-card">
+        <h3>Deroule express</h3>
+        <div class="cielai-sheet-steps">
+          ${data.inductiveSteps.map((step) => `
+            <div class="cielai-sheet-step">
+              <strong>${escapeHtmlSafe(step.title)}</strong>
+              <span class="badge">${escapeHtmlSafe(step.duration)}</span>
+              <p class="muted-copy">${escapeHtmlSafe(step.output)}</p>
+            </div>
+          `).join("")}
+        </div>
+      </article>
+      <article class="summary-card cielai-sheet-card">
+        <h3>Trace et evaluation</h3>
+        <p class="muted-copy"><strong>Trace ecrite :</strong> ${escapeHtmlSafe(data.traceWriting)}</p>
+        <p class="muted-copy"><strong>Evaluation :</strong> ${escapeHtmlSafe(data.assessmentAdvice)}</p>
+      </article>
+      <article class="summary-card cielai-sheet-card">
+        <h3>Différenciation rapide</h3>
+        <span class="eyebrow">Aide</span>
+        <ul class="cielai-kit-list">
+          ${data.differentiation.support.map((item) => `<li>${escapeHtmlSafe(item)}</li>`).join("")}
+        </ul>
+        <span class="eyebrow">Approfondissement</span>
+        <ul class="cielai-kit-list">
+          ${data.differentiation.extension.map((item) => `<li>${escapeHtmlSafe(item)}</li>`).join("")}
+        </ul>
+      </article>
+    `;
+    if (printButton) printButton.disabled = false;
+  }
+
+  function printTeacherSheet() {
+    const data = buildTeacherSheetData();
+    if (!data) {
+      setFeedback("Analyse d'abord un document avant d'imprimer la fiche prof.");
+      return;
+    }
+    const html = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Fiche prof - ${escapeHtmlSafe(data.title)}</title>
+  <style>
+    body { font-family: Arial, sans-serif; color: #14212b; margin: 28px; line-height: 1.45; }
+    h1, h2, h3 { margin: 0 0 10px; }
+    h1 { font-size: 24px; }
+    h2 { font-size: 16px; margin-top: 24px; text-transform: uppercase; letter-spacing: 0.04em; color: #2d5566; }
+    .meta, .badges, .grid { margin-top: 12px; }
+    .meta { display: grid; gap: 6px; }
+    .badges span { display: inline-block; padding: 6px 10px; margin: 0 8px 8px 0; border: 1px solid #8fb7c6; border-radius: 999px; font-size: 12px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .card { border: 1px solid #c7d9e1; border-radius: 14px; padding: 14px 16px; break-inside: avoid; }
+    ul { margin: 8px 0 0; padding-left: 18px; }
+    li { margin-bottom: 6px; }
+    .steps { display: grid; gap: 10px; }
+    .step { border-left: 3px solid #4ca7c7; padding-left: 10px; }
+    .muted { color: #566d79; }
+  </style>
+</head>
+<body>
+  <h1>${escapeHtmlSafe(data.title)}</h1>
+  <div class="meta">
+    <div><strong>Type :</strong> ${escapeHtmlSafe(data.type)} | <strong>Classe :</strong> ${escapeHtmlSafe(data.className)}</div>
+    <div><strong>Domaine :</strong> ${escapeHtmlSafe(data.domain)} | <strong>Niveau :</strong> ${escapeHtmlSafe(data.level)} | <strong>Duree :</strong> ${escapeHtmlSafe(data.duration)}</div>
+    <div><strong>Dates :</strong> ${escapeHtmlSafe(data.startDate || "-")} -> ${escapeHtmlSafe(data.endDate || "-")}</div>
+    <div><strong>Modalite :</strong> ${escapeHtmlSafe(data.modality || "A confirmer")}</div>
+  </div>
+  <div class="badges">${data.skills.map((item) => `<span>${escapeHtmlSafe(item)}</span>`).join("")}</div>
+
+  <div class="grid">
+    <section class="card">
+      <h2>Objectifs</h2>
+      <ul>${data.objectives.map((item) => `<li>${escapeHtmlSafe(item)}</li>`).join("")}</ul>
+    </section>
+    <section class="card">
+      <h2>Prerequis</h2>
+      <ul>${data.prerequisites.map((item) => `<li>${escapeHtmlSafe(item)}</li>`).join("")}</ul>
+    </section>
+    <section class="card">
+      <h2>Livrables</h2>
+      <ul>${data.deliverables.map((item) => `<li>${escapeHtmlSafe(item)}</li>`).join("")}</ul>
+    </section>
+    <section class="card">
+      <h2>Trace et evaluation</h2>
+      <p><strong>Trace ecrite :</strong> ${escapeHtmlSafe(data.traceWriting)}</p>
+      <p><strong>Evaluation :</strong> ${escapeHtmlSafe(data.assessmentAdvice)}</p>
+    </section>
+    <section class="card">
+      <h2>Différenciation</h2>
+      <p><strong>Aide</strong></p>
+      <ul>${data.differentiation.support.map((item) => `<li>${escapeHtmlSafe(item)}</li>`).join("")}</ul>
+      <p><strong>Approfondissement</strong></p>
+      <ul>${data.differentiation.extension.map((item) => `<li>${escapeHtmlSafe(item)}</li>`).join("")}</ul>
+    </section>
+    <section class="card">
+      <h2>Deroule express</h2>
+      <div class="steps">
+        ${data.inductiveSteps.map((step) => `<div class="step"><strong>${escapeHtmlSafe(step.title)}</strong> <span class="muted">(${escapeHtmlSafe(step.duration)})</span><div>${escapeHtmlSafe(step.output)}</div></div>`).join("")}
+      </div>
+    </section>
+  </div>
+</body>
+</html>`;
+    const printWindow = window.open("", "_blank", "noopener,noreferrer,width=1100,height=900");
+    if (!printWindow) {
+      setFeedback("Autorise l'ouverture de la fenetre d'impression pour generer la fiche prof.");
+      return;
+    }
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    window.setTimeout(() => {
+      try {
+        printWindow.print();
+      } catch (_) {
+        // noop
+      }
+    }, 250);
+  }
+
   function renderInductivePlan() {
     const planNode = getNodes().inductivePlan;
     if (!planNode) return;
@@ -804,6 +1020,7 @@
       nodes.typeSelect?.value || "TP"
     );
     renderTeachingKit();
+    renderTeacherSheet();
     renderInductivePlan();
   }
 
@@ -868,6 +1085,7 @@
     }
     renderInsights();
     renderTeachingKit();
+    renderTeacherSheet();
     renderInductivePlan();
     renderGroupedIndicators();
     nodes.createButton.disabled = false;
@@ -982,15 +1200,20 @@
     nodes.analyzeButton?.addEventListener("click", analyzeSelectedFile);
     nodes.createButton?.addEventListener("click", () => createActivityFromAi(false));
     nodes.createOpenButton?.addEventListener("click", () => createActivityFromAi(true));
+    nodes.printSheetButton?.addEventListener("click", printTeacherSheet);
     nodes.skillsSelect?.addEventListener("change", syncStateFromSelectedSkills);
     nodes.typeSelect?.addEventListener("change", rebuildInductivePlanFromCurrentState);
     nodes.titleInput?.addEventListener("change", rebuildInductivePlanFromCurrentState);
+    nodes.classSelect?.addEventListener("change", renderTeacherSheet);
+    nodes.startDate?.addEventListener("change", renderTeacherSheet);
+    nodes.endDate?.addEventListener("change", renderTeacherSheet);
     nodes.startDate?.addEventListener("change", () => {
       if (!nodes.endDate.value) nodes.endDate.value = nodes.startDate.value;
     });
 
     renderInsights();
     renderTeachingKit();
+    renderTeacherSheet();
     renderInductivePlan();
     renderGroupedIndicators();
   }

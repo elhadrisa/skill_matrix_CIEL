@@ -24,7 +24,7 @@
         <a class="nav-tab" href="evaluations.html">Evaluations</a>
         <a class="nav-tab" href="pfmp.html">PFMP</a>
         <span id="session-role" class="badge accent"></span>
-        <button id="logout-button" class="ghost-button" type="button">Déconnexion</button>
+        <button id="logout-button" class="ghost-button" type="button">D&eacute;connexion</button>
       </nav>
       <a class="topbar-brandmark" href="index.html" aria-label="CIEL Matrix"><img src="ciel-matrix-logo.svg" alt="CIEL Matrix"></a>
     </header>
@@ -32,14 +32,14 @@
     <section class="hero panel">
       <div class="hero-copy">
         <p class="eyebrow">Assistant Gratuit</p>
-        <h2 class="hero-title">Analyse un TP et crée la séance</h2>
-        <p class="hero-text">Charge un PDF ou un Word, laisse CielAI proposer le type, le titre, les compétences, les indicateurs et la logique pédagogique, puis crée directement la séance avec dates de début et de fin.</p>
+        <h2 class="hero-title">Analyse un TP et cr&eacute;e la s&eacute;ance</h2>
+        <p class="hero-text">Charge un PDF ou un Word, laisse CielAI proposer le type, le titre, les comp&eacute;tences, les indicateurs et la logique p&eacute;dagogique, puis cr&eacute;e directement la s&eacute;ance avec dates de d&eacute;but et de fin.</p>
       </div>
       <section class="hero-side">
         <div class="hero-side-head">
           <div>
             <h2>Flux de travail</h2>
-            <p class="results-count">Import document → analyse locale → vérification enseignant → création de séance</p>
+            <p class="results-count">Import document &rarr; analyse locale &rarr; v&eacute;rification enseignant &rarr; cr&eacute;ation de s&eacute;ance</p>
           </div>
         </div>
         <div class="stats-grid">
@@ -76,7 +76,7 @@
           </label>
           <div class="mini-grid">
             <label class="field">
-              <span>Date de début</span>
+              <span>Date de d&eacute;but</span>
               <input id="cielai-start-date" type="date">
             </label>
             <label class="field">
@@ -86,8 +86,8 @@
           </div>
           <div class="student-badges">
             <button id="cielai-analyze" class="primary-button" type="button">Analyser le document</button>
-            <button id="cielai-create" class="ghost-button" type="button" disabled>Créer la séance</button>
-            <button id="cielai-create-open" class="ghost-button" type="button" disabled>Créer et ouvrir l'évaluation</button>
+            <button id="cielai-create" class="ghost-button" type="button" disabled>Cr&eacute;er la s&eacute;ance</button>
+            <button id="cielai-create-open" class="ghost-button" type="button" disabled>Cr&eacute;er et ouvrir l'&eacute;valuation</button>
           </div>
         </div>
       </section>
@@ -95,7 +95,7 @@
       <section class="panel">
         <div class="section-head">
           <div>
-            <p class="eyebrow">Résultat</p>
+            <p class="eyebrow">R&eacute;sultat</p>
             <h2>Proposition CielAI</h2>
           </div>
         </div>
@@ -109,16 +109,16 @@
           </label>
           <label class="field">
             <span>Titre</span>
-            <input id="cielai-title" type="text" placeholder="Titre généré">
+            <input id="cielai-title" type="text" placeholder="Titre g&eacute;n&eacute;r&eacute;">
           </label>
           <label class="field">
-            <span>Compétences retenues</span>
+            <span>Comp&eacute;tences retenues</span>
             <select id="cielai-skills" multiple size="8"></select>
-            <small>Tu peux ajuster la sélection avant création.</small>
+            <small>Tu peux ajuster la s&eacute;lection avant cr&eacute;ation.</small>
           </label>
           <label class="field">
             <span>Commentaire enseignant</span>
-            <textarea id="cielai-comment" rows="6" placeholder="Résumé pédagogique et consignes générées"></textarea>
+            <textarea id="cielai-comment" rows="6" placeholder="R&eacute;sum&eacute; p&eacute;dagogique et consignes g&eacute;n&eacute;r&eacute;es"></textarea>
           </label>
         </div>
       </section>
@@ -127,13 +127,59 @@
         <div class="section-head">
           <div>
             <p class="eyebrow">Lecture CielAI</p>
-            <h2>Synthèse d’analyse</h2>
+            <h2>Synth&egrave;se d'analyse</h2>
           </div>
         </div>
         <div id="cielai-insights" class="class-cards">
           <article class="summary-card">
             <h3>En attente</h3>
-            <p class="muted-copy">Charge un document pour obtenir une lecture pédagogique et les compétences pressenties.</p>
+            <p class="muted-copy">Charge un document pour obtenir une lecture p&eacute;dagogique et les comp&eacute;tences pressenties.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel wide-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">V6</p>
+            <h2>Objectifs et livrables conseill&eacute;s</h2>
+          </div>
+        </div>
+        <div id="cielai-pedagogy-kit" class="cielai-kit-grid">
+          <article class="summary-card">
+            <h3>En attente</h3>
+            <p class="muted-copy">L'analyse proposera ici la modalit&eacute;, les objectifs, le livrable et la trace &eacute;crite.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel wide-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">V7</p>
+            <h2>Fiche prof imprimable</h2>
+          </div>
+          <button id="cielai-print-sheet" class="ghost-button" type="button" disabled>Imprimer la fiche prof</button>
+        </div>
+        <div id="cielai-teacher-sheet" class="cielai-sheet-grid">
+          <article class="summary-card">
+            <h3>En attente</h3>
+            <p class="muted-copy">L'analyse generera ici une fiche prof courte, prete a imprimer.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel wide-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">V5</p>
+            <h2>D&eacute;coupage inductif enseignant</h2>
+          </div>
+        </div>
+        <div id="cielai-inductive-plan" class="cielai-plan-grid">
+          <article class="summary-card">
+            <h3>En attente</h3>
+            <p class="muted-copy">L'analyse g&eacute;n&eacute;rera ici une proposition de d&eacute;roul&eacute; selon une d&eacute;marche inductive.</p>
           </article>
         </div>
       </section>
@@ -142,7 +188,7 @@
         <div class="section-head">
           <div>
             <p class="eyebrow">Indicateurs</p>
-            <h2>Indicateurs proposés par compétence</h2>
+            <h2>Indicateurs propos&eacute;s par comp&eacute;tence</h2>
           </div>
         </div>
         <div id="cielai-indicators-groups" class="class-cards"></div>

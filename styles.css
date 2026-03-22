@@ -610,6 +610,128 @@ body[data-page="cielai"]::after {
   background: rgba(5, 15, 24, 0.72);
 }
 
+.cielai-plan-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.cielai-kit-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.cielai-sheet-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.cielai-sheet-card {
+  display: grid;
+  gap: 12px;
+}
+
+.cielai-sheet-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: start;
+}
+
+.cielai-sheet-meta {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.cielai-sheet-steps {
+  display: grid;
+  gap: 10px;
+}
+
+.cielai-sheet-step {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(89, 198, 255, 0.14);
+  background: rgba(6, 17, 27, 0.65);
+}
+
+.cielai-kit-list-card {
+  display: grid;
+  gap: 12px;
+}
+
+.cielai-kit-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding-left: 20px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.cielai-plan-step {
+  display: grid;
+  gap: 18px;
+  padding: 22px 24px;
+}
+
+.cielai-plan-step-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: start;
+}
+
+.cielai-plan-step-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 18px;
+  border: 1px solid rgba(89, 198, 255, 0.22);
+  background: linear-gradient(180deg, rgba(16, 48, 70, 0.62), rgba(9, 28, 42, 0.72));
+  font-family: "Orbitron", sans-serif;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.cielai-plan-step-main {
+  min-width: 0;
+}
+
+.cielai-plan-step-main h3 {
+  margin: 0 0 8px;
+}
+
+.cielai-plan-focus {
+  margin-top: -4px;
+}
+
+.cielai-plan-step-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.cielai-plan-box {
+  padding: 16px 18px;
+  border-radius: 16px;
+  border: 1px solid rgba(98, 245, 212, 0.12);
+  background: rgba(7, 18, 28, 0.72);
+}
+
+.cielai-plan-box p {
+  margin: 0;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
 body.evaluations-create-view .evaluation-layout {
   grid-template-columns: 1fr;
   justify-items: center;
@@ -1500,7 +1622,12 @@ body.evaluations-create-view #activity-creation-panel {
   }
   .activity-skill-group-head,
   .activity-indicator-row,
-  .activity-global-grade-actions {
+  .activity-global-grade-actions,
+  .cielai-sheet-grid,
+  .cielai-sheet-head,
+  .cielai-kit-grid,
+  .cielai-plan-step-head,
+  .cielai-plan-step-grid {
     grid-template-columns: 1fr;
   }
   .activity-skill-group-summary {
