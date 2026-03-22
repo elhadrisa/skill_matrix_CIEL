@@ -1,34 +1,34 @@
-const STORAGE_KEY = "ciel-competences-app";
+﻿const STORAGE_KEY = "ciel-competences-app";
 const LEGACY_STUDENT_KEY = "ciel-competences-state";
 const SESSION_KEY = "ciel-session";
 
 const skillCatalog = [
-  { id: "c1", code: "C1", domain: "Pilotage pro", title: "Communiquer en situation professionnelle", description: "Restituer clairement une intervention, échanger avec le client ou l'équipe et produire une communication technique exploitable." },
-  { id: "c3", code: "C3", domain: "Pilotage pro", title: "Participer à un projet", description: "Contribuer à une réalisation collective, suivre les jalons et intégrer les contraintes de coût, délai et qualité." },
-  { id: "c4", code: "C4", domain: "Étude & analyse", title: "Analyser une structure matérielle et logicielle", description: "Identifier l'architecture d'un système, comprendre ses composants et interpréter ses interactions matérielles et logicielles." },
-  { id: "c6", code: "C6", domain: "Étude & analyse", title: "Valider la conformité d'une installation", description: "Vérifier que l'installation répond au cahier des charges, aux tests attendus et aux exigences de sécurité." },
-  { id: "c7", code: "C7", domain: "Étude & analyse", title: "Réaliser des maquettes et prototypes", description: "Assembler, intégrer et tester une preuve de concept matérielle ou logicielle avant déploiement." },
-  { id: "c8", code: "C8", domain: "Étude & analyse", title: "Coder", description: "Développer ou adapter un code source fonctionnel, lisible et testable pour automatiser, interfacer ou piloter un système." },
-  { id: "c9", code: "C9", domain: "Infra & maintien", title: "Installer les éléments d'un système électronique ou informatique", description: "Déployer les équipements, configurer les composants et mettre en service une architecture matérielle ou logicielle." },
-  { id: "c10", code: "C10", domain: "Infra & maintien", title: "Exploiter un réseau informatique", description: "Superviser un réseau, assurer son fonctionnement courant et exploiter les services en condition opérationnelle." },
-  { id: "c11", code: "C11", domain: "Infra & maintien", title: "Maintenir un système électronique ou réseau informatique", description: "Diagnostiquer, corriger et tracer les incidents afin de rétablir le service et préserver la disponibilité du système." }
+  { id: "c1", code: "C1", domain: "Pilotage pro", title: "Communiquer en situation professionnelle", description: "Restituer clairement une intervention, Ã©changer avec le client ou l'Ã©quipe et produire une communication technique exploitable." },
+  { id: "c3", code: "C3", domain: "Pilotage pro", title: "Participer Ã  un projet", description: "Contribuer Ã  une rÃ©alisation collective, suivre les jalons et intÃ©grer les contraintes de coÃ»t, dÃ©lai et qualitÃ©." },
+  { id: "c4", code: "C4", domain: "Ã‰tude & analyse", title: "Analyser une structure matÃ©rielle et logicielle", description: "Identifier l'architecture d'un systÃ¨me, comprendre ses composants et interprÃ©ter ses interactions matÃ©rielles et logicielles." },
+  { id: "c6", code: "C6", domain: "Ã‰tude & analyse", title: "Valider la conformitÃ© d'une installation", description: "VÃ©rifier que l'installation rÃ©pond au cahier des charges, aux tests attendus et aux exigences de sÃ©curitÃ©." },
+  { id: "c7", code: "C7", domain: "Ã‰tude & analyse", title: "RÃ©aliser des maquettes et prototypes", description: "Assembler, intÃ©grer et tester une preuve de concept matÃ©rielle ou logicielle avant dÃ©ploiement." },
+  { id: "c8", code: "C8", domain: "Ã‰tude & analyse", title: "Coder", description: "DÃ©velopper ou adapter un code source fonctionnel, lisible et testable pour automatiser, interfacer ou piloter un systÃ¨me." },
+  { id: "c9", code: "C9", domain: "Infra & maintien", title: "Installer les Ã©lÃ©ments d'un systÃ¨me Ã©lectronique ou informatique", description: "DÃ©ployer les Ã©quipements, configurer les composants et mettre en service une architecture matÃ©rielle ou logicielle." },
+  { id: "c10", code: "C10", domain: "Infra & maintien", title: "Exploiter un rÃ©seau informatique", description: "Superviser un rÃ©seau, assurer son fonctionnement courant et exploiter les services en condition opÃ©rationnelle." },
+  { id: "c11", code: "C11", domain: "Infra & maintien", title: "Maintenir un systÃ¨me Ã©lectronique ou rÃ©seau informatique", description: "Diagnostiquer, corriger et tracer les incidents afin de rÃ©tablir le service et prÃ©server la disponibilitÃ© du systÃ¨me." }
 ];
 
 const defaultClasses = [
-  { id: "term-ciel", name: "Terminale CIEL", year: "2025-2026", note: "Groupe cyber & réseaux" },
-  { id: "prem-ciel", name: "Première CIEL", year: "2025-2026", note: "Groupe systèmes & code" }
+  { id: "term-ciel", name: "Terminale CIEL", year: "2025-2026", note: "Groupe cyber & rÃ©seaux" },
+  { id: "prem-ciel", name: "PremiÃ¨re CIEL", year: "2025-2026", note: "Groupe systÃ¨mes & code" }
 ];
 
 const defaultStudents = [
-  { id: "lea-martin", name: "Léa Martin", classId: "term-ciel", skills: { c1: "acquis", c3: "partiellement_acquis", c4: "partiellement_acquis", c6: "partiellement_acquis", c7: "en_cours_acquisition", c8: "partiellement_acquis", c9: "partiellement_acquis", c10: "en_cours_acquisition", c11: "partiellement_acquis" } },
-  { id: "ines-bernard", name: "Inès Bernard", classId: "term-ciel", skills: { c1: "acquis", c3: "partiellement_acquis", c4: "acquis", c6: "acquis", c7: "partiellement_acquis", c8: "partiellement_acquis", c9: "partiellement_acquis", c10: "acquis", c11: "partiellement_acquis" } },
+  { id: "lea-martin", name: "LÃ©a Martin", classId: "term-ciel", skills: { c1: "acquis", c3: "partiellement_acquis", c4: "partiellement_acquis", c6: "partiellement_acquis", c7: "en_cours_acquisition", c8: "partiellement_acquis", c9: "partiellement_acquis", c10: "en_cours_acquisition", c11: "partiellement_acquis" } },
+  { id: "ines-bernard", name: "InÃ¨s Bernard", classId: "term-ciel", skills: { c1: "acquis", c3: "partiellement_acquis", c4: "acquis", c6: "acquis", c7: "partiellement_acquis", c8: "partiellement_acquis", c9: "partiellement_acquis", c10: "acquis", c11: "partiellement_acquis" } },
   { id: "yanis-robert", name: "Yanis Robert", classId: "prem-ciel", skills: { c1: "partiellement_acquis", c3: "en_cours_acquisition", c4: "partiellement_acquis", c6: "en_cours_acquisition", c7: "non_evalue", c8: "acquis", c9: "en_cours_acquisition", c10: "non_evalue", c11: "en_cours_acquisition" } },
   { id: "sarah-dupont", name: "Sarah Dupont", classId: "prem-ciel", skills: { c1: "en_cours_acquisition", c3: "non_evalue", c4: "partiellement_acquis", c6: "non_evalue", c7: "en_cours_acquisition", c8: "partiellement_acquis", c9: "en_cours_acquisition", c10: "non_evalue", c11: "en_cours_acquisition" } }
 ];
 
 const defaultPfmpRecords = {
-  "lea-martin": { companyName: "Transdev Vaux Le Penil", comment: "Deux périodes = OK", address: "400 Rue des 3 Tilleuls, 77000 Vaux-le-Pénil", tutorName: "M. Gomez", tutorEmail: "", tutorPhone: "", conventionSent: "", conventionSignedCompany: "", conventionSignedParents: "", conventionSignedSchool: "", teacher: "Bernard", visitDate: "", reportDate: "", bookletDate: "", attendanceDate: "" },
-  "yanis-robert": { companyName: "Univers Permis", comment: "Deux périodes = OK", address: "200 route de Bordeaux 40600 Biscarrosse", tutorName: "M. Braham", tutorEmail: "monopat01@gmail.com", tutorPhone: "06 58 74 60 06", conventionSent: "2025-11-05", conventionSignedCompany: "2025-11-28", conventionSignedParents: "2025-11-28", conventionSignedSchool: "2025-11-28", teacher: "Salah", visitDate: "12/01/2026 à 17h15 (téléphone)", reportDate: "", bookletDate: "", attendanceDate: "" }
+  "lea-martin": { companyName: "Transdev Vaux Le Penil", comment: "Deux pÃ©riodes = OK", address: "400 Rue des 3 Tilleuls, 77000 Vaux-le-PÃ©nil", tutorName: "M. Gomez", tutorEmail: "", tutorPhone: "", conventionSent: "", conventionSignedCompany: "", conventionSignedParents: "", conventionSignedSchool: "", teacher: "Bernard", visitDate: "", reportDate: "", bookletDate: "", attendanceDate: "" },
+  "yanis-robert": { companyName: "Univers Permis", comment: "Deux pÃ©riodes = OK", address: "200 route de Bordeaux 40600 Biscarrosse", tutorName: "M. Braham", tutorEmail: "monopat01@gmail.com", tutorPhone: "06 58 74 60 06", conventionSent: "2025-11-05", conventionSignedCompany: "2025-11-28", conventionSignedParents: "2025-11-28", conventionSignedSchool: "2025-11-28", teacher: "Salah", visitDate: "12/01/2026 Ã  17h15 (tÃ©lÃ©phone)", reportDate: "", bookletDate: "", attendanceDate: "" }
 };
 
 const defaultEvaluationActivities = [];
@@ -37,13 +37,13 @@ const defaultIndicatorBank = [
   {
     id: "bank-vlan-supervision",
     name: "VLAN et supervision",
-    domain: "Réseau Informatique",
+    domain: "RÃ©seau Informatique",
     indicators: ["Configurer un VLAN fonctionnel", "Verifier la connectivite inter-VLAN", "Tracer les mesures de supervision"]
   },
   {
     id: "bank-durcissement-cyber",
-    name: "Durcissement cybersécurité",
-    domain: "Cybersécurité",
+    name: "Durcissement cybersÃ©curitÃ©",
+    domain: "CybersÃ©curitÃ©",
     indicators: ["Appliquer un plan de durcissement", "Verifier les services exposes", "Documenter les ecarts et corrections"]
   },
   {
@@ -57,7 +57,7 @@ const defaultLessonLibrary = [
   {
     id: "tpl-vlan-supervision",
     title: "Segmentation VLAN et supervision",
-    domain: "Réseau Informatique",
+    domain: "RÃ©seau Informatique",
     level: "TCIEL",
     duration: "4h",
     skillIds: ["c10", "c11"],
@@ -68,7 +68,7 @@ const defaultLessonLibrary = [
   {
     id: "tpl-durcissement-poste",
     title: "Durcissement d'un poste et controles de securite",
-    domain: "Cybersécurité",
+    domain: "CybersÃ©curitÃ©",
     level: "1CIEL",
     duration: "3h",
     skillIds: ["c3", "c8"],
@@ -110,7 +110,7 @@ const rolePermissions = {
 
 const levelLabels = {
   absent: "Absent",
-  non_evalue: "Non évalué",
+  non_evalue: "Non Ã©valuÃ©",
   non_acquis: "Non acquis",
   en_cours_acquisition: "En cours d'acquisition",
   partiellement_acquis: "Partiellement acquis",
@@ -133,23 +133,23 @@ const statusColors = {
   acquis: "#63f597"
 };
 const skillDomainOverrides = {
-  c1: "Cybersécurité",
-  c3: "Cybersécurité",
-  c4: "Réseau Informatique",
-  c6: "Réseau Informatique",
+  c1: "CybersÃ©curitÃ©",
+  c3: "CybersÃ©curitÃ©",
+  c4: "RÃ©seau Informatique",
+  c6: "RÃ©seau Informatique",
   c7: "Electronique",
-  c8: "Cybersécurité",
+  c8: "CybersÃ©curitÃ©",
   c9: "Electronique",
-  c10: "Réseau Informatique",
-  c11: "Réseau Informatique"
+  c10: "RÃ©seau Informatique",
+  c11: "RÃ©seau Informatique"
 };
 const referentialDomains = [...new Set(skillCatalog.map((skill) => skillDomainOverrides[skill.id] || skill.domain))];
 const pfmpFields = ["companyName", "comment", "address", "tutorName", "tutorEmail", "tutorPhone", "conventionSent", "conventionSignedCompany", "conventionSignedParents", "conventionSignedSchool", "teacher", "visitDate", "reportDate", "bookletDate", "attendanceDate"];
 const PFMP_PERIODS = [
   { id: "seconde_1", label: "2nde - PFMP 1", cycle: "Seconde" },
   { id: "seconde_2", label: "2nde - PFMP 2", cycle: "Seconde" },
-  { id: "premiere_1", label: "1ère - PFMP 1", cycle: "Première" },
-  { id: "premiere_2", label: "1ère - PFMP 2", cycle: "Première" },
+  { id: "premiere_1", label: "1Ã¨re - PFMP 1", cycle: "PremiÃ¨re" },
+  { id: "premiere_2", label: "1Ã¨re - PFMP 2", cycle: "PremiÃ¨re" },
   { id: "terminale_1", label: "Terminale - PFMP 1", cycle: "Terminale" },
   { id: "terminale_2", label: "Terminale - PFMP 2", cycle: "Terminale" }
 ];
@@ -481,7 +481,7 @@ function hydrateAppData(data) {
   const fallbackClassId = classes[0]?.id || "";
   const students = (data.students || defaultStudents).map((student, index) => ({
     id: student.id || `student-${index + 1}`,
-    name: student.name || `Élève ${index + 1}`,
+    name: student.name || `Ã‰lÃ¨ve ${index + 1}`,
     classId: classes.some((classItem) => classItem.id === student.classId) ? student.classId : fallbackClassId,
     portfolioKey: student.portfolioKey || slugify(student.name || `eleve-${index + 1}`),
     skills: buildSkillState(student.skills || {}),
@@ -559,9 +559,9 @@ function hydrateActivityLog(items) {
   return (items || []).map((item, index) => ({
     id: item.id || `log-${index + 1}`,
     timestamp: item.timestamp || new Date().toISOString(),
-    actor: item.actor || "Système",
+    actor: item.actor || "SystÃ¨me",
     role: item.role || "systeme",
-    action: item.action || "Mise à jour",
+    action: item.action || "Mise Ã  jour",
     target: item.target || "",
     detail: item.detail || ""
   })).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
@@ -657,7 +657,7 @@ function hydrateEvaluationActivity(activity, index) {
     : [activity.skillId || skillCatalog[0].id].filter((skillId) => getSkillById(skillId));
   return {
     id: activity.id || `activity-${index + 1}`,
-    title: activity.title || `Séance ${index + 1}`,
+    title: activity.title || `SÃ©ance ${index + 1}`,
     type: activity.type || "TP",
     classId: activity.classId || "",
     skillId: skillIds[0] || skillCatalog[0].id,
@@ -713,7 +713,7 @@ function migrateLegacyStudents(students) {
     if (!classMap.has(className)) {
       const id = slugify(className);
       classMap.set(className, id);
-      classes.push({ id, name: className, year: "2025-2026", note: "Migré depuis l'ancienne version" });
+      classes.push({ id, name: className, year: "2025-2026", note: "MigrÃ© depuis l'ancienne version" });
     }
   });
   return hydrateAppData({
@@ -809,7 +809,7 @@ function initLoginPage() {
       if (payload.data) replaceAppState(payload.data);
       window.location.href = "dashboard.html";
     } catch {
-      feedback.textContent = "Serveur indisponible. Vérifie le déploiement Cloudflare.";
+      feedback.textContent = "Serveur indisponible. VÃ©rifie le dÃ©ploiement Cloudflare.";
     }
   });
 }
@@ -840,7 +840,7 @@ function initClassesPage() {
     const note = classNoteInput.value.trim();
     if (!name || !year || !note) return;
     app.classes.push({ id: slugify(`${name}-${Date.now()}`), name, year, note });
-    logAction("Classe créée", name, `${year} // ${note}`);
+    logAction("Classe crÃ©Ã©e", name, `${year} // ${note}`);
     persistAppData();
     classForm.reset();
     renderClassesPage();
@@ -855,7 +855,7 @@ function initClassesPage() {
     const id = slugify(`${name}-${Date.now()}`);
     app.students.push({ id, name, classId, skills: buildSkillState({}) });
     app.pfmpRecords[id] = hydratePfmpRecord({}, { id, classId }, app.classes);
-    logAction("Élève ajouté", name, getClassById(classId)?.name || classId);
+    logAction("Ã‰lÃ¨ve ajoutÃ©", name, getClassById(classId)?.name || classId);
     persistAppData();
     studentForm.reset();
     renderClassesPage();
@@ -866,14 +866,14 @@ function initClassesPage() {
     const file = csvInput.files?.[0];
     const classId = importClassInput.value;
     if (!file || !classId) {
-      importFeedback.textContent = "Sélectionne un fichier CSV et une classe cible.";
+      importFeedback.textContent = "SÃ©lectionne un fichier CSV et une classe cible.";
       return;
     }
     const text = await file.text();
     const rows = parseCsv(text);
     const names = extractStudentNames(rows);
     if (!names.length) {
-      importFeedback.textContent = "Aucun nom d'élève détecté dans le CSV.";
+      importFeedback.textContent = "Aucun nom d'Ã©lÃ¨ve dÃ©tectÃ© dans le CSV.";
       return;
     }
     const existing = new Set(getStudentsByClass(classId).map((student) => student.name.trim().toLowerCase()));
@@ -891,9 +891,9 @@ function initClassesPage() {
       existing.add(key);
       imported += 1;
     });
-    if (imported) logAction("Import CSV", getClassById(classId)?.name || classId, `${imported} élève(s) ajoutés`);
+    if (imported) logAction("Import CSV", getClassById(classId)?.name || classId, `${imported} Ã©lÃ¨ve(s) ajoutÃ©s`);
     persistAppData();
-    importFeedback.textContent = `${imported} élève(s) importé(s), ${skipped} ignoré(s).`;
+    importFeedback.textContent = `${imported} Ã©lÃ¨ve(s) importÃ©(s), ${skipped} ignorÃ©(s).`;
     csvInput.value = "";
     renderClassesPage();
   });
@@ -917,12 +917,12 @@ function initClassesPage() {
         <article class="class-card">
           <div class="class-card-head">
             <h3>${classItem.name}</h3>
-            <span class="badge accent">${students.length} élèves</span>
+            <span class="badge accent">${students.length} Ã©lÃ¨ves</span>
           </div>
           <p>${classItem.year}</p>
           <p>${classItem.note}</p>
           <div class="class-meta">
-            <span class="badge">${getClassProgress(classItem.id)}% validé</span>
+            <span class="badge">${getClassProgress(classItem.id)}% validÃ©</span>
             <span class="badge">${pfmpSummary.withCompany} PFMP saisies</span>
           </div>
           <div class="student-badges">
@@ -940,12 +940,12 @@ function initClassesPage() {
           <div>
             <strong>${student.name}</strong>
             <p>${getClassById(student.classId)?.name || "Sans classe"}</p>
-            <p>${filledPeriods}/6 PFMP renseignées</p>
+            <p>${filledPeriods}/6 PFMP renseignÃ©es</p>
           </div>
           <div class="student-badges">
-            <span class="badge">${getStudentProgress(student)}% validé</span>
-            <span class="badge">${filledPeriods}/6 périodes</span>
-            <button class="ghost-button student-delete" type="button" data-id="${student.id}"${canManageStudents ? "" : " disabled"}>Supprimer l'élève</button>
+            <span class="badge">${getStudentProgress(student)}% validÃ©</span>
+            <span class="badge">${filledPeriods}/6 pÃ©riodes</span>
+            <button class="ghost-button student-delete" type="button" data-id="${student.id}"${canManageStudents ? "" : " disabled"}>Supprimer l'Ã©lÃ¨ve</button>
           </div>
         </article>
       `;
@@ -956,7 +956,7 @@ function initClassesPage() {
         if (!canManageStudents) return;
         const classItem = getClassById(button.dataset.id);
         if (!classItem) return;
-        if (!window.confirm(`Supprimer la classe "${classItem.name}" et tous ses élèves ?`)) return;
+        if (!window.confirm(`Supprimer la classe "${classItem.name}" et tous ses Ã©lÃ¨ves ?`)) return;
         deleteClass(button.dataset.id);
         renderClassesPage();
       });
@@ -967,7 +967,7 @@ function initClassesPage() {
         if (!canManageStudents) return;
         const student = getStudentById(button.dataset.id);
         if (!student) return;
-        if (!window.confirm(`Supprimer l'élève "${student.name}" ?`)) return;
+        if (!window.confirm(`Supprimer l'Ã©lÃ¨ve "${student.name}" ?`)) return;
         deleteStudent(button.dataset.id);
         renderClassesPage();
       });
@@ -1008,7 +1008,7 @@ function initClassesPage() {
       </div>
       <div class="mini-grid">
         <label class="field">
-          <span>Élève suivi</span>
+          <span>Ã‰lÃ¨ve suivi</span>
           <select id="support-student-select"></select>
         </label>
         <label class="field">
@@ -1018,24 +1018,24 @@ function initClassesPage() {
       </div>
       <div class="mini-grid">
         <label class="field">
-          <span>Présence</span>
+          <span>PrÃ©sence</span>
           <select id="support-status-select">
-            <option value="present">Présent</option>
+            <option value="present">PrÃ©sent</option>
             <option value="retard">Retard</option>
             <option value="absent">Absent</option>
           </select>
         </label>
         <label class="field">
-          <span>Motif / précision</span>
-          <input id="support-reason-input" type="text" placeholder="Ex. convocation, oubli matériel, absence justifiée">
+          <span>Motif / prÃ©cision</span>
+          <input id="support-reason-input" type="text" placeholder="Ex. convocation, oubli matÃ©riel, absence justifiÃ©e">
         </label>
       </div>
       <div class="student-badges">
-        <button id="support-attendance-save" class="ghost-button" type="button">Ajouter un événement</button>
+        <button id="support-attendance-save" class="ghost-button" type="button">Ajouter un Ã©vÃ©nement</button>
       </div>
       <label class="field">
-        <span>Commentaire horodaté</span>
-        <textarea id="support-note-input" rows="4" placeholder="Remarque pédagogique, comportement, point d'appui, vigilance..."></textarea>
+        <span>Commentaire horodatÃ©</span>
+        <textarea id="support-note-input" rows="4" placeholder="Remarque pÃ©dagogique, comportement, point d'appui, vigilance..."></textarea>
       </label>
       <div class="student-badges">
         <button id="support-note-save" class="ghost-button" type="button">Ajouter un commentaire</button>
@@ -1064,7 +1064,7 @@ function initClassesPage() {
     const note = classNoteInput.value.trim();
     if (!name || !year || !note) return;
     app.classes.push({ id: slugify(`${name}-${Date.now()}`), name, year, note });
-    logAction("Classe créée", name, `${year} // ${note}`);
+    logAction("Classe crÃ©Ã©e", name, `${year} // ${note}`);
     persistAppData();
     classForm.reset();
     renderClassesPage();
@@ -1079,7 +1079,7 @@ function initClassesPage() {
     const id = slugify(`${name}-${Date.now()}`);
     app.students.push({ id, name, classId, skills: buildSkillState({}), attendance: [], notes: [] });
     app.pfmpRecords[id] = hydratePfmpRecord({}, { id, classId }, app.classes);
-    logAction("Élève ajouté", name, getClassById(classId)?.name || classId);
+    logAction("Ã‰lÃ¨ve ajoutÃ©", name, getClassById(classId)?.name || classId);
     persistAppData();
     studentForm.reset();
     renderClassesPage();
@@ -1090,14 +1090,14 @@ function initClassesPage() {
     const file = csvInput.files?.[0];
     const classId = importClassInput.value;
     if (!file || !classId) {
-      importFeedback.textContent = "Sélectionne un fichier CSV et une classe cible.";
+      importFeedback.textContent = "SÃ©lectionne un fichier CSV et une classe cible.";
       return;
     }
     const text = await file.text();
     const rows = parseCsv(text);
     const names = extractStudentNames(rows);
     if (!names.length) {
-      importFeedback.textContent = "Aucun nom d'élève détecté dans le CSV.";
+      importFeedback.textContent = "Aucun nom d'Ã©lÃ¨ve dÃ©tectÃ© dans le CSV.";
       return;
     }
     const existing = new Set(getStudentsByClass(classId).map((student) => student.name.trim().toLowerCase()));
@@ -1115,9 +1115,9 @@ function initClassesPage() {
       existing.add(key);
       imported += 1;
     });
-    if (imported) logAction("Import CSV", getClassById(classId)?.name || classId, `${imported} élève(s) ajoutés`);
+    if (imported) logAction("Import CSV", getClassById(classId)?.name || classId, `${imported} Ã©lÃ¨ve(s) ajoutÃ©s`);
     persistAppData();
-    importFeedback.textContent = `${imported} élève(s) importé(s), ${skipped} ignoré(s).`;
+    importFeedback.textContent = `${imported} Ã©lÃ¨ve(s) importÃ©(s), ${skipped} ignorÃ©(s).`;
     csvInput.value = "";
     renderClassesPage();
   });
@@ -1131,7 +1131,7 @@ function initClassesPage() {
     const student = getStudentById(supportStudentSelect.value);
     if (!student || !supportDateInput.value) return;
     addAttendanceEntry(student.id, supportStatusSelect.value, supportDateInput.value, supportReasonInput.value);
-    logAction("Présence saisie", student.name, `${supportStatusSelect.value} // ${supportDateInput.value}`);
+    logAction("PrÃ©sence saisie", student.name, `${supportStatusSelect.value} // ${supportDateInput.value}`);
     persistAppData();
     supportReasonInput.value = "";
     renderClassesPage(student.id);
@@ -1142,7 +1142,7 @@ function initClassesPage() {
     const student = getStudentById(supportStudentSelect.value);
     if (!student || !supportNoteInput.value.trim()) return;
     addStudentNote(student.id, supportNoteInput.value);
-    logAction("Commentaire élève", student.name, "Note horodatée ajoutée");
+    logAction("Commentaire Ã©lÃ¨ve", student.name, "Note horodatÃ©e ajoutÃ©e");
     persistAppData();
     supportNoteInput.value = "";
     renderClassesPage(student.id);
@@ -1167,12 +1167,12 @@ function initClassesPage() {
         <article class="class-card">
           <div class="class-card-head">
             <h3>${classItem.name}</h3>
-            <span class="badge accent">${students.length} élèves</span>
+            <span class="badge accent">${students.length} Ã©lÃ¨ves</span>
           </div>
           <p>${classItem.year}</p>
           <p>${classItem.note}</p>
           <div class="class-meta">
-            <span class="badge">${getClassProgress(classItem.id)}% validé</span>
+            <span class="badge">${getClassProgress(classItem.id)}% validÃ©</span>
             <span class="badge">${pfmpSummary.withCompany} PFMP saisies</span>
           </div>
           <div class="student-badges">
@@ -1198,11 +1198,11 @@ function initClassesPage() {
               </div>
             </div>
             <p>${getClassById(student.classId)?.name || "Sans classe"}</p>
-            <p>${filledPeriods}/6 PFMP renseignées</p>
+            <p>${filledPeriods}/6 PFMP renseignÃ©es</p>
           </div>
           <div class="student-badges">
-            <span class="badge">${getStudentProgress(student)}% validé</span>
-            <span class="badge">${filledPeriods}/6 périodes</span>
+            <span class="badge">${getStudentProgress(student)}% validÃ©</span>
+            <span class="badge">${filledPeriods}/6 pÃ©riodes</span>
           </div>
         </article>
       `;
@@ -1217,14 +1217,14 @@ function initClassesPage() {
         if (!classItem || !canManageStudents) return;
         const name = window.prompt("Nouveau nom de la classe", classItem.name);
         if (!name) return;
-        const year = window.prompt("Nouvelle année", classItem.year);
+        const year = window.prompt("Nouvelle annÃ©e", classItem.year);
         if (!year) return;
-        const note = window.prompt("Nouvelle référence", classItem.note);
+        const note = window.prompt("Nouvelle rÃ©fÃ©rence", classItem.note);
         if (!note) return;
         classItem.name = name.trim();
         classItem.year = year.trim();
         classItem.note = note.trim();
-        logAction("Classe modifiée", classItem.name, `${classItem.year} // ${classItem.note}`);
+        logAction("Classe modifiÃ©e", classItem.name, `${classItem.year} // ${classItem.note}`);
         persistAppData();
         renderClassesPage();
       });
@@ -1235,7 +1235,7 @@ function initClassesPage() {
         if (!canManageStudents) return;
         const classItem = getClassById(button.dataset.id);
         if (!classItem) return;
-        if (!window.confirm(`Supprimer la classe "${classItem.name}" et tous ses élèves ?`)) return;
+        if (!window.confirm(`Supprimer la classe "${classItem.name}" et tous ses Ã©lÃ¨ves ?`)) return;
         deleteClass(button.dataset.id);
         renderClassesPage();
       });
@@ -1253,14 +1253,14 @@ function initClassesPage() {
       button.addEventListener("click", () => {
         const student = getStudentById(button.dataset.id);
         if (!student || !canManageStudents) return;
-        const name = window.prompt("Nouveau nom de l'élève", student.name);
+        const name = window.prompt("Nouveau nom de l'Ã©lÃ¨ve", student.name);
         if (!name) return;
         const classId = window.prompt("Nouvelle classe (id)", student.classId);
         if (!classId || !getClassById(classId.trim())) return;
         student.name = name.trim();
         student.classId = classId.trim();
         app.pfmpRecords[student.id] = hydratePfmpRecord(app.pfmpRecords[student.id] || {}, student, app.classes);
-        logAction("Élève modifié", student.name, getClassById(student.classId)?.name || student.classId);
+        logAction("Ã‰lÃ¨ve modifiÃ©", student.name, getClassById(student.classId)?.name || student.classId);
         persistAppData();
         renderClassesPage();
       });
@@ -1271,7 +1271,7 @@ function initClassesPage() {
         if (!canManageStudents) return;
         const student = getStudentById(button.dataset.id);
         if (!student) return;
-        if (!window.confirm(`Supprimer l'élève "${student.name}" ?`)) return;
+        if (!window.confirm(`Supprimer l'Ã©lÃ¨ve "${student.name}" ?`)) return;
         deleteStudent(button.dataset.id);
         renderClassesPage();
       });
@@ -1293,23 +1293,23 @@ function initClassesPage() {
     const student = getStudentById(supportStudentSelect.value) || app.students[0];
     if (!student) {
       supportStatsGrid.innerHTML = "";
-      supportHistory.innerHTML = `<article class="summary-card"><h3>Aucun élève</h3><p class="muted-copy">Ajoute un élève pour activer le suivi.</p></article>`;
+      supportHistory.innerHTML = `<article class="summary-card"><h3>Aucun Ã©lÃ¨ve</h3><p class="muted-copy">Ajoute un Ã©lÃ¨ve pour activer le suivi.</p></article>`;
       return;
     }
     const stats = getAttendanceStats(student);
     supportStatsGrid.innerHTML = [
-      { label: "Absences", value: stats.absent, trace: "événements saisis" },
-      { label: "Retards", value: stats.retard, trace: "événements saisis" },
-      { label: "Commentaires", value: (student.notes || []).length, trace: "notes horodatées" },
+      { label: "Absences", value: stats.absent, trace: "Ã©vÃ©nements saisis" },
+      { label: "Retards", value: stats.retard, trace: "Ã©vÃ©nements saisis" },
+      { label: "Commentaires", value: (student.notes || []).length, trace: "notes horodatÃ©es" },
       { label: "Progression", value: `${getStudentProgress(student)}%`, trace: getClassById(student.classId)?.name || "sans classe" }
     ].map(renderStatCard).join("");
 
     const attendanceRows = (student.attendance || []).slice(0, 8).map((entry) => `
       <article class="directory-row compact">
         <div>
-          <strong>${entry.status === "absent" ? "Absence" : entry.status === "retard" ? "Retard" : "Présence"}</strong>
+          <strong>${entry.status === "absent" ? "Absence" : entry.status === "retard" ? "Retard" : "PrÃ©sence"}</strong>
           <p>${entry.date}</p>
-          <p>${entry.reason || "Sans précision"}</p>
+          <p>${entry.reason || "Sans prÃ©cision"}</p>
         </div>
       </article>
     `).join("");
@@ -1325,8 +1325,8 @@ function initClassesPage() {
     `).join("");
 
     supportHistory.innerHTML = `
-      ${attendanceRows || `<article class="summary-card"><h3>Aucune présence</h3><p class="muted-copy">Aucun événement saisi pour cet élève.</p></article>`}
-      ${noteRows || `<article class="summary-card"><h3>Aucun commentaire</h3><p class="muted-copy">Aucune note horodatée pour cet élève.</p></article>`}
+      ${attendanceRows || `<article class="summary-card"><h3>Aucune prÃ©sence</h3><p class="muted-copy">Aucun Ã©vÃ©nement saisi pour cet Ã©lÃ¨ve.</p></article>`}
+      ${noteRows || `<article class="summary-card"><h3>Aucun commentaire</h3><p class="muted-copy">Aucune note horodatÃ©e pour cet Ã©lÃ¨ve.</p></article>`}
     `;
   }
 }
@@ -1357,7 +1357,7 @@ function initAccountsPage() {
     event.preventDefault();
     if (!adminUsername.value.trim() || !adminPassword.value.trim()) return;
     updateAccount("admin", adminUsername.value.trim(), adminPassword.value.trim());
-    feedback.textContent = "Compte administrateur mis à jour.";
+    feedback.textContent = "Compte administrateur mis Ã  jour.";
     renderTeachers();
   });
 
@@ -1366,7 +1366,7 @@ function initAccountsPage() {
     if (!teacherUsername.value.trim() || !teacherPassword.value.trim()) return;
     addTeacherAccount(teacherUsername.value.trim(), teacherPassword.value.trim());
     teacherForm.reset();
-    feedback.textContent = "Professeur ajouté.";
+    feedback.textContent = "Professeur ajoutÃ©.";
     renderTeachers();
   });
 
@@ -1408,7 +1408,7 @@ function initAccountsPage() {
         teacher.username = username.trim();
         teacher.password = password.trim();
         persistAppData();
-        feedback.textContent = "Professeur modifié.";
+        feedback.textContent = "Professeur modifiÃ©.";
         renderTeachers();
       });
     });
@@ -1416,7 +1416,7 @@ function initAccountsPage() {
     teacherAccountsList.querySelectorAll(".teacher-delete").forEach((button) => {
       button.addEventListener("click", () => {
         removeTeacherAccount(button.dataset.id);
-        feedback.textContent = "Professeur supprimé.";
+        feedback.textContent = "Professeur supprimÃ©.";
         renderTeachers();
       });
     });
@@ -1901,7 +1901,7 @@ function initClassesPageFinal() {
     const note = classNoteInput.value.trim();
     if (!name || !year || !note) return;
     app.classes.push({ id: slugify(`${name}-${Date.now()}`), name, year, note });
-    logAction("Classe créée", name, `${year} // ${note}`);
+    logAction("Classe crÃ©Ã©e", name, `${year} // ${note}`);
     persistAppData();
     classForm.reset();
     renderClassesPage();
@@ -1916,7 +1916,7 @@ function initClassesPageFinal() {
     const id = slugify(`${name}-${Date.now()}`);
     app.students.push({ id, name, classId, skills: buildSkillState({}) });
     app.pfmpRecords[id] = hydratePfmpRecord({}, { id, classId }, app.classes);
-    logAction("Élève ajouté", name, getClassById(classId)?.name || classId);
+    logAction("Ã‰lÃ¨ve ajoutÃ©", name, getClassById(classId)?.name || classId);
     persistAppData();
     studentForm.reset();
     renderClassesPage();
@@ -1927,14 +1927,14 @@ function initClassesPageFinal() {
     const file = csvInput.files?.[0];
     const classId = importClassInput.value;
     if (!file || !classId) {
-      importFeedback.textContent = "Sélectionne un fichier CSV et une classe cible.";
+      importFeedback.textContent = "SÃ©lectionne un fichier CSV et une classe cible.";
       return;
     }
     const text = await file.text();
     const rows = parseCsv(text);
     const names = extractStudentNames(rows);
     if (!names.length) {
-      importFeedback.textContent = "Aucun nom d'élève détecté dans le CSV.";
+      importFeedback.textContent = "Aucun nom d'Ã©lÃ¨ve dÃ©tectÃ© dans le CSV.";
       return;
     }
     const existing = new Set(getStudentsByClass(classId).map((student) => student.name.trim().toLowerCase()));
@@ -1952,9 +1952,9 @@ function initClassesPageFinal() {
       existing.add(key);
       imported += 1;
     });
-    if (imported) logAction("Import CSV", getClassById(classId)?.name || classId, `${imported} élève(s) ajoutés`);
+    if (imported) logAction("Import CSV", getClassById(classId)?.name || classId, `${imported} Ã©lÃ¨ve(s) ajoutÃ©s`);
     persistAppData();
-    importFeedback.textContent = `${imported} élève(s) importé(s), ${skipped} ignoré(s).`;
+    importFeedback.textContent = `${imported} Ã©lÃ¨ve(s) importÃ©(s), ${skipped} ignorÃ©(s).`;
     csvInput.value = "";
     renderClassesPage();
   });
@@ -1978,12 +1978,12 @@ function initClassesPageFinal() {
         <article class="class-card">
           <div class="class-card-head">
             <h3>${classItem.name}</h3>
-            <span class="badge accent">${students.length} élèves</span>
+            <span class="badge accent">${students.length} Ã©lÃ¨ves</span>
           </div>
           <p>${classItem.year}</p>
           <p>${classItem.note}</p>
           <div class="class-meta">
-            <span class="badge">${getClassProgress(classItem.id)}% validé</span>
+            <span class="badge">${getClassProgress(classItem.id)}% validÃ©</span>
             <span class="badge">${pfmpSummary.withCompany} PFMP saisies</span>
           </div>
           <div class="student-badges">
@@ -2008,11 +2008,11 @@ function initClassesPageFinal() {
               </div>
             </div>
             <p>${getClassById(student.classId)?.name || "Sans classe"}</p>
-            <p>${filledPeriods}/6 PFMP renseignées</p>
+            <p>${filledPeriods}/6 PFMP renseignÃ©es</p>
           </div>
           <div class="student-badges">
-            <span class="badge">${getStudentProgress(student)}% validé</span>
-            <span class="badge">${filledPeriods}/6 périodes</span>
+            <span class="badge">${getStudentProgress(student)}% validÃ©</span>
+            <span class="badge">${filledPeriods}/6 pÃ©riodes</span>
           </div>
         </article>
       `;
@@ -2024,14 +2024,14 @@ function initClassesPageFinal() {
         if (!classItem || !canManageStudents) return;
         const name = window.prompt("Nouveau nom de la classe", classItem.name);
         if (!name) return;
-        const year = window.prompt("Nouvelle année", classItem.year);
+        const year = window.prompt("Nouvelle annÃ©e", classItem.year);
         if (!year) return;
-        const note = window.prompt("Nouvelle référence", classItem.note);
+        const note = window.prompt("Nouvelle rÃ©fÃ©rence", classItem.note);
         if (!note) return;
         classItem.name = name.trim();
         classItem.year = year.trim();
         classItem.note = note.trim();
-        logAction("Classe modifiée", classItem.name, `${classItem.year} // ${classItem.note}`);
+        logAction("Classe modifiÃ©e", classItem.name, `${classItem.year} // ${classItem.note}`);
         persistAppData();
         renderClassesPage();
       });
@@ -2042,7 +2042,7 @@ function initClassesPageFinal() {
         if (!canManageStudents) return;
         const classItem = getClassById(button.dataset.id);
         if (!classItem) return;
-        if (!window.confirm(`Supprimer la classe "${classItem.name}" et tous ses élèves ?`)) return;
+        if (!window.confirm(`Supprimer la classe "${classItem.name}" et tous ses Ã©lÃ¨ves ?`)) return;
         deleteClass(button.dataset.id);
         renderClassesPage();
       });
@@ -2052,14 +2052,14 @@ function initClassesPageFinal() {
       button.addEventListener("click", () => {
         const student = getStudentById(button.dataset.id);
         if (!student || !canManageStudents) return;
-        const name = window.prompt("Nouveau nom de l'élève", student.name);
+        const name = window.prompt("Nouveau nom de l'Ã©lÃ¨ve", student.name);
         if (!name) return;
         const classId = window.prompt("Nouvelle classe (id)", student.classId);
         if (!classId || !getClassById(classId.trim())) return;
         student.name = name.trim();
         student.classId = classId.trim();
         app.pfmpRecords[student.id] = hydratePfmpRecord(app.pfmpRecords[student.id] || {}, student, app.classes);
-        logAction("Élève modifié", student.name, getClassById(student.classId)?.name || student.classId);
+        logAction("Ã‰lÃ¨ve modifiÃ©", student.name, getClassById(student.classId)?.name || student.classId);
         persistAppData();
         renderClassesPage();
       });
@@ -2070,7 +2070,7 @@ function initClassesPageFinal() {
         if (!canManageStudents) return;
         const student = getStudentById(button.dataset.id);
         if (!student) return;
-        if (!window.confirm(`Supprimer l'élève "${student.name}" ?`)) return;
+        if (!window.confirm(`Supprimer l'Ã©lÃ¨ve "${student.name}" ?`)) return;
         deleteStudent(button.dataset.id);
         renderClassesPage();
       });
@@ -2270,12 +2270,12 @@ function initDashboardPageFinal() {
     wrapper.className = "stack-form";
     wrapper.innerHTML = `
       <label class="field">
-        <span>Professeur référent</span>
+        <span>Professeur rÃ©fÃ©rent</span>
         <select id="teacher-filter-select"></select>
       </label>
       <label class="field">
         <span>Recherche globale</span>
-        <input id="global-search-input" type="text" placeholder="Élève, classe, entreprise, TP/TD...">
+        <input id="global-search-input" type="text" placeholder="Ã‰lÃ¨ve, classe, entreprise, TP/TD...">
       </label>
       <div id="global-search-results" class="student-directory"></div>
       <div id="deadlines-panel" class="student-directory"></div>
@@ -2297,7 +2297,7 @@ function initDashboardPageFinal() {
       <div class="section-head">
         <div>
           <p class="eyebrow">Calendar</p>
-          <h2>Calendrier pédagogique</h2>
+          <h2>Calendrier pÃ©dagogique</h2>
         </div>
         <p id="calendar-month-label" class="results-count"></p>
       </div>
@@ -2330,7 +2330,7 @@ function initDashboardPageFinal() {
     app.pfmpRecords = initial.pfmpRecords;
     app.evaluationActivities = initial.evaluationActivities;
     app.activityLog = initial.activityLog;
-    logAction("Réinitialisation", "Application", "Jeu de données par défaut restauré");
+    logAction("RÃ©initialisation", "Application", "Jeu de donnÃ©es par dÃ©faut restaurÃ©");
     persistAppData();
     populateClassSelect(classSelect);
     renderDashboardPage();
@@ -2350,12 +2350,12 @@ function initDashboardPageFinal() {
     const pfmpSummary = getPfmpSummary(students);
     const exportSkillsButton = document.querySelector("#export-skills-button");
 
-    classMeta.textContent = classItem ? `${classItem.name} // ${classItem.year} // ${students.length} élèves${selectedTeacher !== "all" ? ` // ${selectedTeacher}` : ""}` : "Aucune classe";
+    classMeta.textContent = classItem ? `${classItem.name} // ${classItem.year} // ${students.length} Ã©lÃ¨ves${selectedTeacher !== "all" ? ` // ${selectedTeacher}` : ""}` : "Aucune classe";
     statsGrid.innerHTML = [
-      { label: "Élèves", value: students.length, trace: "effectif de la classe" },
-      { label: "Progression moyenne", value: `${progressAverage}%`, trace: strongestBlock ? `bloc fort: ${strongestBlock.domain}` : "aucune donnée" },
-      { label: "PFMP renseignées", value: pfmpSummary.withCompany, trace: "entreprise saisie" },
-      { label: "Conventions complètes", value: pfmpSummary.fullConvention, trace: "entreprise + parents + lycée" }
+      { label: "Ã‰lÃ¨ves", value: students.length, trace: "effectif de la classe" },
+      { label: "Progression moyenne", value: `${progressAverage}%`, trace: strongestBlock ? `bloc fort: ${strongestBlock.domain}` : "aucune donnÃ©e" },
+      { label: "PFMP renseignÃ©es", value: pfmpSummary.withCompany, trace: "entreprise saisie" },
+      { label: "Conventions complÃ¨tes", value: pfmpSummary.fullConvention, trace: "entreprise + parents + lycÃ©e" }
     ].map(renderStatCard).join("");
 
     renderStatusChart(statusChart, counts);
@@ -2370,7 +2370,7 @@ function initDashboardPageFinal() {
         <h3>${alert.title}</h3>
         <p class="muted-copy">${alert.detail}</p>
       </article>
-    `).join("") : `<article class="summary-card"><h3>Aucune alerte</h3><p class="muted-copy">Aucune alerte pour ce filtre sur la classe sélectionnée.</p></article>`;
+    `).join("") : `<article class="summary-card"><h3>Aucune alerte</h3><p class="muted-copy">Aucune alerte pour ce filtre sur la classe sÃ©lectionnÃ©e.</p></article>`;
 
     exportSkillsButton.onclick = () => exportSkillsWorkbook(classItem, students);
     catalogGrid.innerHTML = skillCatalog.map((skill) => `
@@ -2393,7 +2393,7 @@ function initDashboardPageFinal() {
             <p>${notice.meta}</p>
           </div>
         </article>
-      `).join("") : `<article class="summary-card"><h3>Aucune échéance</h3><p class="muted-copy">Aucune échéance prioritaire sur ce périmètre.</p></article>`;
+      `).join("") : `<article class="summary-card"><h3>Aucune Ã©chÃ©ance</h3><p class="muted-copy">Aucune Ã©chÃ©ance prioritaire sur ce pÃ©rimÃ¨tre.</p></article>`;
     }
 
     if (agendaPanel) {
@@ -2537,7 +2537,7 @@ function initDashboardPageFinal() {
     app.students.filter((student) => selectedTeacher === "all" || studentMatchesTeacher(student, selectedTeacher)).forEach((student) => {
       const className = getClassById(student.classId)?.name || "";
       if (`${student.name} ${className}`.toLowerCase().includes(term)) {
-        results.push({ label: student.name, meta: `Élève // ${className}` });
+        results.push({ label: student.name, meta: `Ã‰lÃ¨ve // ${className}` });
       }
     });
     app.classes.forEach((classItem) => {
@@ -2566,7 +2566,7 @@ function initDashboardPageFinal() {
           <p>${result.meta}</p>
         </div>
       </article>
-    `).join("") : `<article class="summary-card"><h3>Aucun résultat</h3><p class="muted-copy">Aucune correspondance pour cette recherche.</p></article>`;
+    `).join("") : `<article class="summary-card"><h3>Aucun rÃ©sultat</h3><p class="muted-copy">Aucune correspondance pour cette recherche.</p></article>`;
   }
 }
 
@@ -2608,7 +2608,7 @@ function initPfmpLivretPageFinal() {
     entry.evaluatorRole = evaluatorRole.value.trim();
     entry.companyFeedback = companyFeedback.value.trim();
     entry.generalComment = generalComment.value.trim();
-    logAction("Livret PFMP mis à jour", student.name, PFMP_PERIODS.find((period) => period.id === periodSelect.value)?.label || periodSelect.value);
+    logAction("Livret PFMP mis Ã  jour", student.name, PFMP_PERIODS.find((period) => period.id === periodSelect.value)?.label || periodSelect.value);
     persistAppData();
     renderBookletPage();
   });
@@ -2623,7 +2623,7 @@ function initPfmpLivretPageFinal() {
     const classId = classSelect.value || app.classes[0]?.id || "";
     const student = getStudentById(studentSelect.value) || getStudentsByClass(classId)[0];
     if (!student) {
-      summaryGrid.innerHTML = `<article class="summary-card"><h3>Aucun élève</h3><p class="muted-copy">Ajoute un élève pour utiliser le livret.</p></article>`;
+      summaryGrid.innerHTML = `<article class="summary-card"><h3>Aucun Ã©lÃ¨ve</h3><p class="muted-copy">Ajoute un Ã©lÃ¨ve pour utiliser le livret.</p></article>`;
       skillsEditor.innerHTML = "";
       return;
     }
@@ -2635,10 +2635,10 @@ function initPfmpLivretPageFinal() {
     generalComment.value = bookletEntry.generalComment || "";
 
     summaryGrid.innerHTML = [
-      { label: "Élève", value: student.name, trace: getClassById(student.classId)?.name || "" },
-      { label: "Entreprise", value: pfmpEntry.companyName || "Non renseignée", trace: pfmpEntry.tutorName || "Tuteur non renseigné" },
-      { label: "Période", value: PFMP_PERIODS.find((period) => period.id === periodSelect.value)?.label || periodSelect.value, trace: pfmpEntry.visitDate || "Visite non planifiée" },
-      { label: "Prof référent", value: pfmpEntry.teacher || "Non renseigné", trace: `${getStudentProgress(student)}% progression globale` }
+      { label: "Ã‰lÃ¨ve", value: student.name, trace: getClassById(student.classId)?.name || "" },
+      { label: "Entreprise", value: pfmpEntry.companyName || "Non renseignÃ©e", trace: pfmpEntry.tutorName || "Tuteur non renseignÃ©" },
+      { label: "PÃ©riode", value: PFMP_PERIODS.find((period) => period.id === periodSelect.value)?.label || periodSelect.value, trace: pfmpEntry.visitDate || "Visite non planifiÃ©e" },
+      { label: "Prof rÃ©fÃ©rent", value: pfmpEntry.teacher || "Non renseignÃ©", trace: `${getStudentProgress(student)}% progression globale` }
     ].map(renderStatCard).join("");
 
     skillsEditor.innerHTML = skillCatalog.map((skill) => `
@@ -2653,7 +2653,7 @@ function initPfmpLivretPageFinal() {
         </div>
         <div class="skill-actions">
           <label class="field compact-field">
-            <span>Niveau observé</span>
+            <span>Niveau observÃ©</span>
             <select class="booklet-skill-select" data-skill-id="${skill.id}"${canEditPfmp ? "" : " disabled"}>
               ${renderStatusOptions(bookletEntry.skills[skill.id])}
             </select>
@@ -2917,8 +2917,8 @@ function initRemediationPageFinal() {
 
     if (scopeTitle) scopeTitle.textContent = isPfmpPage ? "Vue remediation PFMP" : "Vue remediation competences";
     if (detailTitle) detailTitle.textContent = isPfmpPage ? "Remediation PFMP" : "Remediation competences";
-    summaryGrid.innerHTML = alerts.length ? alerts.map(renderRemediationCard).join("") : `<article class="summary-card"><h3>Aucune remédiation globale</h3><p class="muted-copy">Aucun signal bloquant pour ce filtre.</p></article>`;
-    detailGrid.innerHTML = detailItems.length ? detailItems.map(renderRemediationCard).join("") : `<article class="summary-card"><h3>Aucune action</h3><p class="muted-copy">Aucune relance à traiter pour ce filtre.</p></article>`;
+    summaryGrid.innerHTML = alerts.length ? alerts.map(renderRemediationCard).join("") : `<article class="summary-card"><h3>Aucune remÃ©diation globale</h3><p class="muted-copy">Aucun signal bloquant pour ce filtre.</p></article>`;
+    detailGrid.innerHTML = detailItems.length ? detailItems.map(renderRemediationCard).join("") : `<article class="summary-card"><h3>Aucune action</h3><p class="muted-copy">Aucune relance Ã  traiter pour ce filtre.</p></article>`;
   }
 }
 
@@ -2990,8 +2990,8 @@ function initEvaluationsPageFinal() {
     exportBar.id = "activity-export-bar";
     exportBar.className = "student-badges";
     exportBar.innerHTML = `
-      <button id="activity-export-pdf" class="ghost-button" type="button">Exporter PDF séance</button>
-      <button id="activity-synthesis-pdf" class="ghost-button" type="button">Exporter PDF synthèse classe</button>
+      <button id="activity-export-pdf" class="ghost-button" type="button">Exporter PDF sÃ©ance</button>
+      <button id="activity-synthesis-pdf" class="ghost-button" type="button">Exporter PDF synthÃ¨se classe</button>
     `;
     activityReport.parentElement?.insertBefore(exportBar, activityReport);
   }
@@ -3065,7 +3065,7 @@ function initEvaluationsPageFinal() {
   function renderIndicatorDraft() {
     if (!activityIndicatorList) return;
     if (!activityIndicatorDraft.length) {
-      activityIndicatorList.innerHTML = `<article class="directory-row"><div><strong>Aucun indicateur structuré</strong><p>Ajoute un indicateur lié à une compétence ou utilise la saisie rapide.</p></div></article>`;
+      activityIndicatorList.innerHTML = `<article class="directory-row"><div><strong>Aucun indicateur structurÃ©</strong><p>Ajoute un indicateur liÃ© Ã  une compÃ©tence ou utilise la saisie rapide.</p></div></article>`;
       return;
     }
     activityIndicatorList.innerHTML = activityIndicatorDraft.map((indicator) => `
@@ -3096,7 +3096,7 @@ function initEvaluationsPageFinal() {
     syncIndicatorTextareaFromDraft();
     renderIndicatorDraft();
     populateIndicatorBankSelect(indicatorBankSelect);
-    if (activitySubmitButton) activitySubmitButton.textContent = "Créer la séance";
+    if (activitySubmitButton) activitySubmitButton.textContent = "CrÃ©er la sÃ©ance";
     if (activityCancelEditButton) activityCancelEditButton.hidden = true;
     delete activityForm.dataset.editingId;
   }
@@ -3139,7 +3139,7 @@ function initEvaluationsPageFinal() {
       skillId: indicator.skillId || ""
     }));
     if (!activityTitle.value.trim() || !activityClass.value || !selectedSkillIds.length || !indicators.length) {
-      activityFeedback.textContent = "Renseigne un titre, une classe, une compétence et au moins un indicateur.";
+      activityFeedback.textContent = "Renseigne un titre, une classe, une compÃ©tence et au moins un indicateur.";
       return;
     }
     app.evaluationActivities.push({
@@ -3156,12 +3156,12 @@ function initEvaluationsPageFinal() {
       indicators,
       evaluations: {}
     });
-    logAction("Séance créée", activityTitle.value.trim(), `${activityType.value} // ${getClassById(activityClass.value)?.name || ""}`);
+    logAction("SÃ©ance crÃ©Ã©e", activityTitle.value.trim(), `${activityType.value} // ${getClassById(activityClass.value)?.name || ""}`);
     persistAppData();
     activityForm.reset();
     clearMultiSelect(activitySkill);
     populateIndicatorBankSelect(indicatorBankSelect);
-    activityFeedback.textContent = "Séance créée.";
+    activityFeedback.textContent = "SÃ©ance crÃ©Ã©e.";
     sessionClassSelect.value = activityClass.value;
     syncSessionActivities();
     renderEvaluationPage();
@@ -3191,12 +3191,12 @@ function initEvaluationsPageFinal() {
   activityEditButton?.addEventListener("click", () => {
     const activity = getActivityById(activitySelect.value);
     if (!activity || !canEditEvaluations) return;
-    const title = window.prompt("Nouveau titre de la séance", activity.title);
+    const title = window.prompt("Nouveau titre de la sÃ©ance", activity.title);
     if (!title) return;
     const startDate = window.prompt("Nouvelle date de debut", activity.startDate || activity.date || "");
     const endDate = window.prompt("Nouvelle date de fin", activity.endDate || activity.startDate || activity.date || "");
-    const skillsValue = window.prompt("CompÃ©tences (codes sÃ©parÃ©s par , ex: C4,C8)", getActivitySkills(activity).map((skill) => skill.code).join(", "));
-    const indicators = window.prompt("Indicateurs (séparés par |)", activity.indicators.map((item) => item.label).join(" | "));
+    const skillsValue = window.prompt("CompÃƒÂ©tences (codes sÃƒÂ©parÃƒÂ©s par , ex: C4,C8)", getActivitySkills(activity).map((skill) => skill.code).join(", "));
+    const indicators = window.prompt("Indicateurs (sÃ©parÃ©s par |)", activity.indicators.map((item) => item.label).join(" | "));
     const comment = window.prompt("Commentaire enseignant", activity.comment || "");
     if (!indicators) return;
     const skillIds = parseSkillCodesInput(skillsValue);
@@ -3209,7 +3209,7 @@ function initEvaluationsPageFinal() {
     activity.skillId = skillIds[0];
     activity.comment = (comment || "").trim();
     activity.indicators = indicators.split("|").map((item, index) => ({ id: activity.indicators[index]?.id || slugify(`${title}-${index}-${Date.now()}`), label: item.trim() })).filter((item) => item.label);
-    logAction("Séance modifiée", activity.title, activity.type);
+    logAction("SÃ©ance modifiÃ©e", activity.title, activity.type);
     persistAppData();
     syncSessionActivities(activity.id);
     renderEvaluationPage();
@@ -3229,7 +3229,7 @@ function initEvaluationsPageFinal() {
       }))
     }, app.evaluationActivities.length);
     app.evaluationActivities.push(duplicate);
-    logAction("SÃ©ance dupliquÃ©e", duplicate.title, `${duplicate.type} // ${getClassById(duplicate.classId)?.name || duplicate.classId}`);
+    logAction("SÃƒÂ©ance dupliquÃƒÂ©e", duplicate.title, `${duplicate.type} // ${getClassById(duplicate.classId)?.name || duplicate.classId}`);
     persistAppData();
     sessionClassSelect.value = duplicate.classId;
     syncSessionActivities(duplicate.id);
@@ -3239,9 +3239,9 @@ function initEvaluationsPageFinal() {
   activityDeleteButton?.addEventListener("click", () => {
     const activity = getActivityById(activitySelect.value);
     if (!activity || !canEditEvaluations) return;
-    if (!window.confirm(`Supprimer la séance "${activity.title}" ?`)) return;
+    if (!window.confirm(`Supprimer la sÃ©ance "${activity.title}" ?`)) return;
     app.evaluationActivities = app.evaluationActivities.filter((item) => item.id !== activity.id);
-    logAction("Séance supprimée", activity.title, activity.type);
+    logAction("SÃ©ance supprimÃ©e", activity.title, activity.type);
     persistAppData();
     syncSessionActivities();
     renderEvaluationPage();
@@ -3254,14 +3254,14 @@ function initEvaluationsPageFinal() {
       return;
     }
     activityIndicators.value = bank.indicators.join("\n");
-    activityFeedback.textContent = `Banque chargÃ©e : ${bank.name}.`;
+    activityFeedback.textContent = `Banque chargÃƒÂ©e : ${bank.name}.`;
   });
 
   indicatorBankSaveButton?.addEventListener("click", () => {
     if (!canEditEvaluations) return;
     const indicators = activityIndicators.value.split("\n").map((line) => line.trim()).filter(Boolean);
     if (!indicators.length) {
-      activityFeedback.textContent = "Saisis d'abord des indicateurs Ã  enregistrer.";
+      activityFeedback.textContent = "Saisis d'abord des indicateurs ÃƒÂ  enregistrer.";
       return;
     }
     const name = window.prompt("Nom de la banque d'indicateurs", activityTitle.value.trim() || "Nouvelle banque");
@@ -3274,11 +3274,11 @@ function initEvaluationsPageFinal() {
       domain: domains.length === 1 ? domains[0] : "",
       indicators
     });
-    logAction("Banque d'indicateurs crÃ©Ã©e", name.trim(), domains.join(" // ") || "Multi-domaines");
+    logAction("Banque d'indicateurs crÃƒÂ©ÃƒÂ©e", name.trim(), domains.join(" // ") || "Multi-domaines");
     persistAppData();
     populateIndicatorBankSelect(indicatorBankSelect, selectedSkillIds, indicatorBankDomain?.value || "all");
     indicatorBankSelect.value = app.indicatorBank[app.indicatorBank.length - 1].id;
-    activityFeedback.textContent = "Banque d'indicateurs enregistrÃ©e.";
+    activityFeedback.textContent = "Banque d'indicateurs enregistrÃƒÂ©e.";
   });
 
   activityExportPdfButton?.addEventListener("click", () => {
@@ -3334,7 +3334,7 @@ function initEvaluationsPageFinal() {
   function renderActivitySummary(activity, classId) {
     const classItem = getClassById(classId);
     if (!activity) {
-      activitySummary.innerHTML = `<article class="summary-card"><h3>Aucune séance</h3><p class="muted-copy">Crée un TP ou un TD pour commencer.</p></article>`;
+      activitySummary.innerHTML = `<article class="summary-card"><h3>Aucune sÃ©ance</h3><p class="muted-copy">CrÃ©e un TP ou un TD pour commencer.</p></article>`;
       return;
     }
     activitySummary.innerHTML = `
@@ -3355,12 +3355,12 @@ function initEvaluationsPageFinal() {
     activityMatrix.classList.add("activity-grid");
     activityMatrix.innerHTML = `
       <div class="matrix-header activity-header">
-        <strong>Élève</strong>
+        <strong>Ã‰lÃ¨ve</strong>
         ${activity.indicators.map((indicator) => `<strong>${indicator.label}</strong>`).join("")}
       </div>
       ${students.map((student) => `
         <div class="matrix-row activity-row">
-          <div><strong>${student.name}</strong><p class="muted-copy">${getStudentProgress(student)}% validé</p></div>
+          <div><strong>${student.name}</strong><p class="muted-copy">${getStudentProgress(student)}% validÃ©</p></div>
           ${activity.indicators.map((indicator) => `
             <label class="field">
               <select data-activity-id="${activity.id}" data-student-id="${student.id}" data-indicator-id="${indicator.id}" class="activity-status-select"${canEditEvaluations ? "" : " disabled"}>
@@ -3398,8 +3398,8 @@ function initEvaluationsPageFinal() {
     activityReport.innerHTML = `
       <article class="summary-card">
         <h3>Bilan global</h3>
-        <p class="muted-copy">Moyenne de la séance: ${getActivityAverage(activity, students)}%</p>
-        <p class="muted-copy">${students.length} élève(s) évalué(s)</p>
+        <p class="muted-copy">Moyenne de la sÃ©ance: ${getActivityAverage(activity, students)}%</p>
+        <p class="muted-copy">${students.length} Ã©lÃ¨ve(s) Ã©valuÃ©(s)</p>
       </article>
       ${indicatorCards}
     `;
@@ -3423,17 +3423,17 @@ function initEvaluationsPageFinal() {
           </div>
         </article>
       `;
-    }).join("") : `<article class="summary-card"><h3>Aucune synthèse</h3><p class="muted-copy">Aucun TP/TD enregistré pour cette classe.</p></article>`;
+    }).join("") : `<article class="summary-card"><h3>Aucune synthÃ¨se</h3><p class="muted-copy">Aucun TP/TD enregistrÃ© pour cette classe.</p></article>`;
   }
 
   function renderStudentSheet() {
     const student = getStudentById(evalStudentSelect.value) || getStudentsByClass(evalClassSelect.value)[0];
     if (!student) {
       studentSkillsEditor.innerHTML = "";
-      studentSheetMeta.textContent = "Aucun élève disponible";
+      studentSheetMeta.textContent = "Aucun Ã©lÃ¨ve disponible";
       return;
     }
-    studentSheetMeta.textContent = `${getClassById(student.classId)?.name || ""} // ${getStudentProgress(student)}% validé`;
+    studentSheetMeta.textContent = `${getClassById(student.classId)?.name || ""} // ${getStudentProgress(student)}% validÃ©`;
     studentSkillsEditor.innerHTML = "";
     skillCatalog.forEach((skill) => {
       const fragment = skillRowTemplate.content.cloneNode(true);
@@ -3447,7 +3447,7 @@ function initEvaluationsPageFinal() {
       select.addEventListener("change", (event) => {
         if (!canEditSkills) return;
         student.skills[skill.id] = event.target.value;
-        logAction("Compétence modifiée", student.name, `${skill.code} // ${levelLabels[event.target.value]}`);
+        logAction("CompÃ©tence modifiÃ©e", student.name, `${skill.code} // ${levelLabels[event.target.value]}`);
         persistAppData();
         renderEvaluationPage();
       });
@@ -3553,7 +3553,7 @@ function initPfmpPageFinal() {
     extra.className = "mini-grid";
     extra.innerHTML = `
       <label class="field">
-        <span>Recherche élève / entreprise</span>
+        <span>Recherche Ã©lÃ¨ve / entreprise</span>
         <input id="pfmp-search-input" type="text" placeholder="Nom, entreprise, tuteur...">
       </label>
       <label class="field">
@@ -3561,8 +3561,8 @@ function initPfmpPageFinal() {
         <select id="pfmp-status-filter">
           <option value="all">Tous</option>
           <option value="missing-company">Sans entreprise</option>
-          <option value="incomplete-convention">Convention incomplète</option>
-          <option value="visit-missing">Visite à planifier</option>
+          <option value="incomplete-convention">Convention incomplÃ¨te</option>
+          <option value="visit-missing">Visite Ã  planifier</option>
           <option value="complete-file">Dossier complet</option>
         </select>
       </label>
@@ -3577,7 +3577,7 @@ function initPfmpPageFinal() {
     pdfToolbar.id = "pfmp-pdf-toolbar";
     pdfToolbar.className = "student-badges";
     pdfToolbar.innerHTML = `
-      <button id="export-pfmp-pdf-student" class="ghost-button" type="button">Exporter PDF élève</button>
+      <button id="export-pfmp-pdf-student" class="ghost-button" type="button">Exporter PDF Ã©lÃ¨ve</button>
       <button id="export-pfmp-pdf-class" class="ghost-button" type="button">Exporter PDF classe</button>
     `;
     exportPfmpButton.insertAdjacentElement("afterend", pdfToolbar);
@@ -3630,7 +3630,7 @@ function initPfmpPageFinal() {
       ...Object.fromEntries(Object.entries(inputs).map(([key, input]) => [key, input.value.trim()])),
       observedSkillIds: getSelectedValues(observedSkillsSelect)
     });
-    logAction("PFMP mise à jour", student.name, PFMP_PERIODS.find((period) => period.id === periodSelect.value)?.label || periodSelect.value);
+    logAction("PFMP mise Ã  jour", student.name, PFMP_PERIODS.find((period) => period.id === periodSelect.value)?.label || periodSelect.value);
     persistAppData();
     renderPfmpPage();
   });
@@ -3656,10 +3656,10 @@ function initPfmpPageFinal() {
     const summary = getPfmpSummary(students);
 
     summaryCards.innerHTML = [
-      { label: "PFMP renseignées", value: summary.withCompany, trace: "entreprise saisie" },
-      { label: "Conventions complètes", value: summary.fullConvention, trace: "3 signatures" },
-      { label: "Visites planifiées", value: summary.visitPlanned, trace: "date de visite saisie" },
-      { label: "Dossiers complets", value: summary.completeFile, trace: "rapport + livret + présence" }
+      { label: "PFMP renseignÃ©es", value: summary.withCompany, trace: "entreprise saisie" },
+      { label: "Conventions complÃ¨tes", value: summary.fullConvention, trace: "3 signatures" },
+      { label: "Visites planifiÃ©es", value: summary.visitPlanned, trace: "date de visite saisie" },
+      { label: "Dossiers complets", value: summary.completeFile, trace: "rapport + livret + prÃ©sence" }
     ].map(renderStatCard).join("");
 
     const selectedRecord = selectedStudent ? getPfmpPeriodEntry(selectedStudent.id, periodSelect.value) : createEmptyPfmpEntry();
@@ -3671,11 +3671,11 @@ function initPfmpPageFinal() {
       return `
         <article class="period-card">
           <strong>${period.label}</strong>
-          <p class="muted-copy">${entry.companyName || "Entreprise non renseignée"}</p>
+          <p class="muted-copy">${entry.companyName || "Entreprise non renseignÃ©e"}</p>
           <div class="pfmp-kpis">
             <span class="badge">${getPfmpCompletion(entry)} champs</span>
             <span class="badge">${(entry.observedSkillIds || []).length} comp. observees</span>
-            <span class="badge">${entry.visitDate ? "Visite OK" : "Visite à planifier"}</span>
+            <span class="badge">${entry.visitDate ? "Visite OK" : "Visite Ã  planifier"}</span>
           </div>
         </article>
       `;
@@ -3708,17 +3708,17 @@ function initPfmpPageFinal() {
           <div>
             <strong>${student.name}</strong>
             <p>${PFMP_PERIODS.reduce((sum, period) => sum + (getPfmpPeriodEntry(student.id, period.id).observedSkillIds || []).length, 0)} competences observees</p>
-            <p>${filledPeriods}/6 PFMP renseignées</p>
-            <p>${PFMP_PERIODS.filter((period) => getPfmpPeriodEntry(student.id, period.id).visitDate).length} visites planifiées</p>
+            <p>${filledPeriods}/6 PFMP renseignÃ©es</p>
+            <p>${PFMP_PERIODS.filter((period) => getPfmpPeriodEntry(student.id, period.id).visitDate).length} visites planifiÃ©es</p>
           </div>
           <div class="pfmp-kpis">
-            <span class="badge">${filledPeriods}/6 périodes</span>
+            <span class="badge">${filledPeriods}/6 pÃ©riodes</span>
             <span class="badge">${PFMP_PERIODS.filter((period) => hasFullConvention(getPfmpPeriodEntry(student.id, period.id))).length}/6 conventions</span>
             <span class="badge">${PFMP_PERIODS.filter((period) => hasCompleteFile(getPfmpPeriodEntry(student.id, period.id))).length}/6 dossiers</span>
           </div>
         </article>
       `;
-    }).join("") || `<article class="summary-card"><h3>Aucun résultat</h3><p class="muted-copy">Aucun élève ne correspond à cette recherche ou à ce filtre.</p></article>`;
+    }).join("") || `<article class="summary-card"><h3>Aucun rÃ©sultat</h3><p class="muted-copy">Aucun Ã©lÃ¨ve ne correspond Ã  cette recherche ou Ã  ce filtre.</p></article>`;
   }
 }
 
@@ -3748,7 +3748,7 @@ function initClassesPage() {
     const note = classNoteInput.value.trim();
     if (!name || !year || !note) return;
     app.classes.push({ id: slugify(`${name}-${Date.now()}`), name, year, note });
-    logAction("Classe créée", name, `${year} // ${note}`);
+    logAction("Classe crÃ©Ã©e", name, `${year} // ${note}`);
     persistAppData();
     classForm.reset();
     renderClassesPage();
@@ -3763,7 +3763,7 @@ function initClassesPage() {
     const id = slugify(`${name}-${Date.now()}`);
     app.students.push({ id, name, classId, skills: buildSkillState({}) });
     app.pfmpRecords[id] = hydratePfmpRecord({}, { id, classId }, app.classes);
-    logAction("Élève ajouté", name, getClassById(classId)?.name || classId);
+    logAction("Ã‰lÃ¨ve ajoutÃ©", name, getClassById(classId)?.name || classId);
     persistAppData();
     studentForm.reset();
     renderClassesPage();
@@ -3774,14 +3774,14 @@ function initClassesPage() {
     const file = csvInput.files?.[0];
     const classId = importClassInput.value;
     if (!file || !classId) {
-      importFeedback.textContent = "Sélectionne un fichier CSV et une classe cible.";
+      importFeedback.textContent = "SÃ©lectionne un fichier CSV et une classe cible.";
       return;
     }
     const text = await file.text();
     const rows = parseCsv(text);
     const names = extractStudentNames(rows);
     if (!names.length) {
-      importFeedback.textContent = "Aucun nom d'élève détecté dans le CSV.";
+      importFeedback.textContent = "Aucun nom d'Ã©lÃ¨ve dÃ©tectÃ© dans le CSV.";
       return;
     }
     const existing = new Set(getStudentsByClass(classId).map((student) => student.name.trim().toLowerCase()));
@@ -3799,9 +3799,9 @@ function initClassesPage() {
       existing.add(key);
       imported += 1;
     });
-    if (imported) logAction("Import CSV", getClassById(classId)?.name || classId, `${imported} élève(s) ajoutés`);
+    if (imported) logAction("Import CSV", getClassById(classId)?.name || classId, `${imported} Ã©lÃ¨ve(s) ajoutÃ©s`);
     persistAppData();
-    importFeedback.textContent = `${imported} élève(s) importé(s), ${skipped} ignoré(s).`;
+    importFeedback.textContent = `${imported} Ã©lÃ¨ve(s) importÃ©(s), ${skipped} ignorÃ©(s).`;
     csvInput.value = "";
     renderClassesPage();
   });
@@ -3825,12 +3825,12 @@ function initClassesPage() {
         <article class="class-card">
           <div class="class-card-head">
             <h3>${classItem.name}</h3>
-            <span class="badge accent">${students.length} élèves</span>
+            <span class="badge accent">${students.length} Ã©lÃ¨ves</span>
           </div>
           <p>${classItem.year}</p>
           <p>${classItem.note}</p>
           <div class="class-meta">
-            <span class="badge">${getClassProgress(classItem.id)}% validé</span>
+            <span class="badge">${getClassProgress(classItem.id)}% validÃ©</span>
             <span class="badge">${pfmpSummary.withCompany} PFMP saisies</span>
           </div>
           <div class="student-badges">
@@ -3855,11 +3855,11 @@ function initClassesPage() {
               </div>
             </div>
             <p>${getClassById(student.classId)?.name || "Sans classe"}</p>
-            <p>${filledPeriods}/6 PFMP renseignées</p>
+            <p>${filledPeriods}/6 PFMP renseignÃ©es</p>
           </div>
           <div class="student-badges">
-            <span class="badge">${getStudentProgress(student)}% validé</span>
-            <span class="badge">${filledPeriods}/6 périodes</span>
+            <span class="badge">${getStudentProgress(student)}% validÃ©</span>
+            <span class="badge">${filledPeriods}/6 pÃ©riodes</span>
           </div>
         </article>
       `;
@@ -3871,14 +3871,14 @@ function initClassesPage() {
         if (!classItem || !canManageStudents) return;
         const name = window.prompt("Nouveau nom de la classe", classItem.name);
         if (!name) return;
-        const year = window.prompt("Nouvelle année", classItem.year);
+        const year = window.prompt("Nouvelle annÃ©e", classItem.year);
         if (!year) return;
-        const note = window.prompt("Nouvelle référence", classItem.note);
+        const note = window.prompt("Nouvelle rÃ©fÃ©rence", classItem.note);
         if (!note) return;
         classItem.name = name.trim();
         classItem.year = year.trim();
         classItem.note = note.trim();
-        logAction("Classe modifiée", classItem.name, `${classItem.year} // ${classItem.note}`);
+        logAction("Classe modifiÃ©e", classItem.name, `${classItem.year} // ${classItem.note}`);
         persistAppData();
         renderClassesPage();
       });
@@ -3889,7 +3889,7 @@ function initClassesPage() {
         if (!canManageStudents) return;
         const classItem = getClassById(button.dataset.id);
         if (!classItem) return;
-        if (!window.confirm(`Supprimer la classe "${classItem.name}" et tous ses élèves ?`)) return;
+        if (!window.confirm(`Supprimer la classe "${classItem.name}" et tous ses Ã©lÃ¨ves ?`)) return;
         deleteClass(button.dataset.id);
         renderClassesPage();
       });
@@ -3899,14 +3899,14 @@ function initClassesPage() {
       button.addEventListener("click", () => {
         const student = getStudentById(button.dataset.id);
         if (!student || !canManageStudents) return;
-        const name = window.prompt("Nouveau nom de l'élève", student.name);
+        const name = window.prompt("Nouveau nom de l'Ã©lÃ¨ve", student.name);
         if (!name) return;
         const classId = window.prompt("Nouvelle classe (id)", student.classId);
         if (!classId || !getClassById(classId.trim())) return;
         student.name = name.trim();
         student.classId = classId.trim();
         app.pfmpRecords[student.id] = hydratePfmpRecord(app.pfmpRecords[student.id] || {}, student, app.classes);
-        logAction("Élève modifié", student.name, getClassById(student.classId)?.name || student.classId);
+        logAction("Ã‰lÃ¨ve modifiÃ©", student.name, getClassById(student.classId)?.name || student.classId);
         persistAppData();
         renderClassesPage();
       });
@@ -3917,7 +3917,7 @@ function initClassesPage() {
         if (!canManageStudents) return;
         const student = getStudentById(button.dataset.id);
         if (!student) return;
-        if (!window.confirm(`Supprimer l'élève "${student.name}" ?`)) return;
+        if (!window.confirm(`Supprimer l'Ã©lÃ¨ve "${student.name}" ?`)) return;
         deleteStudent(button.dataset.id);
         renderClassesPage();
       });
@@ -4011,15 +4011,15 @@ function initAccountsPage() {
   exportJsonButton?.addEventListener("click", () => {
     const payload = JSON.stringify(app, null, 2);
     downloadTextFile(`ciel-backup-${new Date().toISOString().slice(0, 10)}.json`, payload, "application/json");
-    logAction("Export JSON", "Sauvegarde", "Base téléchargée localement");
+    logAction("Export JSON", "Sauvegarde", "Base tÃ©lÃ©chargÃ©e localement");
     persistAppData();
-    restoreFeedback.textContent = "Sauvegarde JSON téléchargée.";
+    restoreFeedback.textContent = "Sauvegarde JSON tÃ©lÃ©chargÃ©e.";
   });
 
   restoreJsonButton?.addEventListener("click", async () => {
     const file = restoreJsonInput?.files?.[0];
     if (!file) {
-      restoreFeedback.textContent = "Sélectionne d'abord un fichier JSON.";
+      restoreFeedback.textContent = "SÃ©lectionne d'abord un fichier JSON.";
       return;
     }
     try {
@@ -4028,7 +4028,7 @@ function initAccountsPage() {
       replaceAppState(data);
       logAction("Restauration JSON", "Base", file.name);
       await persistCriticalAppData();
-      restoreFeedback.textContent = "Base restaurée avec succès.";
+      restoreFeedback.textContent = "Base restaurÃ©e avec succÃ¨s.";
       renderAdministration();
     } catch {
       restoreFeedback.textContent = "Le fichier JSON est invalide.";
@@ -4043,9 +4043,9 @@ function initAccountsPage() {
       password: adminPassword.value.trim(),
       previousUsername: adminAccount.username
     });
-    logAction("Compte admin mis à jour", adminUsername.value.trim(), "Identifiant ou mot de passe modifié");
+    logAction("Compte admin mis Ã  jour", adminUsername.value.trim(), "Identifiant ou mot de passe modifiÃ©");
     await persistCriticalAppData();
-    feedback.textContent = "Compte administrateur synchronisé.";
+    feedback.textContent = "Compte administrateur synchronisÃ©.";
     renderAdministration();
   });
 
@@ -4053,11 +4053,11 @@ function initAccountsPage() {
     event.preventDefault();
     if (!teacherUsername.value.trim() || !teacherPassword.value.trim()) return;
     const account = addTeacherAccount(teacherUsername.value.trim(), teacherPassword.value.trim(), teacherRole.value);
-    logAction("Compte créé", account.username, `Rôle: ${getRoleLabel(account.role)}`);
+    logAction("Compte crÃ©Ã©", account.username, `RÃ´le: ${getRoleLabel(account.role)}`);
     teacherForm.reset();
     teacherRole.value = "professeur";
     await persistCriticalAppData();
-    feedback.textContent = "Compte ajouté et synchronisé.";
+    feedback.textContent = "Compte ajoutÃ© et synchronisÃ©.";
     renderAdministration();
   });
 
@@ -4110,7 +4110,7 @@ function initAccountsPage() {
           <p>${entry.target}${entry.detail ? ` // ${entry.detail}` : ""}</p>
         </div>
       </article>
-    `).join("") : `<article class="summary-card"><h3>Aucune activité</h3><p class="muted-copy">Le journal se remplira automatiquement dès les premières actions.</p></article>`;
+    `).join("") : `<article class="summary-card"><h3>Aucune activitÃ©</h3><p class="muted-copy">Le journal se remplira automatiquement dÃ¨s les premiÃ¨res actions.</p></article>`;
 
     teacherAccountsList.querySelectorAll(".teacher-edit").forEach((button) => {
       button.addEventListener("click", async () => {
@@ -4120,7 +4120,7 @@ function initAccountsPage() {
         if (!username) return;
         const password = window.prompt("Nouveau mot de passe du compte", teacher.password);
         if (!password) return;
-        const role = window.prompt(`Nouveau rôle (${getTeacherRoleValues().join(", ")})`, teacher.role);
+        const role = window.prompt(`Nouveau rÃ´le (${getTeacherRoleValues().join(", ")})`, teacher.role);
         if (!role || !getTeacherRoleValues().includes(role.trim())) return;
         updateAccount(teacher.id, {
           username: username.trim(),
@@ -4128,9 +4128,9 @@ function initAccountsPage() {
           role: role.trim(),
           previousUsername: teacher.username
         });
-        logAction("Compte modifié", username.trim(), `Rôle: ${getRoleLabel(role.trim())}`);
+        logAction("Compte modifiÃ©", username.trim(), `RÃ´le: ${getRoleLabel(role.trim())}`);
         await persistCriticalAppData();
-        feedback.textContent = "Compte modifié et synchronisé.";
+        feedback.textContent = "Compte modifiÃ© et synchronisÃ©.";
         renderAdministration();
       });
     });
@@ -4139,9 +4139,9 @@ function initAccountsPage() {
       button.addEventListener("click", async () => {
         const removed = getAccountById(button.dataset.id);
         removeTeacherAccount(button.dataset.id);
-        if (removed) logAction("Compte supprimé", removed.username, removed.label);
+        if (removed) logAction("Compte supprimÃ©", removed.username, removed.label);
         await persistCriticalAppData();
-        feedback.textContent = "Compte supprimé et synchronisé.";
+        feedback.textContent = "Compte supprimÃ© et synchronisÃ©.";
         renderAdministration();
       });
     });
@@ -4216,7 +4216,7 @@ function initDashboardPage() {
     app.pfmpRecords = initial.pfmpRecords;
     app.evaluationActivities = initial.evaluationActivities;
     app.activityLog = initial.activityLog;
-    logAction("Réinitialisation", "Application", "Jeu de données par défaut restauré");
+    logAction("RÃ©initialisation", "Application", "Jeu de donnÃ©es par dÃ©faut restaurÃ©");
     persistAppData();
     populateClassSelect(classSelect);
     renderDashboardPage();
@@ -4234,12 +4234,12 @@ function initDashboardPage() {
     const pfmpSummary = getPfmpSummary(students);
     const exportSkillsButton = document.querySelector("#export-skills-button");
 
-    classMeta.textContent = classItem ? `${classItem.name} // ${classItem.year} // ${students.length} élèves` : "Aucune classe";
+    classMeta.textContent = classItem ? `${classItem.name} // ${classItem.year} // ${students.length} Ã©lÃ¨ves` : "Aucune classe";
     statsGrid.innerHTML = [
-      { label: "Élèves", value: students.length, trace: "effectif de la classe" },
-      { label: "Progression moyenne", value: `${progressAverage}%`, trace: strongestBlock ? `bloc fort: ${strongestBlock.domain}` : "aucune donnée" },
-      { label: "PFMP renseignées", value: pfmpSummary.withCompany, trace: "entreprise saisie" },
-      { label: "Conventions complètes", value: pfmpSummary.fullConvention, trace: "entreprise + parents + lycée" }
+      { label: "Ã‰lÃ¨ves", value: students.length, trace: "effectif de la classe" },
+      { label: "Progression moyenne", value: `${progressAverage}%`, trace: strongestBlock ? `bloc fort: ${strongestBlock.domain}` : "aucune donnÃ©e" },
+      { label: "PFMP renseignÃ©es", value: pfmpSummary.withCompany, trace: "entreprise saisie" },
+      { label: "Conventions complÃ¨tes", value: pfmpSummary.fullConvention, trace: "entreprise + parents + lycÃ©e" }
     ].map(renderStatCard).join("");
 
     renderStatusChart(statusChart, counts);
@@ -4304,15 +4304,15 @@ function initAccountsPage() {
   exportJsonButton?.addEventListener("click", () => {
     const payload = JSON.stringify(app, null, 2);
     downloadTextFile(`ciel-backup-${new Date().toISOString().slice(0, 10)}.json`, payload, "application/json");
-    logAction("Export JSON", "Sauvegarde", "Base téléchargée localement");
+    logAction("Export JSON", "Sauvegarde", "Base tÃ©lÃ©chargÃ©e localement");
     persistAppData();
-    restoreFeedback.textContent = "Sauvegarde JSON téléchargée.";
+    restoreFeedback.textContent = "Sauvegarde JSON tÃ©lÃ©chargÃ©e.";
   });
 
   restoreJsonButton?.addEventListener("click", async () => {
     const file = restoreJsonInput?.files?.[0];
     if (!file) {
-      restoreFeedback.textContent = "Sélectionne d'abord un fichier JSON.";
+      restoreFeedback.textContent = "SÃ©lectionne d'abord un fichier JSON.";
       return;
     }
     try {
@@ -4321,7 +4321,7 @@ function initAccountsPage() {
       replaceAppState(data);
       logAction("Restauration JSON", "Base", file.name);
       persistAppData();
-      restoreFeedback.textContent = "Base restaurée avec succès.";
+      restoreFeedback.textContent = "Base restaurÃ©e avec succÃ¨s.";
       renderAdministration();
     } catch {
       restoreFeedback.textContent = "Le fichier JSON est invalide.";
@@ -4336,8 +4336,8 @@ function initAccountsPage() {
       password: adminPassword.value.trim(),
       previousUsername: adminAccount.username
     });
-    logAction("Compte admin mis à jour", adminUsername.value.trim(), "Identifiant ou mot de passe modifié");
-    feedback.textContent = "Compte administrateur mis à jour.";
+    logAction("Compte admin mis Ã  jour", adminUsername.value.trim(), "Identifiant ou mot de passe modifiÃ©");
+    feedback.textContent = "Compte administrateur mis Ã  jour.";
     renderAdministration();
   });
 
@@ -4345,10 +4345,10 @@ function initAccountsPage() {
     event.preventDefault();
     if (!teacherUsername.value.trim() || !teacherPassword.value.trim()) return;
     const account = addTeacherAccount(teacherUsername.value.trim(), teacherPassword.value.trim(), teacherRole.value);
-    logAction("Compte créé", account.username, `Rôle: ${getRoleLabel(account.role)}`);
+    logAction("Compte crÃ©Ã©", account.username, `RÃ´le: ${getRoleLabel(account.role)}`);
     teacherForm.reset();
     teacherRole.value = "professeur";
-    feedback.textContent = "Compte ajouté.";
+    feedback.textContent = "Compte ajoutÃ©.";
     renderAdministration();
   });
 
@@ -4401,7 +4401,7 @@ function initAccountsPage() {
           <p>${entry.target}${entry.detail ? ` // ${entry.detail}` : ""}</p>
         </div>
       </article>
-    `).join("") : `<article class="summary-card"><h3>Aucune activité</h3><p class="muted-copy">Le journal se remplira automatiquement dès les premières actions.</p></article>`;
+    `).join("") : `<article class="summary-card"><h3>Aucune activitÃ©</h3><p class="muted-copy">Le journal se remplira automatiquement dÃ¨s les premiÃ¨res actions.</p></article>`;
 
     teacherAccountsList.querySelectorAll(".teacher-edit").forEach((button) => {
       button.addEventListener("click", () => {
@@ -4411,7 +4411,7 @@ function initAccountsPage() {
         if (!username) return;
         const password = window.prompt("Nouveau mot de passe du compte", teacher.password);
         if (!password) return;
-        const role = window.prompt(`Nouveau rôle (${getTeacherRoleValues().join(", ")})`, teacher.role);
+        const role = window.prompt(`Nouveau rÃ´le (${getTeacherRoleValues().join(", ")})`, teacher.role);
         if (!role || !getTeacherRoleValues().includes(role.trim())) return;
         updateAccount(teacher.id, {
           username: username.trim(),
@@ -4419,8 +4419,8 @@ function initAccountsPage() {
           role: role.trim(),
           previousUsername: teacher.username
         });
-        logAction("Compte modifié", username.trim(), `Rôle: ${getRoleLabel(role.trim())}`);
-        feedback.textContent = "Compte modifié.";
+        logAction("Compte modifiÃ©", username.trim(), `RÃ´le: ${getRoleLabel(role.trim())}`);
+        feedback.textContent = "Compte modifiÃ©.";
         renderAdministration();
       });
     });
@@ -4429,8 +4429,8 @@ function initAccountsPage() {
       button.addEventListener("click", () => {
         const removed = getAccountById(button.dataset.id);
         removeTeacherAccount(button.dataset.id);
-        if (removed) logAction("Compte supprimé", removed.username, removed.label);
-        feedback.textContent = "Compte supprimé.";
+        if (removed) logAction("Compte supprimÃ©", removed.username, removed.label);
+        feedback.textContent = "Compte supprimÃ©.";
         renderAdministration();
       });
     });
@@ -4466,8 +4466,8 @@ function initBulletinPage() {
     const classId = classSelect.value || app.classes[0]?.id || "";
     const student = getStudentById(studentSelect.value) || getStudentsByClass(classId)[0];
     if (!student) {
-      meta.textContent = "Aucun élève disponible";
-      sheet.innerHTML = `<article class="summary-card"><h3>Aucun bulletin</h3><p class="muted-copy">Ajoute des élèves dans une classe pour générer un bulletin.</p></article>`;
+      meta.textContent = "Aucun Ã©lÃ¨ve disponible";
+      sheet.innerHTML = `<article class="summary-card"><h3>Aucun bulletin</h3><p class="muted-copy">Ajoute des Ã©lÃ¨ves dans une classe pour gÃ©nÃ©rer un bulletin.</p></article>`;
       return;
     }
 
@@ -4475,7 +4475,7 @@ function initBulletinPage() {
     const studentActivities = app.evaluationActivities.filter((activity) => activity.classId === student.classId && activity.evaluations?.[student.id]);
     const pfmpSummary = getStudentPfmpSummary(student.id);
     const blockAverages = getBlockAverages([student]);
-    meta.textContent = `${classItem?.name || ""} // ${getStudentProgress(student)}% validé`;
+    meta.textContent = `${classItem?.name || ""} // ${getStudentProgress(student)}% validÃ©`;
 
     sheet.innerHTML = `
       <div class="bulletin-header">
@@ -4490,14 +4490,14 @@ function initBulletinPage() {
       </div>
 
       <div class="bulletin-kpis">
-        ${renderStatCard({ label: "Progression", value: `${getStudentProgress(student)}%`, trace: "sur l'ensemble du référentiel" })}
-        ${renderStatCard({ label: "TP/TD saisis", value: studentActivities.length, trace: "activités avec notes" })}
-        ${renderStatCard({ label: "PFMP remplies", value: `${pfmpSummary.filled}/6`, trace: "périodes avec entreprise" })}
+        ${renderStatCard({ label: "Progression", value: `${getStudentProgress(student)}%`, trace: "sur l'ensemble du rÃ©fÃ©rentiel" })}
+        ${renderStatCard({ label: "TP/TD saisis", value: studentActivities.length, trace: "activitÃ©s avec notes" })}
+        ${renderStatCard({ label: "PFMP remplies", value: `${pfmpSummary.filled}/6`, trace: "pÃ©riodes avec entreprise" })}
       </div>
 
       <div class="bulletin-grid">
         <section class="summary-card">
-          <h3>Compétences</h3>
+          <h3>CompÃ©tences</h3>
           <div class="bulletin-skills">
             ${skillCatalog.map((skill) => `
               <div class="bulletin-skill-row">
@@ -4512,12 +4512,12 @@ function initBulletinPage() {
         </section>
 
         <section class="summary-card">
-          <h3>Synthèse par bloc</h3>
+          <h3>SynthÃ¨se par bloc</h3>
           <div class="bulletin-pfmp">
             ${blockAverages.map((block) => `
               <article class="period-card">
                 <strong>${block.domain}</strong>
-                <p class="muted-copy">${block.validated}/${block.total} compétences consolidées</p>
+                <p class="muted-copy">${block.validated}/${block.total} compÃ©tences consolidÃ©es</p>
                 <div class="pfmp-kpis">
                   <span class="badge">${block.progress}%</span>
                 </div>
@@ -4534,29 +4534,29 @@ function initBulletinPage() {
             ${studentActivities.length ? studentActivities.map((activity) => `
               <article class="period-card">
                 <strong>${activity.type} // ${activity.title}</strong>
-                <p class="muted-copy">${activity.date || "Date non renseignée"}</p>
+                <p class="muted-copy">${activity.date || "Date non renseignÃ©e"}</p>
                 <p class="muted-copy">${getSkillById(activity.skillId)?.code || ""} ${getSkillById(activity.skillId)?.title || ""}</p>
                 <div class="pfmp-kpis">
                   <span class="badge">${getStudentActivityAverage(activity, student.id)}%</span>
                   <span class="badge">${Object.keys(activity.evaluations?.[student.id] || {}).length} indicateurs</span>
                 </div>
               </article>
-            `).join("") : `<article class="period-card"><strong>Aucune activité</strong><p class="muted-copy">Aucun TP/TD saisi pour cet élève.</p></article>`}
+            `).join("") : `<article class="period-card"><strong>Aucune activitÃ©</strong><p class="muted-copy">Aucun TP/TD saisi pour cet Ã©lÃ¨ve.</p></article>`}
           </div>
         </section>
 
         <section class="summary-card">
-          <h3>État PFMP</h3>
+          <h3>Ã‰tat PFMP</h3>
           <div class="bulletin-pfmp">
             ${PFMP_PERIODS.map((period) => {
               const entry = getPfmpPeriodEntry(student.id, period.id);
               return `
                 <article class="period-card">
                   <strong>${period.label}</strong>
-                  <p class="muted-copy">${entry.companyName || "Entreprise non renseignée"}</p>
+                  <p class="muted-copy">${entry.companyName || "Entreprise non renseignÃ©e"}</p>
                   <div class="pfmp-kpis">
                     <span class="badge">${getPfmpCompletion(entry)} champs</span>
-                    <span class="badge">${entry.visitDate ? "Visite OK" : "Visite à planifier"}</span>
+                    <span class="badge">${entry.visitDate ? "Visite OK" : "Visite Ã  planifier"}</span>
                   </div>
                 </article>
               `;
@@ -4582,19 +4582,19 @@ function getClassAlerts(classId, teacher = "all") {
   const activitiesWithoutMarks = activities.filter((activity) => !Object.keys(activity.evaluations || {}).length);
 
   if (lowProgress.length) {
-    alerts.push({ level: "critical", title: "Élèves en forte difficulté", detail: `${lowProgress.length} élève(s) ont une progression sous 35%.` });
+    alerts.push({ level: "critical", title: "Ã‰lÃ¨ves en forte difficultÃ©", detail: `${lowProgress.length} Ã©lÃ¨ve(s) ont une progression sous 35%.` });
   }
   if (noPfmp.length) {
-    alerts.push({ level: "warning", title: "PFMP non renseignées", detail: `${noPfmp.length} élève(s) n'ont encore aucune entreprise saisie.` });
+    alerts.push({ level: "warning", title: "PFMP non renseignÃ©es", detail: `${noPfmp.length} Ã©lÃ¨ve(s) n'ont encore aucune entreprise saisie.` });
   }
   if (incompletePfmp.length) {
-    alerts.push({ level: "warning", title: "Dossiers PFMP incomplets", detail: `${incompletePfmp.length} élève(s) ont une convention ou un dossier incomplet.` });
+    alerts.push({ level: "warning", title: "Dossiers PFMP incomplets", detail: `${incompletePfmp.length} Ã©lÃ¨ve(s) ont une convention ou un dossier incomplet.` });
   }
   if (unevaluatedSkills.length) {
-    alerts.push({ level: "info", title: "Compétences jamais consolidées", detail: `${unevaluatedSkills.length} compétence(s) contiennent encore du non évalué dans la classe.` });
+    alerts.push({ level: "info", title: "CompÃ©tences jamais consolidÃ©es", detail: `${unevaluatedSkills.length} compÃ©tence(s) contiennent encore du non Ã©valuÃ© dans la classe.` });
   }
   if (activitiesWithoutMarks.length) {
-    alerts.push({ level: "info", title: "Séances sans saisie", detail: `${activitiesWithoutMarks.length} TP/TD existent mais n'ont encore aucune évaluation.` });
+    alerts.push({ level: "info", title: "SÃ©ances sans saisie", detail: `${activitiesWithoutMarks.length} TP/TD existent mais n'ont encore aucune Ã©valuation.` });
   }
   return alerts;
 }
@@ -4611,8 +4611,8 @@ function getPfmpRemediationItems(classId, teacher = "all") {
             level: "warning",
             category: "PFMP",
             title: `${student.name} // ${period.label}`,
-            detail: "Entreprise non renseignée.",
-            action: "Saisir une entreprise ou vérifier le placement."
+            detail: "Entreprise non renseignÃ©e.",
+            action: "Saisir une entreprise ou vÃ©rifier le placement."
           });
         }
         if (entry.companyName && !hasFullConvention(entry)) {
@@ -4620,8 +4620,8 @@ function getPfmpRemediationItems(classId, teacher = "all") {
             level: "critical",
             category: "PFMP",
             title: `${student.name} // ${period.label}`,
-            detail: "Convention incomplète.",
-            action: "Compléter les signatures entreprise, parents et lycée."
+            detail: "Convention incomplÃ¨te.",
+            action: "ComplÃ©ter les signatures entreprise, parents et lycÃ©e."
           });
         }
         if (entry.companyName && !entry.visitDate) {
@@ -4629,8 +4629,8 @@ function getPfmpRemediationItems(classId, teacher = "all") {
             level: "warning",
             category: "PFMP",
             title: `${student.name} // ${period.label}`,
-            detail: "Visite PFMP non planifiée.",
-            action: "Planifier la visite ou consigner un contact téléphonique."
+            detail: "Visite PFMP non planifiÃ©e.",
+            action: "Planifier la visite ou consigner un contact tÃ©lÃ©phonique."
           });
         }
         if (entry.companyName && !hasCompleteFile(entry)) {
@@ -4639,7 +4639,7 @@ function getPfmpRemediationItems(classId, teacher = "all") {
             category: "PFMP",
             title: `${student.name} // ${period.label}`,
             detail: "Dossier PFMP incomplet.",
-            action: "Renseigner rapport, livret et fiche de présence."
+            action: "Renseigner rapport, livret et fiche de prÃ©sence."
           });
         }
         return items;
@@ -4659,7 +4659,7 @@ function getEvaluationRemediationItems(classId, teacher = "all") {
         category: "Evaluation",
         title: student.name,
         detail: `Progression sous 35% (${getStudentProgress(student)}%).`,
-        action: "Prévoir une reprise ciblée, un TP d'appui ou une séance différenciée."
+        action: "PrÃ©voir une reprise ciblÃ©e, un TP d'appui ou une sÃ©ance diffÃ©renciÃ©e."
       });
     });
 
@@ -4671,8 +4671,8 @@ function getEvaluationRemediationItems(classId, teacher = "all") {
           level: "warning",
           category: "Evaluation",
           title: `${activity.type} // ${activity.title}`,
-          detail: "Aucune évaluation saisie.",
-          action: "Compléter la grille avant clôture de la séance."
+          detail: "Aucune Ã©valuation saisie.",
+          action: "ComplÃ©ter la grille avant clÃ´ture de la sÃ©ance."
         });
       }
 
@@ -4683,7 +4683,7 @@ function getEvaluationRemediationItems(classId, teacher = "all") {
             level: "info",
             category: "Evaluation",
             title: `${student.name} // ${activity.title}`,
-            detail: `${missing.length} indicateur(s) non évalué(s).`,
+            detail: `${missing.length} indicateur(s) non Ã©valuÃ©(s).`,
             action: "Finaliser la saisie ou justifier l'absence."
           });
         }
@@ -4697,8 +4697,8 @@ function getEvaluationRemediationItems(classId, teacher = "all") {
         level: "info",
         category: "Evaluation",
         title: `${skill.code} // ${skill.title}`,
-        detail: `${impacted.length} élève(s) encore non évalué(s).`,
-        action: "Prévoir une évaluation dédiée ou rattacher la compétence à un TP/TD."
+        detail: `${impacted.length} Ã©lÃ¨ve(s) encore non Ã©valuÃ©(s).`,
+        action: "PrÃ©voir une Ã©valuation dÃ©diÃ©e ou rattacher la compÃ©tence Ã  un TP/TD."
       });
     }
   });
@@ -4762,7 +4762,7 @@ function getDeadlinesForClass(classId, teacher = "all") {
         notices.push({
           priority: 1,
           title: `${student.name} - ${period.label}`,
-          meta: "Entreprise non renseignée."
+          meta: "Entreprise non renseignÃ©e."
         });
         return;
       }
@@ -4770,21 +4770,21 @@ function getDeadlinesForClass(classId, teacher = "all") {
         notices.push({
           priority: 2,
           title: `${student.name} - ${period.label}`,
-          meta: "Convention incomplète."
+          meta: "Convention incomplÃ¨te."
         });
       }
       if (!entry.visitDate) {
         notices.push({
           priority: 3,
           title: `${student.name} - ${period.label}`,
-          meta: "Visite PFMP à planifier."
+          meta: "Visite PFMP Ã  planifier."
         });
       }
       if (!hasCompleteFile(entry)) {
         notices.push({
           priority: 4,
           title: `${student.name} - ${period.label}`,
-          meta: "Dossier PFMP à finaliser."
+          meta: "Dossier PFMP Ã  finaliser."
         });
       }
     });
@@ -4800,7 +4800,7 @@ function getDeadlinesForClass(classId, teacher = "all") {
       notices.push({
         priority: 5,
         title: `${activity.type} - ${activity.title}`,
-        meta: `${unevaluatedStudents.length} élève(s) encore non évalué(s).`
+        meta: `${unevaluatedStudents.length} Ã©lÃ¨ve(s) encore non Ã©valuÃ©(s).`
       });
     }
   });
@@ -4866,7 +4866,7 @@ function parseSortableDate(value) {
 
 function formatAgendaDate(value) {
   const date = parseSortableDate(value);
-  if (!date) return "À planifier";
+  if (!date) return "Ã€ planifier";
   return date.toLocaleDateString("fr-FR");
 }
 
@@ -4882,7 +4882,7 @@ function getAgendaEntries(classId, teacher = "all") {
       sortKey: parseSortableDate(startDate)?.getTime() || Number.MAX_SAFE_INTEGER,
       title: `${activity.type} - ${activity.title}`,
       meta: `${getActivitySkillLabel(activity)} // ${getClassById(classId)?.name || ""}`,
-      kind: "Séance",
+      kind: "SÃ©ance",
       when: formatActivityDateRange(activity),
       startDate,
       endDate: activity.endDate || startDate
@@ -4896,7 +4896,7 @@ function getAgendaEntries(classId, teacher = "all") {
       entries.push({
         sortKey: parseSortableDate(entry.visitDate)?.getTime() || Number.MAX_SAFE_INTEGER,
         title: `${student.name} - ${period.label}`,
-        meta: `${entry.companyName || "Entreprise non renseignée"} // ${entry.teacher || "Professeur non renseigné"}`,
+        meta: `${entry.companyName || "Entreprise non renseignÃ©e"} // ${entry.teacher || "Professeur non renseignÃ©"}`,
         kind: "Visite PFMP",
         when: formatAgendaDate(entry.visitDate)
       });
@@ -5046,16 +5046,16 @@ function buildActivityPdfHtml(activity, classId) {
   const summaryHtml = `
     <div class="card">
       <p><strong>Classe :</strong> ${escapeHtml(classItem?.name || "")}</p>
-      <p><strong>Compétence :</strong> ${escapeHtml(`${skill?.code || ""} ${skill?.title || ""}`.trim())}</p>
-      <p><strong>Date :</strong> ${escapeHtml(activity.date || "Non renseignée")}</p>
-      <p><strong>Moyenne de séance :</strong> ${getActivityAverage(activity, students)}%</p>
+      <p><strong>CompÃ©tence :</strong> ${escapeHtml(`${skill?.code || ""} ${skill?.title || ""}`.trim())}</p>
+      <p><strong>Date :</strong> ${escapeHtml(activity.date || "Non renseignÃ©e")}</p>
+      <p><strong>Moyenne de sÃ©ance :</strong> ${getActivityAverage(activity, students)}%</p>
     </div>
   `;
   const tableHtml = `
     <table>
       <thead>
         <tr>
-          <th>Élève</th>
+          <th>Ã‰lÃ¨ve</th>
           ${activity.indicators.map((indicator) => `<th>${escapeHtml(indicator.label)}</th>`).join("")}
         </tr>
       </thead>
@@ -5063,7 +5063,7 @@ function buildActivityPdfHtml(activity, classId) {
         ${students.map((student) => `
           <tr>
             <td>${escapeHtml(student.name)}</td>
-            ${activity.indicators.map((indicator) => `<td>${escapeHtml(levelLabels[getActivityIndicatorStatus(activity, student.id, indicator.id)] || "Non évalué")}</td>`).join("")}
+            ${activity.indicators.map((indicator) => `<td>${escapeHtml(levelLabels[getActivityIndicatorStatus(activity, student.id, indicator.id)] || "Non Ã©valuÃ©")}</td>`).join("")}
           </tr>
         `).join("")}
       </tbody>
@@ -5098,28 +5098,28 @@ function buildActivitySynthesisPdfHtml(classId) {
         <td>${escapeHtml(activity.type)}</td>
         <td>${escapeHtml(activity.title)}</td>
         <td>${escapeHtml(skill?.code || "")}</td>
-        <td>${escapeHtml(activity.date || "Non renseignée")}</td>
+        <td>${escapeHtml(activity.date || "Non renseignÃ©e")}</td>
         <td>${activity.indicators.length}</td>
         <td>${getActivityAverage(activity, students)}%</td>
       </tr>
     `;
   }).join("");
   return buildPrintShell(
-    `Synthèse des séances - ${classItem?.name || ""}`,
-    `${activities.length} séance(s) enregistrée(s)`,
+    `SynthÃ¨se des sÃ©ances - ${classItem?.name || ""}`,
+    `${activities.length} sÃ©ance(s) enregistrÃ©e(s)`,
     `
       <table>
         <thead>
           <tr>
             <th>Type</th>
-            <th>Séance</th>
-            <th>Compétence</th>
+            <th>SÃ©ance</th>
+            <th>CompÃ©tence</th>
             <th>Date</th>
             <th>Indicateurs</th>
             <th>Moyenne</th>
           </tr>
         </thead>
-        <tbody>${rows || '<tr><td colspan="6">Aucune séance enregistrée.</td></tr>'}</tbody>
+        <tbody>${rows || '<tr><td colspan="6">Aucune sÃ©ance enregistrÃ©e.</td></tr>'}</tbody>
       </table>
     `
   );
@@ -5132,11 +5132,11 @@ function buildPfmpStudentPdfHtml(student) {
     return `
       <div class="card">
         <h2>${escapeHtml(period.label)}</h2>
-        <p><strong>Entreprise :</strong> ${escapeHtml(entry.companyName || "Non renseignée")}</p>
+        <p><strong>Entreprise :</strong> ${escapeHtml(entry.companyName || "Non renseignÃ©e")}</p>
         <p><strong>Tuteur :</strong> ${escapeHtml(entry.tutorName || "-")}</p>
-        <p><strong>Professeur référent :</strong> ${escapeHtml(entry.teacher || "-")}</p>
-        <p><strong>Visite :</strong> ${escapeHtml(entry.visitDate || "À planifier")}</p>
-        <p><strong>Convention :</strong> ${hasFullConvention(entry) ? "Complète" : "Incomplète"}</p>
+        <p><strong>Professeur rÃ©fÃ©rent :</strong> ${escapeHtml(entry.teacher || "-")}</p>
+        <p><strong>Visite :</strong> ${escapeHtml(entry.visitDate || "Ã€ planifier")}</p>
+        <p><strong>Convention :</strong> ${hasFullConvention(entry) ? "ComplÃ¨te" : "IncomplÃ¨te"}</p>
         <p><strong>Dossier final :</strong> ${hasCompleteFile(entry) ? "Complet" : "Incomplet"}</p>
         <p><strong>Commentaire :</strong> ${escapeHtml(entry.comment || "-")}</p>
       </div>
@@ -5168,20 +5168,20 @@ function buildPfmpClassPdfHtml(classId) {
     `;
   }).join("");
   return buildPrintShell(
-    `Synthèse PFMP - ${classItem?.name || ""}`,
-    `${students.length} élève(s)`,
+    `SynthÃ¨se PFMP - ${classItem?.name || ""}`,
+    `${students.length} Ã©lÃ¨ve(s)`,
     `
       <table>
         <thead>
           <tr>
-            <th>Élève</th>
-            <th>Périodes renseignées</th>
-            <th>Conventions complètes</th>
-            <th>Visites planifiées</th>
+            <th>Ã‰lÃ¨ve</th>
+            <th>PÃ©riodes renseignÃ©es</th>
+            <th>Conventions complÃ¨tes</th>
+            <th>Visites planifiÃ©es</th>
             <th>Dossiers complets</th>
           </tr>
         </thead>
-        <tbody>${rows || '<tr><td colspan="5">Aucun élève.</td></tr>'}</tbody>
+        <tbody>${rows || '<tr><td colspan="5">Aucun Ã©lÃ¨ve.</td></tr>'}</tbody>
       </table>
     `
   );
@@ -5250,7 +5250,7 @@ function initDashboardPage() {
     app.pfmpRecords = initial.pfmpRecords;
     app.evaluationActivities = initial.evaluationActivities;
     app.activityLog = initial.activityLog;
-    logAction("Réinitialisation", "Application", "Jeu de données par défaut restauré");
+    logAction("RÃ©initialisation", "Application", "Jeu de donnÃ©es par dÃ©faut restaurÃ©");
     persistAppData();
     populateClassSelect(classSelect);
     renderDashboardPage();
@@ -5268,12 +5268,12 @@ function initDashboardPage() {
     const pfmpSummary = getPfmpSummary(students);
     const exportSkillsButton = document.querySelector("#export-skills-button");
 
-    classMeta.textContent = classItem ? `${classItem.name} // ${classItem.year} // ${students.length} élèves` : "Aucune classe";
+    classMeta.textContent = classItem ? `${classItem.name} // ${classItem.year} // ${students.length} Ã©lÃ¨ves` : "Aucune classe";
     statsGrid.innerHTML = [
-      { label: "Élèves", value: students.length, trace: "effectif de la classe" },
-      { label: "Progression moyenne", value: `${progressAverage}%`, trace: strongestBlock ? `bloc fort: ${strongestBlock.domain}` : "aucune donnée" },
-      { label: "PFMP renseignées", value: pfmpSummary.withCompany, trace: "entreprise saisie" },
-      { label: "Conventions complètes", value: pfmpSummary.fullConvention, trace: "entreprise + parents + lycée" }
+      { label: "Ã‰lÃ¨ves", value: students.length, trace: "effectif de la classe" },
+      { label: "Progression moyenne", value: `${progressAverage}%`, trace: strongestBlock ? `bloc fort: ${strongestBlock.domain}` : "aucune donnÃ©e" },
+      { label: "PFMP renseignÃ©es", value: pfmpSummary.withCompany, trace: "entreprise saisie" },
+      { label: "Conventions complÃ¨tes", value: pfmpSummary.fullConvention, trace: "entreprise + parents + lycÃ©e" }
     ].map(renderStatCard).join("");
 
     renderStatusChart(statusChart, counts);
@@ -5290,7 +5290,7 @@ function initDashboardPage() {
           <h3>${alert.title}</h3>
           <p class="muted-copy">${alert.detail}</p>
         </article>
-      `).join("") : `<article class="summary-card"><h3>Aucune alerte</h3><p class="muted-copy">Aucune alerte pour ce filtre sur la classe sélectionnée.</p></article>`;
+      `).join("") : `<article class="summary-card"><h3>Aucune alerte</h3><p class="muted-copy">Aucune alerte pour ce filtre sur la classe sÃ©lectionnÃ©e.</p></article>`;
     }
 
     exportSkillsButton.onclick = () => exportSkillsWorkbook(classItem, students);
@@ -5333,7 +5333,7 @@ function initClassesPage() {
     const note = classNoteInput.value.trim();
     if (!name || !year || !note) return;
     app.classes.push({ id: slugify(`${name}-${Date.now()}`), name, year, note });
-    logAction("Classe créée", name, `${year} // ${note}`);
+    logAction("Classe crÃ©Ã©e", name, `${year} // ${note}`);
     persistAppData();
     classForm.reset();
     renderClassesPage();
@@ -5348,7 +5348,7 @@ function initClassesPage() {
     const id = slugify(`${name}-${Date.now()}`);
     app.students.push({ id, name, classId, skills: buildSkillState({}) });
     app.pfmpRecords[id] = hydratePfmpRecord({}, { id, classId }, app.classes);
-    logAction("Élève ajouté", name, getClassById(classId)?.name || classId);
+    logAction("Ã‰lÃ¨ve ajoutÃ©", name, getClassById(classId)?.name || classId);
     persistAppData();
     studentForm.reset();
     renderClassesPage();
@@ -5359,14 +5359,14 @@ function initClassesPage() {
     const file = csvInput.files?.[0];
     const classId = importClassInput.value;
     if (!file || !classId) {
-      importFeedback.textContent = "Sélectionne un fichier CSV et une classe cible.";
+      importFeedback.textContent = "SÃ©lectionne un fichier CSV et une classe cible.";
       return;
     }
     const text = await file.text();
     const rows = parseCsv(text);
     const names = extractStudentNames(rows);
     if (!names.length) {
-      importFeedback.textContent = "Aucun nom d'élève détecté dans le CSV.";
+      importFeedback.textContent = "Aucun nom d'Ã©lÃ¨ve dÃ©tectÃ© dans le CSV.";
       return;
     }
     const existing = new Set(getStudentsByClass(classId).map((student) => student.name.trim().toLowerCase()));
@@ -5384,9 +5384,9 @@ function initClassesPage() {
       existing.add(key);
       imported += 1;
     });
-    if (imported) logAction("Import CSV", getClassById(classId)?.name || classId, `${imported} élève(s) ajoutés`);
+    if (imported) logAction("Import CSV", getClassById(classId)?.name || classId, `${imported} Ã©lÃ¨ve(s) ajoutÃ©s`);
     persistAppData();
-    importFeedback.textContent = `${imported} élève(s) importé(s), ${skipped} ignoré(s).`;
+    importFeedback.textContent = `${imported} Ã©lÃ¨ve(s) importÃ©(s), ${skipped} ignorÃ©(s).`;
     csvInput.value = "";
     renderClassesPage();
   });
@@ -5410,12 +5410,12 @@ function initClassesPage() {
         <article class="class-card">
           <div class="class-card-head">
             <h3>${classItem.name}</h3>
-            <span class="badge accent">${students.length} élèves</span>
+            <span class="badge accent">${students.length} Ã©lÃ¨ves</span>
           </div>
           <p>${classItem.year}</p>
           <p>${classItem.note}</p>
           <div class="class-meta">
-            <span class="badge">${getClassProgress(classItem.id)}% validé</span>
+            <span class="badge">${getClassProgress(classItem.id)}% validÃ©</span>
             <span class="badge">${pfmpSummary.withCompany} PFMP saisies</span>
           </div>
           <div class="student-badges">
@@ -5434,11 +5434,11 @@ function initClassesPage() {
           <div>
             <strong>${student.name}</strong>
             <p>${getClassById(student.classId)?.name || "Sans classe"}</p>
-            <p>${filledPeriods}/6 PFMP renseignées</p>
+            <p>${filledPeriods}/6 PFMP renseignÃ©es</p>
           </div>
           <div class="student-badges">
-            <span class="badge">${getStudentProgress(student)}% validé</span>
-            <span class="badge">${filledPeriods}/6 périodes</span>
+            <span class="badge">${getStudentProgress(student)}% validÃ©</span>
+            <span class="badge">${filledPeriods}/6 pÃ©riodes</span>
             <button class="ghost-button student-edit" type="button" data-id="${student.id}"${canManageStudents ? "" : " disabled"}>Modifier</button>
             <button class="ghost-button student-delete" type="button" data-id="${student.id}"${canManageStudents ? "" : " disabled"}>Supprimer</button>
           </div>
@@ -5452,14 +5452,14 @@ function initClassesPage() {
         if (!classItem || !canManageStudents) return;
         const name = window.prompt("Nouveau nom de la classe", classItem.name);
         if (!name) return;
-        const year = window.prompt("Nouvelle année", classItem.year);
+        const year = window.prompt("Nouvelle annÃ©e", classItem.year);
         if (!year) return;
-        const note = window.prompt("Nouvelle référence", classItem.note);
+        const note = window.prompt("Nouvelle rÃ©fÃ©rence", classItem.note);
         if (!note) return;
         classItem.name = name.trim();
         classItem.year = year.trim();
         classItem.note = note.trim();
-        logAction("Classe modifiée", classItem.name, `${classItem.year} // ${classItem.note}`);
+        logAction("Classe modifiÃ©e", classItem.name, `${classItem.year} // ${classItem.note}`);
         persistAppData();
         renderClassesPage();
       });
@@ -5477,14 +5477,14 @@ function initClassesPage() {
       button.addEventListener("click", () => {
         const student = getStudentById(button.dataset.id);
         if (!student || !canManageStudents) return;
-        const name = window.prompt("Nouveau nom de l'élève", student.name);
+        const name = window.prompt("Nouveau nom de l'Ã©lÃ¨ve", student.name);
         if (!name) return;
         const classId = window.prompt("Nouvelle classe (id)", student.classId);
         if (!classId || !getClassById(classId.trim())) return;
         student.name = name.trim();
         student.classId = classId.trim();
         app.pfmpRecords[student.id] = hydratePfmpRecord(app.pfmpRecords[student.id] || {}, student, app.classes);
-        logAction("Élève modifié", student.name, getClassById(student.classId)?.name || student.classId);
+        logAction("Ã‰lÃ¨ve modifiÃ©", student.name, getClassById(student.classId)?.name || student.classId);
         persistAppData();
         renderClassesPage();
       });
@@ -5555,8 +5555,8 @@ function initBulletinPage() {
     const classId = classSelect.value || app.classes[0]?.id || "";
     const student = getStudentById(studentSelect.value) || getStudentsByClass(classId)[0];
     if (!student) {
-      meta.textContent = "Aucun élève disponible";
-      sheet.innerHTML = `<article class="summary-card"><h3>Aucun bulletin</h3><p class="muted-copy">Ajoute des élèves dans une classe pour générer un bulletin.</p></article>`;
+      meta.textContent = "Aucun Ã©lÃ¨ve disponible";
+      sheet.innerHTML = `<article class="summary-card"><h3>Aucun bulletin</h3><p class="muted-copy">Ajoute des Ã©lÃ¨ves dans une classe pour gÃ©nÃ©rer un bulletin.</p></article>`;
       return;
     }
 
@@ -5564,7 +5564,7 @@ function initBulletinPage() {
     const studentActivities = app.evaluationActivities.filter((activity) => activity.classId === student.classId && activity.evaluations?.[student.id]);
     const pfmpSummary = getStudentPfmpSummary(student.id);
     const blockAverages = getBlockAverages([student]);
-    meta.textContent = `${classItem?.name || ""} // ${getStudentProgress(student)}% validé`;
+    meta.textContent = `${classItem?.name || ""} // ${getStudentProgress(student)}% validÃ©`;
 
     sheet.innerHTML = buildBulletinMarkup(student, classItem, studentActivities, pfmpSummary, blockAverages);
   }
@@ -5614,14 +5614,14 @@ function buildBulletinMarkup(student, classItem, studentActivities, pfmpSummary,
     </div>
 
     <div class="bulletin-kpis">
-      ${renderStatCard({ label: "Progression", value: `${getStudentProgress(student)}%`, trace: "sur l'ensemble du référentiel" })}
-      ${renderStatCard({ label: "TP/TD saisis", value: studentActivities.length, trace: "activités avec notes" })}
-      ${renderStatCard({ label: "PFMP remplies", value: `${pfmpSummary.filled}/6`, trace: "périodes avec entreprise" })}
+      ${renderStatCard({ label: "Progression", value: `${getStudentProgress(student)}%`, trace: "sur l'ensemble du rÃ©fÃ©rentiel" })}
+      ${renderStatCard({ label: "TP/TD saisis", value: studentActivities.length, trace: "activitÃ©s avec notes" })}
+      ${renderStatCard({ label: "PFMP remplies", value: `${pfmpSummary.filled}/6`, trace: "pÃ©riodes avec entreprise" })}
     </div>
 
     <div class="bulletin-grid">
       <section class="summary-card">
-        <h3>Compétences</h3>
+        <h3>CompÃ©tences</h3>
         <div class="bulletin-skills">
           ${skillCatalog.map((skill) => `
             <div class="bulletin-skill-row">
@@ -5636,12 +5636,12 @@ function buildBulletinMarkup(student, classItem, studentActivities, pfmpSummary,
       </section>
 
       <section class="summary-card">
-        <h3>Synthèse par bloc</h3>
+        <h3>SynthÃ¨se par bloc</h3>
         <div class="bulletin-pfmp">
           ${blockAverages.map((block) => `
             <article class="period-card">
               <strong>${block.domain}</strong>
-              <p class="muted-copy">${block.validated}/${block.total} compétences consolidées</p>
+              <p class="muted-copy">${block.validated}/${block.total} compÃ©tences consolidÃ©es</p>
               <div class="pfmp-kpis">
                 <span class="badge">${block.progress}%</span>
               </div>
@@ -5658,29 +5658,29 @@ function buildBulletinMarkup(student, classItem, studentActivities, pfmpSummary,
           ${studentActivities.length ? studentActivities.map((activity) => `
             <article class="period-card">
               <strong>${activity.type} // ${activity.title}</strong>
-              <p class="muted-copy">${activity.date || "Date non renseignée"}</p>
+              <p class="muted-copy">${activity.date || "Date non renseignÃ©e"}</p>
               <p class="muted-copy">${getSkillById(activity.skillId)?.code || ""} ${getSkillById(activity.skillId)?.title || ""}</p>
               <div class="pfmp-kpis">
                 <span class="badge">${getStudentActivityAverage(activity, student.id)}%</span>
                 <span class="badge">${Object.keys(activity.evaluations?.[student.id] || {}).length} indicateurs</span>
               </div>
             </article>
-          `).join("") : `<article class="period-card"><strong>Aucune activité</strong><p class="muted-copy">Aucun TP/TD saisi pour cet élève.</p></article>`}
+          `).join("") : `<article class="period-card"><strong>Aucune activitÃ©</strong><p class="muted-copy">Aucun TP/TD saisi pour cet Ã©lÃ¨ve.</p></article>`}
         </div>
       </section>
 
       <section class="summary-card">
-        <h3>État PFMP</h3>
+        <h3>Ã‰tat PFMP</h3>
         <div class="bulletin-pfmp">
           ${PFMP_PERIODS.map((period) => {
             const entry = getPfmpPeriodEntry(student.id, period.id);
             return `
               <article class="period-card">
                 <strong>${period.label}</strong>
-                <p class="muted-copy">${entry.companyName || "Entreprise non renseignée"}</p>
+                <p class="muted-copy">${entry.companyName || "Entreprise non renseignÃ©e"}</p>
                 <div class="pfmp-kpis">
                   <span class="badge">${getPfmpCompletion(entry)} champs</span>
-                  <span class="badge">${entry.visitDate ? "Visite OK" : "Visite à planifier"}</span>
+                  <span class="badge">${entry.visitDate ? "Visite OK" : "Visite Ã  planifier"}</span>
                 </div>
               </article>
             `;
@@ -5712,8 +5712,8 @@ function buildPrintableBulletinHTML(student, classItem, studentActivities, pfmpS
       </style>
     </head>
     <body>
-      <h1>Bulletin de compétences</h1>
-      <p class="meta">${student.name} // ${classItem?.name || ""} // ${classItem?.year || ""} // Édité le ${new Date().toLocaleDateString("fr-FR")}</p>
+      <h1>Bulletin de compÃ©tences</h1>
+      <p class="meta">${student.name} // ${classItem?.name || ""} // ${classItem?.year || ""} // Ã‰ditÃ© le ${new Date().toLocaleDateString("fr-FR")}</p>
       <div class="kpis">
         <div class="kpi"><strong>Progression</strong><div>${getStudentProgress(student)}%</div></div>
         <div class="kpi"><strong>TP/TD saisis</strong><div>${studentActivities.length}</div></div>
@@ -5721,7 +5721,7 @@ function buildPrintableBulletinHTML(student, classItem, studentActivities, pfmpS
       </div>
       <div class="grid">
         <section class="card">
-          <h2>Compétences</h2>
+          <h2>CompÃ©tences</h2>
           ${skillCatalog.map((skill) => `<div class="row"><div><strong>${skill.code}</strong> ${skill.title}</div><div class="pill">${levelLabels[student.skills[skill.id]]}</div></div>`).join("")}
         </section>
         <section class="card">
@@ -5731,14 +5731,14 @@ function buildPrintableBulletinHTML(student, classItem, studentActivities, pfmpS
       </div>
       <div class="grid">
         <section class="card">
-          <h2>Activités</h2>
-          ${studentActivities.length ? studentActivities.map((activity) => `<div class="row"><div><strong>${activity.type}</strong> ${activity.title}<br><span class="meta">${activity.date || "Date non renseignée"}</span></div><div>${getStudentActivityAverage(activity, student.id)}%</div></div>`).join("") : `<p>Aucune activité.</p>`}
+          <h2>ActivitÃ©s</h2>
+          ${studentActivities.length ? studentActivities.map((activity) => `<div class="row"><div><strong>${activity.type}</strong> ${activity.title}<br><span class="meta">${activity.date || "Date non renseignÃ©e"}</span></div><div>${getStudentActivityAverage(activity, student.id)}%</div></div>`).join("") : `<p>Aucune activitÃ©.</p>`}
         </section>
         <section class="card">
           <h2>PFMP</h2>
           ${PFMP_PERIODS.map((period) => {
             const entry = getPfmpPeriodEntry(student.id, period.id);
-            return `<div class="row"><div><strong>${period.label}</strong><br><span class="meta">${entry.companyName || "Entreprise non renseignée"}</span></div><div>${entry.visitDate ? "Visite OK" : "À planifier"}</div></div>`;
+            return `<div class="row"><div><strong>${period.label}</strong><br><span class="meta">${entry.companyName || "Entreprise non renseignÃ©e"}</span></div><div>${entry.visitDate ? "Visite OK" : "Ã€ planifier"}</div></div>`;
           }).join("")}
         </section>
       </div>
@@ -5755,7 +5755,7 @@ function deleteClass(classId) {
   app.students = app.students.filter((student) => student.classId !== classId);
   studentIds.forEach((studentId) => { delete app.pfmpRecords[studentId]; });
   app.evaluationActivities = app.evaluationActivities.filter((activity) => activity.classId !== classId);
-  logAction("Classe supprimée", classItem.name, `${studentIds.length} élève(s) retiré(s)`);
+  logAction("Classe supprimÃ©e", classItem.name, `${studentIds.length} Ã©lÃ¨ve(s) retirÃ©(s)`);
   persistAppData();
 }
 
@@ -5767,7 +5767,7 @@ function deleteStudent(studentId) {
   app.evaluationActivities.forEach((activity) => {
     if (activity.evaluations?.[studentId]) delete activity.evaluations[studentId];
   });
-  logAction("Élève supprimé", student.name, getClassById(student.classId)?.name || student.classId);
+  logAction("Ã‰lÃ¨ve supprimÃ©", student.name, getClassById(student.classId)?.name || student.classId);
   persistAppData();
 }
 
@@ -5797,7 +5797,7 @@ function initClassesPage() {
     const note = classNoteInput.value.trim();
     if (!name || !year || !note) return;
     app.classes.push({ id: slugify(`${name}-${Date.now()}`), name, year, note });
-    logAction("Classe créée", name, `${year} // ${note}`);
+    logAction("Classe crÃ©Ã©e", name, `${year} // ${note}`);
     persistAppData();
     classForm.reset();
     renderClassesPage();
@@ -5812,7 +5812,7 @@ function initClassesPage() {
     const id = slugify(`${name}-${Date.now()}`);
     app.students.push({ id, name, classId, skills: buildSkillState({}) });
     app.pfmpRecords[id] = hydratePfmpRecord({}, { id, classId }, app.classes);
-    logAction("Élève ajouté", name, getClassById(classId)?.name || classId);
+    logAction("Ã‰lÃ¨ve ajoutÃ©", name, getClassById(classId)?.name || classId);
     persistAppData();
     studentForm.reset();
     renderClassesPage();
@@ -5823,14 +5823,14 @@ function initClassesPage() {
     const file = csvInput.files?.[0];
     const classId = importClassInput.value;
     if (!file || !classId) {
-      importFeedback.textContent = "Sélectionne un fichier CSV et une classe cible.";
+      importFeedback.textContent = "SÃ©lectionne un fichier CSV et une classe cible.";
       return;
     }
     const text = await file.text();
     const rows = parseCsv(text);
     const names = extractStudentNames(rows);
     if (!names.length) {
-      importFeedback.textContent = "Aucun nom d'élève détecté dans le CSV.";
+      importFeedback.textContent = "Aucun nom d'Ã©lÃ¨ve dÃ©tectÃ© dans le CSV.";
       return;
     }
     const existing = new Set(getStudentsByClass(classId).map((student) => student.name.trim().toLowerCase()));
@@ -5848,9 +5848,9 @@ function initClassesPage() {
       existing.add(key);
       imported += 1;
     });
-    if (imported) logAction("Import CSV", getClassById(classId)?.name || classId, `${imported} élève(s) ajoutés`);
+    if (imported) logAction("Import CSV", getClassById(classId)?.name || classId, `${imported} Ã©lÃ¨ve(s) ajoutÃ©s`);
     persistAppData();
-    importFeedback.textContent = `${imported} élève(s) importé(s), ${skipped} ignoré(s).`;
+    importFeedback.textContent = `${imported} Ã©lÃ¨ve(s) importÃ©(s), ${skipped} ignorÃ©(s).`;
     csvInput.value = "";
     renderClassesPage();
   });
@@ -5874,12 +5874,12 @@ function initClassesPage() {
         <article class="class-card">
           <div class="class-card-head">
             <h3>${classItem.name}</h3>
-            <span class="badge accent">${students.length} élèves</span>
+            <span class="badge accent">${students.length} Ã©lÃ¨ves</span>
           </div>
           <p>${classItem.year}</p>
           <p>${classItem.note}</p>
           <div class="class-meta">
-            <span class="badge">${getClassProgress(classItem.id)}% validé</span>
+            <span class="badge">${getClassProgress(classItem.id)}% validÃ©</span>
             <span class="badge">${pfmpSummary.withCompany} PFMP saisies</span>
           </div>
         </article>
@@ -5894,11 +5894,11 @@ function initClassesPage() {
           <div>
             <strong>${student.name}</strong>
             <p>${getClassById(student.classId)?.name || "Sans classe"}</p>
-            <p>${filledPeriods}/6 PFMP renseignées</p>
+            <p>${filledPeriods}/6 PFMP renseignÃ©es</p>
           </div>
           <div class="student-badges">
-            <span class="badge">${getStudentProgress(student)}% validé</span>
-            <span class="badge">${filledPeriods}/6 périodes</span>
+            <span class="badge">${getStudentProgress(student)}% validÃ©</span>
+            <span class="badge">${filledPeriods}/6 pÃ©riodes</span>
           </div>
         </article>
       `;
@@ -5948,7 +5948,7 @@ function initEvaluationsPage() {
       .filter(Boolean)
       .map((label, index) => ({ id: slugify(`${activityTitle.value}-${index}-${Date.now()}`), label }));
     if (!activityTitle.value.trim() || !activityClass.value || !activitySkill.value || !indicators.length) {
-      activityFeedback.textContent = "Renseigne un titre, une classe, une compétence et au moins un indicateur.";
+      activityFeedback.textContent = "Renseigne un titre, une classe, une compÃ©tence et au moins un indicateur.";
       return;
     }
     const activity = {
@@ -5962,10 +5962,10 @@ function initEvaluationsPage() {
       evaluations: {}
     };
     app.evaluationActivities.push(activity);
-    logAction("Séance créée", activity.title, `${activity.type} // ${getClassById(activity.classId)?.name || activity.classId}`);
+    logAction("SÃ©ance crÃ©Ã©e", activity.title, `${activity.type} // ${getClassById(activity.classId)?.name || activity.classId}`);
     persistAppData();
     activityForm.reset();
-    activityFeedback.textContent = "Séance créée.";
+    activityFeedback.textContent = "SÃ©ance crÃ©Ã©e.";
     populateClassSelect(activityClass);
     populateSkillSelect(activitySkill);
     sessionClassSelect.value = activity.classId;
@@ -6015,7 +6015,7 @@ function initEvaluationsPage() {
   function renderActivitySummary(activity, classId) {
     const classItem = getClassById(classId);
     if (!activity) {
-      activitySummary.innerHTML = `<article class="summary-card"><h3>Aucune séance</h3><p class="muted-copy">Crée un TP ou un TD pour commencer.</p></article>`;
+      activitySummary.innerHTML = `<article class="summary-card"><h3>Aucune sÃ©ance</h3><p class="muted-copy">CrÃ©e un TP ou un TD pour commencer.</p></article>`;
       return;
     }
     const skill = getSkillById(activity.skillId);
@@ -6023,7 +6023,7 @@ function initEvaluationsPage() {
       <article class="summary-card">
         <h3>${activity.type} // ${activity.title}</h3>
         <p class="muted-copy">${classItem?.name || ""} // ${skill?.code || ""} ${skill?.title || ""}</p>
-        <p class="muted-copy">${activity.date || "Date non renseignée"} // ${activity.indicators.length} indicateur(s)</p>
+        <p class="muted-copy">${activity.date || "Date non renseignÃ©e"} // ${activity.indicators.length} indicateur(s)</p>
       </article>
     `;
   }
@@ -6037,12 +6037,12 @@ function initEvaluationsPage() {
     activityMatrix.classList.add("activity-grid");
     activityMatrix.innerHTML = `
       <div class="matrix-header activity-header">
-        <strong>Élève</strong>
+        <strong>Ã‰lÃ¨ve</strong>
         ${activity.indicators.map((indicator) => `<strong>${indicator.label}</strong>`).join("")}
       </div>
       ${students.map((student) => `
         <div class="matrix-row activity-row">
-          <div><strong>${student.name}</strong><p class="muted-copy">${getStudentProgress(student)}% validé</p></div>
+          <div><strong>${student.name}</strong><p class="muted-copy">${getStudentProgress(student)}% validÃ©</p></div>
           ${activity.indicators.map((indicator) => `
             <label class="field">
               <select data-activity-id="${activity.id}" data-student-id="${student.id}" data-indicator-id="${indicator.id}" class="activity-status-select"${canEditEvaluations ? "" : " disabled"}>
@@ -6085,8 +6085,8 @@ function initEvaluationsPage() {
     activityReport.innerHTML = `
       <article class="summary-card">
         <h3>Bilan global</h3>
-        <p class="muted-copy">Moyenne de la séance: ${activityAverage}%</p>
-        <p class="muted-copy">${students.length} élève(s) évalué(s)</p>
+        <p class="muted-copy">Moyenne de la sÃ©ance: ${activityAverage}%</p>
+        <p class="muted-copy">${students.length} Ã©lÃ¨ve(s) Ã©valuÃ©(s)</p>
       </article>
       ${indicatorCards}
     `;
@@ -6102,7 +6102,7 @@ function initEvaluationsPage() {
           <div>
             <strong>${activity.type} // ${activity.title}</strong>
             <p>${skill?.code || ""} ${skill?.title || ""}</p>
-            <p>${activity.date || "Date non renseignée"}</p>
+            <p>${activity.date || "Date non renseignÃ©e"}</p>
           </div>
           <div class="student-badges">
             <span class="badge">${activity.indicators.length} indicateurs</span>
@@ -6110,17 +6110,17 @@ function initEvaluationsPage() {
           </div>
         </article>
       `;
-    }).join("") : `<article class="summary-card"><h3>Aucune synthèse</h3><p class="muted-copy">Aucun TP/TD enregistré pour cette classe.</p></article>`;
+    }).join("") : `<article class="summary-card"><h3>Aucune synthÃ¨se</h3><p class="muted-copy">Aucun TP/TD enregistrÃ© pour cette classe.</p></article>`;
   }
 
   function renderStudentSheet() {
     const student = getStudentById(evalStudentSelect.value) || getStudentsByClass(evalClassSelect.value)[0];
     if (!student) {
       studentSkillsEditor.innerHTML = "";
-      studentSheetMeta.textContent = "Aucun élève disponible";
+      studentSheetMeta.textContent = "Aucun Ã©lÃ¨ve disponible";
       return;
     }
-    studentSheetMeta.textContent = `${getClassById(student.classId)?.name || ""} // ${getStudentProgress(student)}% validé`;
+    studentSheetMeta.textContent = `${getClassById(student.classId)?.name || ""} // ${getStudentProgress(student)}% validÃ©`;
     studentSkillsEditor.innerHTML = "";
     skillCatalog.forEach((skill) => {
       const fragment = skillRowTemplate.content.cloneNode(true);
@@ -6134,7 +6134,7 @@ function initEvaluationsPage() {
       select.addEventListener("change", (event) => {
         if (!canEditSkills) return;
         student.skills[skill.id] = event.target.value;
-        logAction("Compétence modifiée", student.name, `${skill.code} // ${levelLabels[event.target.value]}`);
+        logAction("CompÃ©tence modifiÃ©e", student.name, `${skill.code} // ${levelLabels[event.target.value]}`);
         persistAppData();
         renderEvaluationPage();
       });
@@ -6197,7 +6197,7 @@ function initPfmpPage() {
     if (!student) return;
     const record = getPfmpRecord(student.id);
     record.periods[periodSelect.value] = hydratePfmpEntry(Object.fromEntries(Object.entries(inputs).map(([key, input]) => [key, input.value.trim()])));
-    logAction("PFMP mise à jour", student.name, PFMP_PERIODS.find((period) => period.id === periodSelect.value)?.label || periodSelect.value);
+    logAction("PFMP mise Ã  jour", student.name, PFMP_PERIODS.find((period) => period.id === periodSelect.value)?.label || periodSelect.value);
     persistAppData();
     renderPfmpPage();
   });
@@ -6215,10 +6215,10 @@ function initPfmpPage() {
     const summary = getPfmpSummary(students);
 
     summaryCards.innerHTML = [
-      { label: "PFMP renseignées", value: summary.withCompany, trace: "entreprise saisie" },
-      { label: "Conventions complètes", value: summary.fullConvention, trace: "3 signatures" },
-      { label: "Visites planifiées", value: summary.visitPlanned, trace: "date de visite saisie" },
-      { label: "Dossiers complets", value: summary.completeFile, trace: "rapport + livret + présence" }
+      { label: "PFMP renseignÃ©es", value: summary.withCompany, trace: "entreprise saisie" },
+      { label: "Conventions complÃ¨tes", value: summary.fullConvention, trace: "3 signatures" },
+      { label: "Visites planifiÃ©es", value: summary.visitPlanned, trace: "date de visite saisie" },
+      { label: "Dossiers complets", value: summary.completeFile, trace: "rapport + livret + prÃ©sence" }
     ].map(renderStatCard).join("");
 
     const selectedRecord = selectedStudent ? getPfmpPeriodEntry(selectedStudent.id, periodSelect.value) : createEmptyPfmpEntry();
@@ -6229,10 +6229,10 @@ function initPfmpPage() {
       return `
         <article class="period-card">
           <strong>${period.label}</strong>
-          <p class="muted-copy">${entry.companyName || "Entreprise non renseignée"}</p>
+          <p class="muted-copy">${entry.companyName || "Entreprise non renseignÃ©e"}</p>
           <div class="pfmp-kpis">
             <span class="badge">${getPfmpCompletion(entry)} champs</span>
-            <span class="badge">${entry.visitDate ? "Visite OK" : "Visite à planifier"}</span>
+            <span class="badge">${entry.visitDate ? "Visite OK" : "Visite Ã  planifier"}</span>
           </div>
         </article>
       `;
@@ -6244,11 +6244,11 @@ function initPfmpPage() {
         <article class="directory-row compact">
           <div>
             <strong>${student.name}</strong>
-            <p>${filledPeriods}/6 PFMP renseignées</p>
-            <p>${PFMP_PERIODS.filter((period) => getPfmpPeriodEntry(student.id, period.id).visitDate).length} visites planifiées</p>
+            <p>${filledPeriods}/6 PFMP renseignÃ©es</p>
+            <p>${PFMP_PERIODS.filter((period) => getPfmpPeriodEntry(student.id, period.id).visitDate).length} visites planifiÃ©es</p>
           </div>
           <div class="pfmp-kpis">
-            <span class="badge">${filledPeriods}/6 périodes</span>
+            <span class="badge">${filledPeriods}/6 pÃ©riodes</span>
             <span class="badge">${PFMP_PERIODS.filter((period) => hasFullConvention(getPfmpPeriodEntry(student.id, period.id))).length}/6 conventions</span>
             <span class="badge">${PFMP_PERIODS.filter((period) => hasCompleteFile(getPfmpPeriodEntry(student.id, period.id))).length}/6 dossiers</span>
           </div>
@@ -6411,7 +6411,7 @@ function upsertPfmpDropdown(nav) {
   const links = app.classes.flatMap((classItem) => ([
     { type: "label", label: getClassNavLabel(classItem) },
     { href: `pfmp.html?class=${encodeURIComponent(classItem.id)}`, label: "Infos PFMP" },
-    { href: `pfmp-livret.html?class=${encodeURIComponent(classItem.id)}`, label: "Livret d'évaluation" }
+    { href: `pfmp-livret.html?class=${encodeURIComponent(classItem.id)}`, label: "Livret d'Ã©valuation" }
   ]));
   upsertStaticDropdown(nav, "PFMP", links, page === "pfmp" || page === "pfmp_livret", "pfmp-menu");
 }
@@ -6426,7 +6426,7 @@ function upsertStaticDropdown(nav, label, links, isActive, key = label) {
   }
   dropdown.classList.toggle("active", isActive);
   dropdown.innerHTML = `
-    <summary class="nav-tab nav-dropdown-toggle">${label} ▾</summary>
+    <summary class="nav-tab nav-dropdown-toggle">${label} â–¾</summary>
     <div class="nav-dropdown-menu">
       ${links.map((item) => item.type === "label"
         ? `<span class="nav-dropdown-group">${item.label}</span>`
@@ -6505,7 +6505,7 @@ function initDashboardPage() {
     app.pfmpRecords = initial.pfmpRecords;
     app.evaluationActivities = initial.evaluationActivities;
     app.activityLog = initial.activityLog;
-    logAction("Réinitialisation", "Application", "Jeu de données par défaut restauré");
+    logAction("RÃ©initialisation", "Application", "Jeu de donnÃ©es par dÃ©faut restaurÃ©");
     persistAppData();
     populateClassSelect(classSelect);
     renderDashboardPage();
@@ -6523,12 +6523,12 @@ function initDashboardPage() {
     const pfmpSummary = getPfmpSummary(students);
     const exportSkillsButton = document.querySelector("#export-skills-button");
 
-    classMeta.textContent = classItem ? `${classItem.name} // ${classItem.year} // ${students.length} élèves` : "Aucune classe";
+    classMeta.textContent = classItem ? `${classItem.name} // ${classItem.year} // ${students.length} Ã©lÃ¨ves` : "Aucune classe";
     statsGrid.innerHTML = [
-      { label: "Élèves", value: students.length, trace: "effectif de la classe" },
-      { label: "Progression moyenne", value: `${progressAverage}%`, trace: strongestBlock ? `bloc fort: ${strongestBlock.domain}` : "aucune donnée" },
-      { label: "PFMP renseignées", value: pfmpSummary.withCompany, trace: "entreprise saisie" },
-      { label: "Conventions complètes", value: pfmpSummary.fullConvention, trace: "entreprise + parents + lycée" }
+      { label: "Ã‰lÃ¨ves", value: students.length, trace: "effectif de la classe" },
+      { label: "Progression moyenne", value: `${progressAverage}%`, trace: strongestBlock ? `bloc fort: ${strongestBlock.domain}` : "aucune donnÃ©e" },
+      { label: "PFMP renseignÃ©es", value: pfmpSummary.withCompany, trace: "entreprise saisie" },
+      { label: "Conventions complÃ¨tes", value: pfmpSummary.fullConvention, trace: "entreprise + parents + lycÃ©e" }
     ].map(renderStatCard).join("");
 
     renderStatusChart(statusChart, counts);
@@ -6597,14 +6597,14 @@ function initClassesPage() {
     const file = csvInput.files?.[0];
     const classId = importClassInput.value;
     if (!file || !classId) {
-      importFeedback.textContent = "Sélectionne un fichier CSV et une classe cible.";
+      importFeedback.textContent = "SÃ©lectionne un fichier CSV et une classe cible.";
       return;
     }
     const text = await file.text();
     const rows = parseCsv(text);
     const names = extractStudentNames(rows);
     if (!names.length) {
-      importFeedback.textContent = "Aucun nom d'élève détecté dans le CSV.";
+      importFeedback.textContent = "Aucun nom d'Ã©lÃ¨ve dÃ©tectÃ© dans le CSV.";
       return;
     }
     const existing = new Set(getStudentsByClass(classId).map((student) => student.name.trim().toLowerCase()));
@@ -6623,7 +6623,7 @@ function initClassesPage() {
       imported += 1;
     });
     persistAppData();
-    importFeedback.textContent = `${imported} élève(s) importé(s), ${skipped} ignoré(s).`;
+    importFeedback.textContent = `${imported} Ã©lÃ¨ve(s) importÃ©(s), ${skipped} ignorÃ©(s).`;
     csvInput.value = "";
     renderClassesPage();
   });
@@ -6646,12 +6646,12 @@ function initClassesPage() {
         <article class="class-card">
           <div class="class-card-head">
             <h3>${classItem.name}</h3>
-            <span class="badge accent">${students.length} élèves</span>
+            <span class="badge accent">${students.length} Ã©lÃ¨ves</span>
           </div>
           <p>${classItem.year}</p>
           <p>${classItem.note}</p>
           <div class="class-meta">
-            <span class="badge">${getClassProgress(classItem.id)}% validé</span>
+            <span class="badge">${getClassProgress(classItem.id)}% validÃ©</span>
             <span class="badge">${pfmpSummary.withCompany} PFMP saisies</span>
           </div>
         </article>
@@ -6666,11 +6666,11 @@ function initClassesPage() {
           <div>
             <strong>${student.name}</strong>
             <p>${getClassById(student.classId)?.name || "Sans classe"}</p>
-            <p>${filledPeriods}/6 PFMP renseignées</p>
+            <p>${filledPeriods}/6 PFMP renseignÃ©es</p>
           </div>
           <div class="student-badges">
-            <span class="badge">${getStudentProgress(student)}% validé</span>
-            <span class="badge">${filledPeriods}/6 périodes</span>
+            <span class="badge">${getStudentProgress(student)}% validÃ©</span>
+            <span class="badge">${filledPeriods}/6 pÃ©riodes</span>
           </div>
         </article>
       `;
@@ -6715,7 +6715,7 @@ function initEvaluationsPage() {
       .filter(Boolean)
       .map((label, index) => ({ id: slugify(`${activityTitle.value}-${index}-${Date.now()}`), label }));
     if (!activityTitle.value.trim() || !activityClass.value || !activitySkill.value || !indicators.length) {
-      activityFeedback.textContent = "Renseigne un titre, une classe, une compétence et au moins un indicateur.";
+      activityFeedback.textContent = "Renseigne un titre, une classe, une compÃ©tence et au moins un indicateur.";
       return;
     }
     const activity = {
@@ -6731,7 +6731,7 @@ function initEvaluationsPage() {
     app.evaluationActivities.push(activity);
     persistAppData();
     activityForm.reset();
-    activityFeedback.textContent = "Séance créée.";
+    activityFeedback.textContent = "SÃ©ance crÃ©Ã©e.";
     populateClassSelect(activityClass);
     populateSkillSelect(activitySkill);
     sessionClassSelect.value = activity.classId;
@@ -6781,7 +6781,7 @@ function initEvaluationsPage() {
   function renderActivitySummary(activity, classId) {
     const classItem = getClassById(classId);
     if (!activity) {
-      activitySummary.innerHTML = `<article class="summary-card"><h3>Aucune séance</h3><p class="muted-copy">Crée un TP ou un TD pour commencer.</p></article>`;
+      activitySummary.innerHTML = `<article class="summary-card"><h3>Aucune sÃ©ance</h3><p class="muted-copy">CrÃ©e un TP ou un TD pour commencer.</p></article>`;
       return;
     }
     const skill = getSkillById(activity.skillId);
@@ -6789,7 +6789,7 @@ function initEvaluationsPage() {
       <article class="summary-card">
         <h3>${activity.type} // ${activity.title}</h3>
         <p class="muted-copy">${classItem?.name || ""} // ${skill?.code || ""} ${skill?.title || ""}</p>
-        <p class="muted-copy">${activity.date || "Date non renseignée"} // ${activity.indicators.length} indicateur(s)</p>
+        <p class="muted-copy">${activity.date || "Date non renseignÃ©e"} // ${activity.indicators.length} indicateur(s)</p>
       </article>
     `;
   }
@@ -6803,12 +6803,12 @@ function initEvaluationsPage() {
     activityMatrix.classList.add("activity-grid");
     activityMatrix.innerHTML = `
       <div class="matrix-header activity-header">
-        <strong>Élève</strong>
+        <strong>Ã‰lÃ¨ve</strong>
         ${activity.indicators.map((indicator) => `<strong>${indicator.label}</strong>`).join("")}
       </div>
       ${students.map((student) => `
         <div class="matrix-row activity-row">
-          <div><strong>${student.name}</strong><p class="muted-copy">${getStudentProgress(student)}% validé</p></div>
+          <div><strong>${student.name}</strong><p class="muted-copy">${getStudentProgress(student)}% validÃ©</p></div>
           ${activity.indicators.map((indicator) => `
             <label class="field">
               <select data-activity-id="${activity.id}" data-student-id="${student.id}" data-indicator-id="${indicator.id}" class="activity-status-select">
@@ -6850,8 +6850,8 @@ function initEvaluationsPage() {
     activityReport.innerHTML = `
       <article class="summary-card">
         <h3>Bilan global</h3>
-        <p class="muted-copy">Moyenne de la séance: ${activityAverage}%</p>
-        <p class="muted-copy">${students.length} élève(s) évalué(s)</p>
+        <p class="muted-copy">Moyenne de la sÃ©ance: ${activityAverage}%</p>
+        <p class="muted-copy">${students.length} Ã©lÃ¨ve(s) Ã©valuÃ©(s)</p>
       </article>
       ${indicatorCards}
     `;
@@ -6867,7 +6867,7 @@ function initEvaluationsPage() {
           <div>
             <strong>${activity.type} // ${activity.title}</strong>
             <p>${skill?.code || ""} ${skill?.title || ""}</p>
-            <p>${activity.date || "Date non renseignée"}</p>
+            <p>${activity.date || "Date non renseignÃ©e"}</p>
           </div>
           <div class="student-badges">
             <span class="badge">${activity.indicators.length} indicateurs</span>
@@ -6875,17 +6875,17 @@ function initEvaluationsPage() {
           </div>
         </article>
       `;
-    }).join("") : `<article class="summary-card"><h3>Aucune synthèse</h3><p class="muted-copy">Aucun TP/TD enregistré pour cette classe.</p></article>`;
+    }).join("") : `<article class="summary-card"><h3>Aucune synthÃ¨se</h3><p class="muted-copy">Aucun TP/TD enregistrÃ© pour cette classe.</p></article>`;
   }
 
   function renderStudentSheet() {
     const student = getStudentById(evalStudentSelect.value) || getStudentsByClass(evalClassSelect.value)[0];
     if (!student) {
       studentSkillsEditor.innerHTML = "";
-      studentSheetMeta.textContent = "Aucun élève disponible";
+      studentSheetMeta.textContent = "Aucun Ã©lÃ¨ve disponible";
       return;
     }
-    studentSheetMeta.textContent = `${getClassById(student.classId)?.name || ""} // ${getStudentProgress(student)}% validé`;
+    studentSheetMeta.textContent = `${getClassById(student.classId)?.name || ""} // ${getStudentProgress(student)}% validÃ©`;
     studentSkillsEditor.innerHTML = "";
     skillCatalog.forEach((skill) => {
       const fragment = skillRowTemplate.content.cloneNode(true);
@@ -6972,10 +6972,10 @@ function initPfmpPage() {
     const summary = getPfmpSummary(students);
 
     summaryCards.innerHTML = [
-      { label: "PFMP renseignées", value: summary.withCompany, trace: "entreprise saisie" },
-      { label: "Conventions complètes", value: summary.fullConvention, trace: "3 signatures" },
-      { label: "Visites planifiées", value: summary.visitPlanned, trace: "date de visite saisie" },
-      { label: "Dossiers complets", value: summary.completeFile, trace: "rapport + livret + présence" }
+      { label: "PFMP renseignÃ©es", value: summary.withCompany, trace: "entreprise saisie" },
+      { label: "Conventions complÃ¨tes", value: summary.fullConvention, trace: "3 signatures" },
+      { label: "Visites planifiÃ©es", value: summary.visitPlanned, trace: "date de visite saisie" },
+      { label: "Dossiers complets", value: summary.completeFile, trace: "rapport + livret + prÃ©sence" }
     ].map(renderStatCard).join("");
 
     const selectedRecord = selectedStudent ? getPfmpPeriodEntry(selectedStudent.id, periodSelect.value) : createEmptyPfmpEntry();
@@ -6986,10 +6986,10 @@ function initPfmpPage() {
       return `
         <article class="period-card">
           <strong>${period.label}</strong>
-          <p class="muted-copy">${entry.companyName || "Entreprise non renseignée"}</p>
+          <p class="muted-copy">${entry.companyName || "Entreprise non renseignÃ©e"}</p>
           <div class="pfmp-kpis">
             <span class="badge">${getPfmpCompletion(entry)} champs</span>
-            <span class="badge">${entry.visitDate ? "Visite OK" : "Visite à planifier"}</span>
+            <span class="badge">${entry.visitDate ? "Visite OK" : "Visite Ã  planifier"}</span>
           </div>
         </article>
       `;
@@ -7002,11 +7002,11 @@ function initPfmpPage() {
         <article class="directory-row compact">
           <div>
             <strong>${student.name}</strong>
-            <p>${filledPeriods}/6 PFMP renseignées</p>
-            <p>${PFMP_PERIODS.filter((period) => getPfmpPeriodEntry(student.id, period.id).visitDate).length} visites planifiées</p>
+            <p>${filledPeriods}/6 PFMP renseignÃ©es</p>
+            <p>${PFMP_PERIODS.filter((period) => getPfmpPeriodEntry(student.id, period.id).visitDate).length} visites planifiÃ©es</p>
           </div>
           <div class="pfmp-kpis">
-            <span class="badge">${filledPeriods}/6 périodes</span>
+            <span class="badge">${filledPeriods}/6 pÃ©riodes</span>
             <span class="badge">${PFMP_PERIODS.filter((period) => hasFullConvention(getPfmpPeriodEntry(student.id, period.id))).length}/6 conventions</span>
             <span class="badge">${PFMP_PERIODS.filter((period) => hasCompleteFile(getPfmpPeriodEntry(student.id, period.id))).length}/6 dossiers</span>
           </div>
@@ -7032,7 +7032,7 @@ function renderStatusChart(target, counts) {
     offset += dash;
     return part;
   }).join("");
-  target.innerHTML = `<svg class="chart-svg" viewBox="0 0 380 260"><g transform="translate(0 18)"><circle cx="90" cy="90" r="70" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="16"></circle>${segments}<text x="90" y="86" text-anchor="middle" fill="#e7fff8" font-size="28" font-family="Orbitron, sans-serif">${total}</text><text x="90" y="108" text-anchor="middle" fill="#8db5b1" font-size="12">évaluations</text></g></svg>${renderLegend(order.map((status) => ({ label: levelLabels[status], value: counts[status], color: statusColors[status] })))}`;
+  target.innerHTML = `<svg class="chart-svg" viewBox="0 0 380 260"><g transform="translate(0 18)"><circle cx="90" cy="90" r="70" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="16"></circle>${segments}<text x="90" y="86" text-anchor="middle" fill="#e7fff8" font-size="28" font-family="Orbitron, sans-serif">${total}</text><text x="90" y="108" text-anchor="middle" fill="#8db5b1" font-size="12">Ã©valuations</text></g></svg>${renderLegend(order.map((status) => ({ label: levelLabels[status], value: counts[status], color: statusColors[status] })))}`;
 }
 
 function renderBlockChart(target, blockAverages) {
@@ -7041,7 +7041,7 @@ function renderBlockChart(target, blockAverages) {
     const y = 30 + index * 62;
     return `<text x="0" y="${y - 8}" class="main-text">${block.domain}</text><rect x="0" y="${y}" width="250" height="18" rx="9" class="progress-track"></rect><rect x="0" y="${y}" width="${width}" height="18" rx="9" fill="url(#barGradient)"></rect><text x="262" y="${y + 13}" class="muted-text">${block.progress}%</text>`;
   }).join("");
-  target.innerHTML = `<svg class="chart-svg" viewBox="0 0 380 240"><defs><linearGradient id="barGradient" x1="0%" x2="100%"><stop offset="0%" stop-color="#62f5d4"></stop><stop offset="100%" stop-color="#59c6ff"></stop></linearGradient></defs><g transform="translate(24 16)">${bars}</g></svg>${renderLegend(blockAverages.map((block) => ({ label: block.domain, value: `${block.validated}/${block.total} validées`, color: "#62f5d4" })))}`;
+  target.innerHTML = `<svg class="chart-svg" viewBox="0 0 380 240"><defs><linearGradient id="barGradient" x1="0%" x2="100%"><stop offset="0%" stop-color="#62f5d4"></stop><stop offset="100%" stop-color="#59c6ff"></stop></linearGradient></defs><g transform="translate(24 16)">${bars}</g></svg>${renderLegend(blockAverages.map((block) => ({ label: block.domain, value: `${block.validated}/${block.total} validÃ©es`, color: "#62f5d4" })))}`;
 }
 
 function renderStudentChart(target, students) {
@@ -7055,8 +7055,8 @@ function renderStudentChart(target, students) {
 function renderPfmpChart(target, summary) {
   target.innerHTML = renderProgressBars([
     { label: "PFMP saisies", progress: summary.rateWithCompany, color: "#63f597" },
-    { label: "Conventions complètes", progress: summary.rateFullConvention, color: "#59c6ff" },
-    { label: "Visites planifiées", progress: summary.rateVisitPlanned, color: "#f7c35f" },
+    { label: "Conventions complÃ¨tes", progress: summary.rateFullConvention, color: "#59c6ff" },
+    { label: "Visites planifiÃ©es", progress: summary.rateVisitPlanned, color: "#f7c35f" },
     { label: "Dossiers complets", progress: summary.rateCompleteFile, color: "#ff657d" }
   ]);
 }
@@ -7125,7 +7125,7 @@ function getActivitySkillLabel(activity) {
   const skills = getActivitySkills(activity);
   return skills.length
     ? skills.map((skill) => `${skill.code} ${skill.title}`).join(" | ")
-    : "Aucune compétence";
+    : "Aucune compÃ©tence";
 }
 
 function getRequestedClassId() {
@@ -7282,7 +7282,7 @@ function getCoverageSnapshot(classId) {
 function formatActivityDateRange(activity) {
   const start = activity?.startDate || activity?.date || "";
   const end = activity?.endDate || start;
-  if (!start) return "Date non renseignée";
+  if (!start) return "Date non renseignÃ©e";
   if (!end || end === start) return start;
   return `${start} -> ${end}`;
 }
@@ -7463,7 +7463,7 @@ function splitCsvLine(line, delimiter) {
 function extractStudentNames(rows) {
   if (!rows.length) return [];
   const header = rows[0].map((cell) => cell.toLowerCase());
-  const headerIndex = header.findIndex((cell) => ["nom", "name", "eleve", "élève", "student"].includes(cell));
+  const headerIndex = header.findIndex((cell) => ["nom", "name", "eleve", "Ã©lÃ¨ve", "student"].includes(cell));
   const dataRows = headerIndex >= 0 ? rows.slice(1) : rows;
   return dataRows
     .map((row) => {
@@ -7476,22 +7476,22 @@ function extractStudentNames(rows) {
 
 function exportSkillsWorkbook(classItem, students) {
   if (!classItem) return;
-  const headers = ["Classe", "Élève", ...skillCatalog.map((skill) => `${skill.code} - ${skill.title}`), "Progression"];
+  const headers = ["Classe", "Ã‰lÃ¨ve", ...skillCatalog.map((skill) => `${skill.code} - ${skill.title}`), "Progression"];
   const rows = students.map((student) => [
     classItem.name,
     student.name,
     ...skillCatalog.map((skill) => levelLabels[student.skills[skill.id]]),
     `${getStudentProgress(student)}%`
   ]);
-  downloadExcelTable(`${classItem.name} - bilan competences.xls`, "Bilan compétences", headers, rows);
+  downloadExcelTable(`${classItem.name} - bilan competences.xls`, "Bilan compÃ©tences", headers, rows);
 }
 
 function exportPfmpWorkbook(classItem, students) {
   if (!classItem) return;
   const headers = [
-    "Classe", "Élève", "Période", "Entreprise", "Commentaire", "Adresse", "Tuteur", "Mail tuteur", "Téléphone tuteur",
-    "Convention transmise", "Convention signée entreprise", "Convention signée parents", "Convention signée lycée",
-    "Professeur référent", "Date de visite", "Rapport rendu", "Livret d'évaluation", "Fiche de présence"
+    "Classe", "Ã‰lÃ¨ve", "PÃ©riode", "Entreprise", "Commentaire", "Adresse", "Tuteur", "Mail tuteur", "TÃ©lÃ©phone tuteur",
+    "Convention transmise", "Convention signÃ©e entreprise", "Convention signÃ©e parents", "Convention signÃ©e lycÃ©e",
+    "Professeur rÃ©fÃ©rent", "Date de visite", "Rapport rendu", "Livret d'Ã©valuation", "Fiche de prÃ©sence"
   ];
   const rows = students.flatMap((student) =>
     PFMP_PERIODS.map((period) => {
@@ -7654,7 +7654,7 @@ function getRoleLabel(role) {
 }
 
 function formatRole(role) {
-  if (role === "systeme") return "Système";
+  if (role === "systeme") return "SystÃ¨me";
   return getRoleLabel(role);
 }
 
@@ -7680,7 +7680,7 @@ function logAction(action, target = "", detail = "") {
   app.activityLog.unshift({
     id: slugify(`log-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`),
     timestamp: new Date().toISOString(),
-    actor: session?.username || "Système",
+    actor: session?.username || "SystÃ¨me",
     role: session?.role || "systeme",
     action,
     target,
@@ -7744,7 +7744,7 @@ function setActivityIndicatorStatus(activityId, studentId, indicatorId, status) 
   if (previous !== status) {
     const student = getStudentById(studentId);
     const indicator = activity.indicators.find((item) => item.id === indicatorId);
-    logAction("Évaluation saisie", student?.name || studentId, `${activity.title} // ${indicator?.label || indicatorId} // ${levelLabels[status]}`);
+    logAction("Ã‰valuation saisie", student?.name || studentId, `${activity.title} // ${indicator?.label || indicatorId} // ${levelLabels[status]}`);
   }
 }
 
@@ -7780,8 +7780,8 @@ function initAccountsPage() {
       password: adminPassword.value.trim(),
       previousUsername: adminAccount.username
     });
-    logAction("Compte admin mis à jour", adminUsername.value.trim(), "Identifiant ou mot de passe modifié");
-    feedback.textContent = "Compte administrateur mis à jour.";
+    logAction("Compte admin mis Ã  jour", adminUsername.value.trim(), "Identifiant ou mot de passe modifiÃ©");
+    feedback.textContent = "Compte administrateur mis Ã  jour.";
     renderAdministration();
   });
 
@@ -7789,10 +7789,10 @@ function initAccountsPage() {
     event.preventDefault();
     if (!teacherUsername.value.trim() || !teacherPassword.value.trim()) return;
     const account = addTeacherAccount(teacherUsername.value.trim(), teacherPassword.value.trim(), teacherRole.value);
-    logAction("Compte créé", account.username, `Rôle: ${getRoleLabel(account.role)}`);
+    logAction("Compte crÃ©Ã©", account.username, `RÃ´le: ${getRoleLabel(account.role)}`);
     teacherForm.reset();
     teacherRole.value = "professeur";
-    feedback.textContent = "Compte ajouté.";
+    feedback.textContent = "Compte ajoutÃ©.";
     renderAdministration();
   });
 
@@ -7845,7 +7845,7 @@ function initAccountsPage() {
           <p>${entry.target}${entry.detail ? ` // ${entry.detail}` : ""}</p>
         </div>
       </article>
-    `).join("") : `<article class="summary-card"><h3>Aucune activité</h3><p class="muted-copy">Le journal se remplira automatiquement dès les premières actions.</p></article>`;
+    `).join("") : `<article class="summary-card"><h3>Aucune activitÃ©</h3><p class="muted-copy">Le journal se remplira automatiquement dÃ¨s les premiÃ¨res actions.</p></article>`;
 
     teacherAccountsList.querySelectorAll(".teacher-edit").forEach((button) => {
       button.addEventListener("click", () => {
@@ -7855,7 +7855,7 @@ function initAccountsPage() {
         if (!username) return;
         const password = window.prompt("Nouveau mot de passe du compte", teacher.password);
         if (!password) return;
-        const role = window.prompt(`Nouveau rôle (${getTeacherRoleValues().join(", ")})`, teacher.role);
+        const role = window.prompt(`Nouveau rÃ´le (${getTeacherRoleValues().join(", ")})`, teacher.role);
         if (!role || !getTeacherRoleValues().includes(role.trim())) return;
         updateAccount(teacher.id, {
           username: username.trim(),
@@ -7863,8 +7863,8 @@ function initAccountsPage() {
           role: role.trim(),
           previousUsername: teacher.username
         });
-        logAction("Compte modifié", username.trim(), `Rôle: ${getRoleLabel(role.trim())}`);
-        feedback.textContent = "Compte modifié.";
+        logAction("Compte modifiÃ©", username.trim(), `RÃ´le: ${getRoleLabel(role.trim())}`);
+        feedback.textContent = "Compte modifiÃ©.";
         renderAdministration();
       });
     });
@@ -7873,8 +7873,8 @@ function initAccountsPage() {
       button.addEventListener("click", () => {
         const removed = getAccountById(button.dataset.id);
         removeTeacherAccount(button.dataset.id);
-        if (removed) logAction("Compte supprimé", removed.username, removed.label);
-        feedback.textContent = "Compte supprimé.";
+        if (removed) logAction("Compte supprimÃ©", removed.username, removed.label);
+        feedback.textContent = "Compte supprimÃ©.";
         renderAdministration();
       });
     });
@@ -8275,7 +8275,7 @@ function initAccountsPage() {
         const level = getClassLevelOrder(item.classId);
         return {
           level,
-          label: level === 1 ? "2nde" : (level === 2 ? "1ère" : "Terminale"),
+          label: level === 1 ? "2nde" : (level === 2 ? "1Ã¨re" : "Terminale"),
           classLabel: getClassById(item.classId)?.name || "",
           scores: Object.fromEntries(referentialDomains.map((domain) => [domain, getDomainScoreForStudentItemSafe(item, domain)]))
         };
@@ -8302,7 +8302,7 @@ function initAccountsPage() {
   function buildDomainTrendSvgSafe(student) {
     const journey = getStudentDomainJourneySafe(student);
     if (!journey.length) {
-      return `<article class="summary-card"><h3>Aucune donnée</h3><p class="muted-copy">La courbe apparaîtra dès qu'une année sera renseignée.</p></article>`;
+      return `<article class="summary-card"><h3>Aucune donnÃ©e</h3><p class="muted-copy">La courbe apparaÃ®tra dÃ¨s qu'une annÃ©e sera renseignÃ©e.</p></article>`;
     }
     const width = 620;
     const height = 240;
@@ -8340,7 +8340,7 @@ function initAccountsPage() {
 
     return `
       <div class="premium-chart-shell">
-        <svg class="premium-chart" viewBox="0 0 ${width} ${height}" aria-label="Évolution par domaine">
+        <svg class="premium-chart" viewBox="0 0 ${width} ${height}" aria-label="Ã‰volution par domaine">
           ${gridLines}
           <line x1="${paddingX}" y1="${height - paddingBottom}" x2="${width - paddingX}" y2="${height - paddingBottom}" class="premium-chart-axis-line"></line>
           ${domainPaths}
@@ -8412,7 +8412,7 @@ function initAccountsPage() {
         <div class="section-head">
           <div>
             <p class="eyebrow">Pilotage Premium</p>
-            <h2>Barème et pondération</h2>
+            <h2>BarÃ¨me et pondÃ©ration</h2>
           </div>
         </div>
         <form id="premium-settings-form" class="stack-form">
@@ -8432,12 +8432,12 @@ function initAccountsPage() {
           </div>
           <div id="premium-grade-preview" class="student-badges premium-grade-preview"></div>
           <div>
-            <p class="eyebrow">Coefficients globaux par compétence</p>
+            <p class="eyebrow">Coefficients globaux par compÃ©tence</p>
             <div id="premium-skill-weight-grid" class="premium-weight-grid"></div>
           </div>
           <div class="student-badges">
-            <button class="primary-button" type="submit">Enregistrer le barème premium</button>
-            <button id="premium-settings-reset" class="ghost-button" type="button">Rétablir les valeurs par défaut</button>
+            <button class="primary-button" type="submit">Enregistrer le barÃ¨me premium</button>
+            <button id="premium-settings-reset" class="ghost-button" type="button">RÃ©tablir les valeurs par dÃ©faut</button>
           </div>
           <p id="premium-settings-feedback" class="results-count"></p>
         </form>
@@ -8461,7 +8461,7 @@ function initAccountsPage() {
         <span class="badge badge-danger">Non acquis &lt; ${settings.gradePolicy.nonAcquisMax}</span>
         <span class="badge badge-warning">En cours &lt; ${settings.gradePolicy.enCoursMax}</span>
         <span class="badge">Partiellement acquis &lt; ${settings.gradePolicy.partiellementAcquisMax}</span>
-        <span class="badge badge-ready">Acquis ≥ ${settings.gradePolicy.partiellementAcquisMax}</span>
+        <span class="badge badge-ready">Acquis â‰¥ ${settings.gradePolicy.partiellementAcquisMax}</span>
       `;
       weightGrid.innerHTML = skillCatalog.map((skill) => `
         <label class="field premium-weight-card">
@@ -8488,8 +8488,8 @@ function initAccountsPage() {
           ]))
         };
         await savePremiumSettingsSafe(nextSettings);
-        logAction("Paramètres premium", "Barème et pondération", "Mise à jour globale");
-        feedback.textContent = "Barème et coefficients enregistrés.";
+        logAction("ParamÃ¨tres premium", "BarÃ¨me et pondÃ©ration", "Mise Ã  jour globale");
+        feedback.textContent = "BarÃ¨me et coefficients enregistrÃ©s.";
         render();
       });
     }
@@ -8498,8 +8498,8 @@ function initAccountsPage() {
       resetButton.dataset.premiumBound = "true";
       resetButton.addEventListener("click", async () => {
         await savePremiumSettingsSafe(DEFAULT_PREMIUM_SETTINGS_SAFE);
-        logAction("Paramètres premium", "Barème et pondération", "Réinitialisation");
-        feedback.textContent = "Valeurs premium réinitialisées.";
+        logAction("ParamÃ¨tres premium", "BarÃ¨me et pondÃ©ration", "RÃ©initialisation");
+        feedback.textContent = "Valeurs premium rÃ©initialisÃ©es.";
         render();
       });
     }
@@ -8524,17 +8524,17 @@ function initAccountsPage() {
         <div class="section-head">
           <div>
             <p class="eyebrow">Pilotage Premium</p>
-            <h2>Moyennes consolidées et évolution par domaine</h2>
+            <h2>Moyennes consolidÃ©es et Ã©volution par domaine</h2>
           </div>
         </div>
         <div id="bulletin-premium-kpis" class="class-cards"></div>
         <div class="premium-analytics-grid">
           <article class="period-card">
-            <h3>Moyennes consolidées par compétence</h3>
+            <h3>Moyennes consolidÃ©es par compÃ©tence</h3>
             <div id="bulletin-premium-skill-list" class="premium-skill-average-list"></div>
           </article>
           <article class="period-card">
-            <h3>Évolution par domaine</h3>
+            <h3>Ã‰volution par domaine</h3>
             <div id="bulletin-premium-domain-trend"></div>
             <div id="bulletin-premium-domain-radar"></div>
           </article>
@@ -8556,7 +8556,7 @@ function initAccountsPage() {
 
       if (!student) {
         kpis.innerHTML = "";
-        skillList.innerHTML = `<article class="summary-card"><h3>Aucun élève</h3><p class="muted-copy">Sélectionne un élève pour afficher l’analyse premium.</p></article>`;
+        skillList.innerHTML = `<article class="summary-card"><h3>Aucun Ã©lÃ¨ve</h3><p class="muted-copy">SÃ©lectionne un Ã©lÃ¨ve pour afficher lâ€™analyse premium.</p></article>`;
         trend.innerHTML = "";
         radar.innerHTML = "";
         return;
@@ -8576,19 +8576,19 @@ function initAccountsPage() {
 
       kpis.innerHTML = `
         <article class="summary-card">
-          <h3>Moyenne consolidée</h3>
+          <h3>Moyenne consolidÃ©e</h3>
           <p class="score-big">${consolidatedAverage === null ? "-" : `${consolidatedAverage.toFixed(1)}/20`}</p>
-          <p class="muted-copy">Calculée sur ${availableScores.length} compétence(s) avec coefficients.</p>
+          <p class="muted-copy">CalculÃ©e sur ${availableScores.length} compÃ©tence(s) avec coefficients.</p>
         </article>
         <article class="summary-card">
-          <h3>Compétence la plus solide</h3>
+          <h3>CompÃ©tence la plus solide</h3>
           <p>${strongest ? `${escapeHtml(strongest.skill.code)} // ${escapeHtml(strongest.skill.title)}` : "-"}</p>
-          <p class="muted-copy">${strongest ? `${strongest.average.toFixed(1)}/20` : "Aucune donnée"}</p>
+          <p class="muted-copy">${strongest ? `${strongest.average.toFixed(1)}/20` : "Aucune donnÃ©e"}</p>
         </article>
         <article class="summary-card">
-          <h3>Compétence prioritaire</h3>
+          <h3>CompÃ©tence prioritaire</h3>
           <p>${weakest ? `${escapeHtml(weakest.skill.code)} // ${escapeHtml(weakest.skill.title)}` : "-"}</p>
-          <p class="muted-copy">${weakest ? `${weakest.average.toFixed(1)}/20` : "Aucune donnée"}</p>
+          <p class="muted-copy">${weakest ? `${weakest.average.toFixed(1)}/20` : "Aucune donnÃ©e"}</p>
         </article>
       `;
 
@@ -8601,8 +8601,8 @@ function initAccountsPage() {
             </div>
             ${renderBulletinStatus(item.status || "non_evalue")}
           </div>
-          <p>${item.average === null ? "Non évalué" : `${item.average.toFixed(1)}/20`}</p>
-          <p class="muted-copy">${item.sessions} séance(s) pondérée(s) // poids total ${item.totalWeight}</p>
+          <p>${item.average === null ? "Non Ã©valuÃ©" : `${item.average.toFixed(1)}/20`}</p>
+          <p class="muted-copy">${item.sessions} sÃ©ance(s) pondÃ©rÃ©e(s) // poids total ${item.totalWeight}</p>
         </article>
       `).join("");
 
@@ -8641,11 +8641,11 @@ function initAccountsPage() {
         </div>
         <div class="premium-analytics-grid">
           <article class="period-card">
-            <h3>Radar consolidé</h3>
+            <h3>Radar consolidÃ©</h3>
             <div id="dashboard-premium-radar"></div>
           </article>
           <article class="period-card">
-            <h3>Détails par domaine</h3>
+            <h3>DÃ©tails par domaine</h3>
             <div id="dashboard-premium-domain-breakdown" class="class-cards"></div>
           </article>
         </div>
@@ -8660,7 +8660,7 @@ function initAccountsPage() {
       const breakdown = document.querySelector("#dashboard-premium-domain-breakdown");
       if (!radarTarget || !breakdown) return;
       if (!students.length) {
-        radarTarget.innerHTML = `<article class="summary-card"><h3>Aucune donnée</h3><p class="muted-copy">Ajoute des élèves pour afficher le radar.</p></article>`;
+        radarTarget.innerHTML = `<article class="summary-card"><h3>Aucune donnÃ©e</h3><p class="muted-copy">Ajoute des Ã©lÃ¨ves pour afficher le radar.</p></article>`;
         breakdown.innerHTML = "";
         return;
       }
@@ -8731,7 +8731,7 @@ function initAccountsPage() {
         <div class="section-head">
           <div>
             <p class="eyebrow">Indicateurs</p>
-            <h3>Repères de la séance</h3>
+            <h3>RepÃ¨res de la sÃ©ance</h3>
           </div>
         </div>
         <div class="activity-indicator-legend-grid">
@@ -8746,7 +8746,7 @@ function initAccountsPage() {
     `;
 
     header.classList.add("activity-header-compact");
-    headerCells[0].innerHTML = `<span class="activity-student-head">Élève</span>`;
+    headerCells[0].innerHTML = `<span class="activity-student-head">Ã‰lÃ¨ve</span>`;
     headerCells.slice(1).forEach((cell, index) => {
       const label = indicatorLabels[index];
       cell.classList.add("activity-indicator-head-cell");
@@ -8810,14 +8810,14 @@ function initAccountsPage() {
     if (!list) return;
     const indicators = Array.isArray(activity?.indicators) ? activity.indicators : [];
     if (!indicators.length) {
-      list.innerHTML = `<article class="directory-row"><div><strong>Aucun indicateur structuré</strong><p>Ajoute des indicateurs liés à une compétence ou utilise la saisie rapide.</p></div></article>`;
+      list.innerHTML = `<article class="directory-row"><div><strong>Aucun indicateur structurÃ©</strong><p>Ajoute des indicateurs liÃ©s Ã  une compÃ©tence ou utilise la saisie rapide.</p></div></article>`;
       return;
     }
     list.innerHTML = indicators.map((indicator) => `
       <article class="directory-row compact">
         <div>
           <strong>${escapeHtml(indicator.label || "")}</strong>
-          <p>${escapeHtml(indicator.skillId ? getActivitySkillLabel({ skillIds: [indicator.skillId], skillId: indicator.skillId }) : "Toutes les compétences de la séance")}</p>
+          <p>${escapeHtml(indicator.skillId ? getActivitySkillLabel({ skillIds: [indicator.skillId], skillId: indicator.skillId }) : "Toutes les compÃ©tences de la sÃ©ance")}</p>
         </div>
       </article>
     `).join("");
@@ -8856,7 +8856,7 @@ function initAccountsPage() {
 
     if (indicatorSkill) {
       const selected = getActivitySkillIds(activity).map((id) => getSkillById(id)).filter(Boolean);
-      indicatorSkill.innerHTML = `<option value="">Toutes les compétences</option>${selected.map((skill) => `<option value="${skill.id}">${skill.code} // ${skill.title}</option>`).join("")}`;
+      indicatorSkill.innerHTML = `<option value="">Toutes les compÃ©tences</option>${selected.map((skill) => `<option value="${skill.id}">${skill.code} // ${skill.title}</option>`).join("")}`;
     }
 
     renderInlineIndicatorPreviewUltimateSafe(activity);
@@ -8865,7 +8865,7 @@ function initAccountsPage() {
       applyEvaluationsView("create");
     }
     form.scrollIntoView({ behavior: "smooth", block: "start" });
-    if (feedback) feedback.textContent = `Édition de la séance : ${activity.title}`;
+    if (feedback) feedback.textContent = `Ã‰dition de la sÃ©ance : ${activity.title}`;
     return true;
   }
 
@@ -8876,10 +8876,10 @@ function initAccountsPage() {
     const feedback = document.querySelector("#activity-feedback");
     if (!form || !submitButton || !cancelButton) return;
     delete form.dataset.editingId;
-    submitButton.textContent = "Créer la séance";
+    submitButton.textContent = "CrÃ©er la sÃ©ance";
     cancelButton.hidden = true;
-    if (feedback && /Édition de la séance|Edition de la seance/i.test(feedback.textContent || "")) {
-      feedback.textContent = "Édition annulée.";
+    if (feedback && /Ã‰dition de la sÃ©ance|Edition de la seance/i.test(feedback.textContent || "")) {
+      feedback.textContent = "Ã‰dition annulÃ©e.";
     }
   }
 
@@ -8898,7 +8898,7 @@ function initAccountsPage() {
         const activity = getActivityById(selectedId);
         const feedback = document.querySelector("#activity-feedback");
         if (!activity) {
-          if (feedback) feedback.textContent = "Sélectionne d’abord une séance à modifier.";
+          if (feedback) feedback.textContent = "SÃ©lectionne dâ€™abord une sÃ©ance Ã  modifier.";
           return;
         }
         fillSessionEditorUltimateSafe(activity);
@@ -8956,7 +8956,7 @@ function initAccountsPage() {
       student.skillGrades[skillId] = normalized;
       student.skills[skillId] = autoStatus;
     });
-    logAction("Note de séance appliquée", student.name, `${activity.title} // ${normalized}/20 // ${levelLabels[autoStatus] || autoStatus}`);
+    logAction("Note de sÃ©ance appliquÃ©e", student.name, `${activity.title} // ${normalized}/20 // ${levelLabels[autoStatus] || autoStatus}`);
   }
 
   function getActivityIndicatorGroupsUltraSafe(activity) {
@@ -8967,7 +8967,7 @@ function initAccountsPage() {
       groups.push({
         id: skillId || "common",
         title: skill ? `${skill.code} // ${skill.title}` : "Indicateurs transversaux",
-        domain: skill ? getSkillDomain(skill) : "Séance",
+        domain: skill ? getSkillDomain(skill) : "SÃ©ance",
         indicators
       });
     };
@@ -9000,24 +9000,27 @@ function initAccountsPage() {
     const students = getStudentsByClass(classId);
     const groups = getActivityIndicatorGroupsUltraSafe(activity);
     matrix.className = "activity-cards-layout";
-    matrix.innerHTML = students.map((student) => {
+    matrix.innerHTML = students.map((student, index) => {
       const globalGrade = getActivityGlobalGradeUltraSafe(activity, student.id);
       return `
-        <article class="activity-student-card panel">
-          <div class="activity-student-card-head">
+        <details class="activity-student-card panel"${index === 0 ? " open" : ""}>
+          <summary class="activity-student-card-head">
             <div>
               <h3>${escapeHtml(student.name)}</h3>
               <p class="muted-copy">${getStudentProgress(student)}% validé // ${escapeHtml(getClassById(student.classId)?.name || "")}</p>
             </div>
-            <div class="activity-student-card-grade">
+            <div class="activity-student-card-meta">
+              <span class="badge">${groups.length} bloc(s)</span>
+            </div>
+          </summary>
+          <div class="activity-student-groups">
+            <section class="activity-skill-group activity-global-grade-box">
               <label class="field compact-field">
                 <span>Note globale /20</span>
                 <input class="activity-student-global-grade" type="number" min="0" max="20" step="0.5" data-activity-id="${activity.id}" data-student-id="${student.id}" value="${globalGrade === "" ? "" : globalGrade}" placeholder="Ex. 13.5">
                 <small>${escapeHtml(levelLabels[mapGradeToStatus(globalGrade)] || "Non évalué")}</small>
               </label>
-            </div>
-          </div>
-          <div class="activity-student-groups">
+            </section>
             ${groups.map((group) => `
               <section class="activity-skill-group">
                 <div class="activity-skill-group-head">
@@ -9039,7 +9042,7 @@ function initAccountsPage() {
               </section>
             `).join("")}
           </div>
-        </article>
+        </details>
       `;
     }).join("");
 
@@ -9163,7 +9166,7 @@ function initAccountsPage() {
     const skillInput = document.querySelector("#activity-skill");
     if (!form || !submitButton || !cancelButton) return;
     delete form.dataset.editingId;
-    submitButton.textContent = "Créer la séance";
+    submitButton.textContent = "CrÃ©er la sÃ©ance";
     cancelButton.hidden = true;
     if (indicatorList) {
       indicatorList.innerHTML = `<article class="directory-row"><div><strong>Aucun indicateur structure</strong><p>Ajoute des indicateurs lies a une competence ou utilise la saisie rapide.</p></div></article>`;
@@ -9241,7 +9244,7 @@ function initAccountsPage() {
       student.skillGrades[skillId] = normalized;
       student.skills[skillId] = autoStatus;
     });
-    logAction("Note de séance appliquée", student.name, `${activity.title} // ${normalized}/20 // ${levelLabels[autoStatus] || autoStatus}`);
+    logAction("Note de sÃ©ance appliquÃ©e", student.name, `${activity.title} // ${normalized}/20 // ${levelLabels[autoStatus] || autoStatus}`);
   }
 
   function buildStructuredIndicatorsFromTextareaSafe(title, textarea) {
@@ -9330,7 +9333,7 @@ function initAccountsPage() {
       syncIndicatorSkillOptionsSafe();
       syncTextareaFromDraftSafe();
       renderIndicatorDraftSafe();
-      if (activitySubmitButton) activitySubmitButton.textContent = "Créer la séance";
+      if (activitySubmitButton) activitySubmitButton.textContent = "CrÃ©er la sÃ©ance";
       if (activityCancelEditButton) activityCancelEditButton.hidden = true;
       delete activityForm.dataset.editingId;
     }
@@ -9390,8 +9393,8 @@ function initAccountsPage() {
         activity.endDate = activityDateEnd.value || activityDateStart.value;
         activity.comment = activityComment.value.trim();
         activity.indicators = indicators;
-        logAction("Séance modifiée", activity.title, `${activity.type} // ${getClassById(activity.classId)?.name || ""}`);
-        activityFeedback.textContent = "Séance mise à jour.";
+        logAction("SÃ©ance modifiÃ©e", activity.title, `${activity.type} // ${getClassById(activity.classId)?.name || ""}`);
+        activityFeedback.textContent = "SÃ©ance mise Ã  jour.";
       } else {
         app.evaluationActivities.push({
           id: slugify(`${activityTitle.value.trim()}-${Date.now()}`),
@@ -9407,8 +9410,8 @@ function initAccountsPage() {
           indicators,
           evaluations: {}
         });
-        logAction("Séance créée", activityTitle.value.trim(), `${activityType.value} // ${getClassById(activityClass.value)?.name || ""}`);
-        activityFeedback.textContent = "Séance créée.";
+        logAction("SÃ©ance crÃ©Ã©e", activityTitle.value.trim(), `${activityType.value} // ${getClassById(activityClass.value)?.name || ""}`);
+        activityFeedback.textContent = "SÃ©ance crÃ©Ã©e.";
       }
       persistAppData();
       sessionClassSelect.value = activityClass.value;
@@ -9431,7 +9434,7 @@ function initAccountsPage() {
         const hint = row.querySelector(".skill-grade-hint");
         if (!select || !input || !hint) return;
         input.value = student.skillGrades?.[skill.id] ?? "";
-        hint.textContent = input.value === "" ? "Vide = non évalué" : `Auto : ${levelLabels[mapGradeToStatus(input.value)] || "Non évalué"}`;
+        hint.textContent = input.value === "" ? "Vide = non Ã©valuÃ©" : `Auto : ${levelLabels[mapGradeToStatus(input.value)] || "Non Ã©valuÃ©"}`;
         if (!input.dataset.gradeBound) {
           input.dataset.gradeBound = "true";
           input.addEventListener("change", () => {
@@ -9439,8 +9442,8 @@ function initAccountsPage() {
             student.skillGrades[skill.id] = normalized;
             const autoStatus = mapGradeToStatus(normalized);
             student.skills[skill.id] = autoStatus;
-            hint.textContent = normalized === "" ? "Vide = non évalué" : `Auto : ${levelLabels[autoStatus] || autoStatus}`;
-            logAction("Compétence notée", student.name, `${skill.code} // ${normalized === "" ? "non évalué" : `${normalized}/20`} // ${levelLabels[autoStatus] || autoStatus}`);
+            hint.textContent = normalized === "" ? "Vide = non Ã©valuÃ©" : `Auto : ${levelLabels[autoStatus] || autoStatus}`;
+            logAction("CompÃ©tence notÃ©e", student.name, `${skill.code} // ${normalized === "" ? "non Ã©valuÃ©" : `${normalized}/20`} // ${levelLabels[autoStatus] || autoStatus}`);
             persistAppData();
             select.value = autoStatus;
             evalStudentSelect.dispatchEvent(new Event("change"));
@@ -9465,7 +9468,7 @@ function initAccountsPage() {
           <label class="field compact-field">
             <span>Note globale /20</span>
             <input class="activity-global-grade-input" type="number" min="0" max="20" step="0.5" value="${getActivityGlobalGradeSafe(activity, studentId) ?? ""}" placeholder="Ex. 13.5">
-            <small class="activity-global-grade-hint">${escapeHtml(levelLabels[mapGradeToStatus(getActivityGlobalGradeSafe(activity, studentId))] || "Non évalué")}</small>
+            <small class="activity-global-grade-hint">${escapeHtml(levelLabels[mapGradeToStatus(getActivityGlobalGradeSafe(activity, studentId))] || "Non Ã©valuÃ©")}</small>
           </label>
         `;
         firstCell.appendChild(wrapper);
@@ -9475,7 +9478,7 @@ function initAccountsPage() {
           const normalized = normalizeGrade(input.value);
           setActivityGlobalGradeSafe(activity.id, studentId, normalized);
           persistAppData();
-          hint.textContent = normalized === "" ? "Non évalué" : (levelLabels[mapGradeToStatus(normalized)] || "Non évalué");
+          hint.textContent = normalized === "" ? "Non Ã©valuÃ©" : (levelLabels[mapGradeToStatus(normalized)] || "Non Ã©valuÃ©");
           window.setTimeout(() => {
             document.querySelector("#session-class-select")?.dispatchEvent(new Event("change"));
             document.querySelector("#eval-student-select")?.dispatchEvent(new Event("change"));
@@ -9576,82 +9579,82 @@ function initAccountsPage() {
 
 (() => {
   const displayFixups = [
-    [/Ã©/g, "é"],
-    [/Ã¨/g, "è"],
-    [/Ãª/g, "ê"],
-    [/Ã«/g, "ë"],
-    [/Ã‰/g, "É"],
-    [/Ã€/g, "À"],
-    [/Ã /g, "à"],
-    [/Ã¢/g, "â"],
-    [/Ã´/g, "ô"],
-    [/Ã»/g, "û"],
-    [/Ã¹/g, "ù"],
-    [/Ã§/g, "ç"],
-    [/Ã®/g, "î"],
-    [/Ã¯/g, "ï"],
-    [/CompÃ©tence/g, "Compétence"],
-    [/CompÃ©tences/g, "Compétences"],
-    [/rÃ©seau/g, "réseau"],
-    [/rÃ©seaux/g, "réseaux"],
-    [/RÃ©alisation/g, "Réalisation"],
-    [/sÃ©ance/g, "séance"],
-    [/SÃ©ance/g, "Séance"],
-    [/ClÃ´turer/g, "Clôturer"],
-    [/archivÃ©es/g, "archivées"],
-    [/annÃ©e/g, "année"],
-    [/Ã /g, "à"],
-    [/Ã‰lÃ¨ve/g, "Élève"],
-    [/Ã©lÃ¨ve/g, "élève"],
-    [/Ã©lÃ¨ves/g, "élèves"],
-    [/Ã‰valuations/g, "Évaluations"],
-    [/rÃ©cap/g, "récap"],
-    [/TÃ©lÃ©charger/g, "Télécharger"],
-    [/modÃ¨le/g, "modèle"],
-    [/complÃ©tÃ©e/g, "complétée"],
-    [/PrÃ©remplir/g, "Préremplir"],
-    [/NumÃ©ro/g, "Numéro"],
-    [/AcadÃ©mie/g, "Académie"],
-    [/Ã‰tablissement/g, "Établissement"],
-    [/TÃ©lÃ©phone/g, "Téléphone"],
-    [/rÃ©fÃ©rent/g, "référent"],
-    [/Ã©valuation/g, "évaluation"],
-    [/Ã‰valuer/g, "Évaluer"],
-    [/Ã©valuations/g, "évaluations"],
-    [/prÃ©sence/g, "présence"],
-    [/Livret d'Ã©valuation/g, "Livret d'évaluation"],
-    [/CohÃ©rence/g, "Cohérence"],
-    [/cohÃ©rence/g, "cohérence"],
-    [/liÃ©e/g, "liée"],
-    [/liÃ©es/g, "liées"],
-    [/associÃ©s/g, "associés"],
-    [/associÃ©es/g, "associées"],
-    [/jamais travaillÃ©e/g, "jamais travaillée"],
-    [/\?valuations/g, "Évaluations"],
-    [/\?tablissement/g, "Établissement"],
-    [/\?\?tablissement/g, "Établissement"],
-    [/Acad\?mie/g, "Académie"],
-    [/Cl\?turer/g, "Clôturer"],
-    [/ann\?e/g, "année"],
-    [/Comp\?tence/g, "Compétence"],
-    [/Comp\?tences/g, "Compétences"],
-    [/comp\?tence/g, "compétence"],
-    [/comp\?tences/g, "compétences"],
-    [/\?l\?ve/g, "Élève"],
-    [/\?l\?ves/g, "Élèves"],
-    [/l'\?l\?ve/g, "l'élève"],
-    [/r\?seau/g, "réseau"],
-    [/r\?seaux/g, "réseaux"],
-    [/\?tude/g, "Étude"],
-    [/s\?ance/g, "séance"],
-    [/S\?ance/g, "Séance"],
-    [/r\?cap/g, "récap"],
-    [/mod\?le/g, "modèle"],
-    [/compl\?t\?e/g, "complétée"],
-    [/Acad\?mie/g, "Académie"],
-    [/Pi\?ce/g, "Pièce"],
-    [/R\?alisation/g, "Réalisation"],
-    [/coh\?rence/g, "cohérence"]
+    [/ÃƒÂ©/g, "Ã©"],
+    [/ÃƒÂ¨/g, "Ã¨"],
+    [/ÃƒÂª/g, "Ãª"],
+    [/ÃƒÂ«/g, "Ã«"],
+    [/Ãƒâ€°/g, "Ã‰"],
+    [/Ãƒâ‚¬/g, "Ã€"],
+    [/Ãƒ /g, "Ã "],
+    [/ÃƒÂ¢/g, "Ã¢"],
+    [/ÃƒÂ´/g, "Ã´"],
+    [/ÃƒÂ»/g, "Ã»"],
+    [/ÃƒÂ¹/g, "Ã¹"],
+    [/ÃƒÂ§/g, "Ã§"],
+    [/ÃƒÂ®/g, "Ã®"],
+    [/ÃƒÂ¯/g, "Ã¯"],
+    [/CompÃƒÂ©tence/g, "CompÃ©tence"],
+    [/CompÃƒÂ©tences/g, "CompÃ©tences"],
+    [/rÃƒÂ©seau/g, "rÃ©seau"],
+    [/rÃƒÂ©seaux/g, "rÃ©seaux"],
+    [/RÃƒÂ©alisation/g, "RÃ©alisation"],
+    [/sÃƒÂ©ance/g, "sÃ©ance"],
+    [/SÃƒÂ©ance/g, "SÃ©ance"],
+    [/ClÃƒÂ´turer/g, "ClÃ´turer"],
+    [/archivÃƒÂ©es/g, "archivÃ©es"],
+    [/annÃƒÂ©e/g, "annÃ©e"],
+    [/ÃƒÂ /g, "Ã "],
+    [/Ãƒâ€°lÃƒÂ¨ve/g, "Ã‰lÃ¨ve"],
+    [/ÃƒÂ©lÃƒÂ¨ve/g, "Ã©lÃ¨ve"],
+    [/ÃƒÂ©lÃƒÂ¨ves/g, "Ã©lÃ¨ves"],
+    [/Ãƒâ€°valuations/g, "Ã‰valuations"],
+    [/rÃƒÂ©cap/g, "rÃ©cap"],
+    [/TÃƒÂ©lÃƒÂ©charger/g, "TÃ©lÃ©charger"],
+    [/modÃƒÂ¨le/g, "modÃ¨le"],
+    [/complÃƒÂ©tÃƒÂ©e/g, "complÃ©tÃ©e"],
+    [/PrÃƒÂ©remplir/g, "PrÃ©remplir"],
+    [/NumÃƒÂ©ro/g, "NumÃ©ro"],
+    [/AcadÃƒÂ©mie/g, "AcadÃ©mie"],
+    [/Ãƒâ€°tablissement/g, "Ã‰tablissement"],
+    [/TÃƒÂ©lÃƒÂ©phone/g, "TÃ©lÃ©phone"],
+    [/rÃƒÂ©fÃƒÂ©rent/g, "rÃ©fÃ©rent"],
+    [/ÃƒÂ©valuation/g, "Ã©valuation"],
+    [/Ãƒâ€°valuer/g, "Ã‰valuer"],
+    [/ÃƒÂ©valuations/g, "Ã©valuations"],
+    [/prÃƒÂ©sence/g, "prÃ©sence"],
+    [/Livret d'ÃƒÂ©valuation/g, "Livret d'Ã©valuation"],
+    [/CohÃƒÂ©rence/g, "CohÃ©rence"],
+    [/cohÃƒÂ©rence/g, "cohÃ©rence"],
+    [/liÃƒÂ©e/g, "liÃ©e"],
+    [/liÃƒÂ©es/g, "liÃ©es"],
+    [/associÃƒÂ©s/g, "associÃ©s"],
+    [/associÃƒÂ©es/g, "associÃ©es"],
+    [/jamais travaillÃƒÂ©e/g, "jamais travaillÃ©e"],
+    [/\?valuations/g, "Ã‰valuations"],
+    [/\?tablissement/g, "Ã‰tablissement"],
+    [/\?\?tablissement/g, "Ã‰tablissement"],
+    [/Acad\?mie/g, "AcadÃ©mie"],
+    [/Cl\?turer/g, "ClÃ´turer"],
+    [/ann\?e/g, "annÃ©e"],
+    [/Comp\?tence/g, "CompÃ©tence"],
+    [/Comp\?tences/g, "CompÃ©tences"],
+    [/comp\?tence/g, "compÃ©tence"],
+    [/comp\?tences/g, "compÃ©tences"],
+    [/\?l\?ve/g, "Ã‰lÃ¨ve"],
+    [/\?l\?ves/g, "Ã‰lÃ¨ves"],
+    [/l'\?l\?ve/g, "l'Ã©lÃ¨ve"],
+    [/r\?seau/g, "rÃ©seau"],
+    [/r\?seaux/g, "rÃ©seaux"],
+    [/\?tude/g, "Ã‰tude"],
+    [/s\?ance/g, "sÃ©ance"],
+    [/S\?ance/g, "SÃ©ance"],
+    [/r\?cap/g, "rÃ©cap"],
+    [/mod\?le/g, "modÃ¨le"],
+    [/compl\?t\?e/g, "complÃ©tÃ©e"],
+    [/Acad\?mie/g, "AcadÃ©mie"],
+    [/Pi\?ce/g, "PiÃ¨ce"],
+    [/R\?alisation/g, "RÃ©alisation"],
+    [/coh\?rence/g, "cohÃ©rence"]
   ];
 
   function normalizeDisplayText(value) {
@@ -9660,8 +9663,8 @@ function initAccountsPage() {
     displayFixups.forEach(([pattern, replacement]) => {
       next = next.replace(pattern, replacement);
     });
-    next = next.replace(/Session à clôturer/g, "Session à clôturer");
-    next = next.replace(/Nouvelle année scolaire/g, "Nouvelle année scolaire");
+    next = next.replace(/Session Ã  clÃ´turer/g, "Session Ã  clÃ´turer");
+    next = next.replace(/Nouvelle annÃ©e scolaire/g, "Nouvelle annÃ©e scolaire");
     return next;
   }
 
@@ -9960,7 +9963,7 @@ function initAccountsPage() {
     }
     const entries = getEvidenceEntriesForStudent(student.id);
     if (!entries.length) {
-      target.innerHTML = `<article class="directory-row"><div><strong>Aucune preuve enregistrée</strong><p>Ajoute une première preuve pour alimenter le portefeuille de compétences de cet élève.</p></div></article>`;
+      target.innerHTML = `<article class="directory-row"><div><strong>Aucune preuve enregistrÃ©e</strong><p>Ajoute une premiÃ¨re preuve pour alimenter le portefeuille de compÃ©tences de cet Ã©lÃ¨ve.</p></div></article>`;
       return;
     }
     target.innerHTML = entries.map((entry) => {
@@ -9969,7 +9972,7 @@ function initAccountsPage() {
         <article class="directory-row">
           <div>
             <strong>${escapeHtml(entry.title)}</strong>
-            <p>${escapeHtml(skill?.code || entry.skillId || "-")} // ${escapeHtml(skill?.title || "Compétence")} // ${escapeHtml(entry.type)}</p>
+            <p>${escapeHtml(skill?.code || entry.skillId || "-")} // ${escapeHtml(skill?.title || "CompÃ©tence")} // ${escapeHtml(entry.type)}</p>
             <p>${escapeHtml(entry.date || "-")} // ${escapeHtml(entry.note || "Sans commentaire")}</p>
             ${entry.url ? `<p><a href="${escapeHtml(entry.url)}" target="_blank" rel="noreferrer">Ouvrir la preuve</a></p>` : ""}
           </div>
@@ -10021,11 +10024,11 @@ function initAccountsPage() {
           const classId = classSelect.value || app.classes[0]?.id || "";
           const student = getStudentById(studentSelect.value) || getStudentsByClass(classId)[0] || null;
           if (!student) {
-            feedback.textContent = "Aucun élève sélectionné.";
+            feedback.textContent = "Aucun Ã©lÃ¨ve sÃ©lectionnÃ©.";
             return;
           }
           if (!titleInput.value.trim() || !skillSelect.value) {
-            feedback.textContent = "Renseigne un titre et une compétence.";
+            feedback.textContent = "Renseigne un titre et une compÃ©tence.";
             return;
           }
           app.evidencePortfolio = app.evidencePortfolio || [];
@@ -10041,12 +10044,12 @@ function initAccountsPage() {
             date: dateInput.value || new Date().toISOString().slice(0, 10),
             createdAt: new Date().toISOString()
           });
-          logAction("Preuve ajoutée", student.name, titleInput.value.trim());
+          logAction("Preuve ajoutÃ©e", student.name, titleInput.value.trim());
           persistAppData();
           titleInput.value = "";
           urlInput.value = "";
           noteInput.value = "";
-          feedback.textContent = "Preuve ajoutée au portefeuille.";
+          feedback.textContent = "Preuve ajoutÃ©e au portefeuille.";
           refreshEvidence();
         });
       }
@@ -10072,15 +10075,15 @@ function initAccountsPage() {
 
   function promoteClassName(name, levelOrder) {
     const current = String(name || "");
-    if (levelOrder === 1) return current.replace(/2nde|Seconde|2CIEL/i, "Première CIEL");
-    if (levelOrder === 2) return current.replace(/Première|1ère|1CIEL/i, "Terminale CIEL");
+    if (levelOrder === 1) return current.replace(/2nde|Seconde|2CIEL/i, "PremiÃ¨re CIEL");
+    if (levelOrder === 2) return current.replace(/PremiÃ¨re|1Ã¨re|1CIEL/i, "Terminale CIEL");
     return current;
   }
 
   function archiveSchoolSession(sessionYear, nextYear, note) {
     const classesInSession = app.classes.filter((classItem) => classItem.year === sessionYear);
     if (!classesInSession.length) {
-      return { ok: false, message: "Aucune classe trouvée pour cette session." };
+      return { ok: false, message: "Aucune classe trouvÃ©e pour cette session." };
     }
     const classIds = classesInSession.map((classItem) => classItem.id);
     const studentsInSession = app.students.filter((student) => classIds.includes(student.classId));
@@ -10091,7 +10094,7 @@ function initAccountsPage() {
       label: `Session ${sessionYear}`,
       sessionYear,
       archivedAt: new Date().toISOString(),
-      summary: note || `Clôture ${sessionYear}`,
+      summary: note || `ClÃ´ture ${sessionYear}`,
       classes: classesInSession.map((item) => ({ ...item })),
       students: studentsInSession.map((item) => ({ ...item })),
       evaluationActivities: app.evaluationActivities.filter((activity) => classIds.includes(activity.classId)).map((item) => ({ ...item })),
@@ -10148,16 +10151,16 @@ function initAccountsPage() {
       });
     }
 
-    logAction("Session archivée", sessionYear, note || `Promotion vers ${nextYear}`);
+    logAction("Session archivÃ©e", sessionYear, note || `Promotion vers ${nextYear}`);
     persistAppData();
-    return { ok: true, message: `Session ${sessionYear} archivée. Promotion active vers ${nextYear}.` };
+    return { ok: true, message: `Session ${sessionYear} archivÃ©e. Promotion active vers ${nextYear}.` };
   }
 
   function renderArchiveSessionList(target) {
     if (!target) return;
     const archives = app.archives || [];
     if (!archives.length) {
-      target.innerHTML = `<article class="directory-row"><div><strong>Aucune session archivée</strong><p>Les sessions clôturées apparaîtront ici.</p></div></article>`;
+      target.innerHTML = `<article class="directory-row"><div><strong>Aucune session archivÃ©e</strong><p>Les sessions clÃ´turÃ©es apparaÃ®tront ici.</p></div></article>`;
       return;
     }
     target.innerHTML = archives.map((entry) => `
@@ -10165,7 +10168,7 @@ function initAccountsPage() {
         <div>
           <strong>${escapeHtml(entry.label)}</strong>
           <p>${escapeHtml(entry.sessionYear || "-")} // ${escapeHtml(entry.summary || "Sans note")}</p>
-          <p>${entry.classes.length} classe(s) // ${entry.students.length} élève(s) // ${entry.evaluationActivities.length} séance(s)</p>
+          <p>${entry.classes.length} classe(s) // ${entry.students.length} Ã©lÃ¨ve(s) // ${entry.evaluationActivities.length} sÃ©ance(s)</p>
         </div>
       </article>
     `).join("");
@@ -10351,7 +10354,7 @@ function initCandidatePageFinal() {
     overview.innerHTML = `
       <article class="summary-card">
         <h3>Dossier candidat</h3>
-        <p class="muted-copy">${overall.ready}/${examPreview.length} épreuve(s) prêtes</p>
+        <p class="muted-copy">${overall.ready}/${examPreview.length} Ã©preuve(s) prÃªtes</p>
         <div class="pfmp-kpis">
           <span class="badge">${overall.progress}%</span>
           <span class="badge">${overall.note.toFixed(1)}/20</span>
@@ -10360,9 +10363,9 @@ function initCandidatePageFinal() {
         <div class="directory-row compact">
           <div>
             <p><strong>Classe</strong> ${classItem?.name || "-"}</p>
-            <p><strong>Académie</strong> ${academyInput.value.trim() || "-"}</p>
-            <p><strong>Établissement</strong> ${schoolInput.value.trim() || "-"}</p>
-            <p><strong>Numéro candidat</strong> ${candidateNumberInput.value.trim() || "-"}</p>
+            <p><strong>AcadÃ©mie</strong> ${academyInput.value.trim() || "-"}</p>
+            <p><strong>Ã‰tablissement</strong> ${schoolInput.value.trim() || "-"}</p>
+            <p><strong>NumÃ©ro candidat</strong> ${candidateNumberInput.value.trim() || "-"}</p>
           </div>
         </div>
       </article>
@@ -10370,7 +10373,7 @@ function initCandidatePageFinal() {
     preview.innerHTML = examPreview.map((item) => `
       <article class="summary-card">
         <h3>${item.exam}</h3>
-        <p class="muted-copy">${item.validated}/${item.lines.length} compétence(s) consolidée(s)</p>
+        <p class="muted-copy">${item.validated}/${item.lines.length} compÃ©tence(s) consolidÃ©e(s)</p>
         <div class="pfmp-kpis">
           <span class="badge">${item.average}%</span>
           <span class="badge">${item.note.toFixed(1)}/20</span>
@@ -10609,16 +10612,16 @@ function initCandidatePageFinal() {
       const transfer = new DataTransfer();
       transfer.items.add(file);
       fileInput.files = transfer.files;
-      feedback.textContent = "Modèle officiel chargé.";
+      feedback.textContent = "ModÃ¨le officiel chargÃ©.";
     } catch {
-      feedback.textContent = "Impossible de charger le modèle officiel automatiquement.";
+      feedback.textContent = "Impossible de charger le modÃ¨le officiel automatiquement.";
     }
   });
 
   exportPdfButton.addEventListener("click", () => {
     const student = getStudentById(studentSelect.value);
     if (!student) {
-      feedback.textContent = "Aucun élève sélectionné.";
+      feedback.textContent = "Aucun Ã©lÃ¨ve sÃ©lectionnÃ©.";
       return;
     }
     printHtmlDocument(`Dossier candidat ${student.name}`, buildCandidateRecapHtml(student));
@@ -10640,11 +10643,11 @@ function initCandidatePageFinal() {
     const student = getStudentById(studentSelect.value);
     const file = fileInput.files?.[0];
     if (!student) {
-      feedback.textContent = "Aucun élève sélectionné.";
+      feedback.textContent = "Aucun Ã©lÃ¨ve sÃ©lectionnÃ©.";
       return;
     }
     if (!file || typeof XLSX === "undefined") {
-      feedback.textContent = "Charge d'abord le modèle officiel .xlsx.";
+      feedback.textContent = "Charge d'abord le modÃ¨le officiel .xlsx.";
       return;
     }
     try {
@@ -10661,9 +10664,9 @@ function initCandidatePageFinal() {
         cellStyles: true,
         bookType: "xlsx"
       });
-      feedback.textContent = "Grille nationale complétée et téléchargée.";
+      feedback.textContent = "Grille nationale complÃ©tÃ©e et tÃ©lÃ©chargÃ©e.";
     } catch {
-      feedback.textContent = "Impossible de générer la grille officielle pour ce candidat.";
+      feedback.textContent = "Impossible de gÃ©nÃ©rer la grille officielle pour ce candidat.";
     }
   });
 }
@@ -11484,7 +11487,7 @@ function initCertificationPageFinal() {
   const EXAM_GRID_DEFAULT_MODEL_PATH = "18722-grilles-nationales-e2-e31-e32-bac-pro-ciel-finale-cellules-bloquees-2.xlsx";
   const EXAM_GRID_DEFAULTS = {
     academy: "Creteil",
-    school: "Lycée",
+    school: "LycÃ©e",
     date: new Date().toISOString().slice(0, 10)
   };
   const EXAM_SHEET_MAP = {
@@ -11633,9 +11636,9 @@ function initCertificationPageFinal() {
           const transfer = new DataTransfer();
           transfer.items.add(file);
           fileInput.files = transfer.files;
-          feedback.textContent = "Modèle officiel chargé automatiquement.";
+          feedback.textContent = "ModÃ¨le officiel chargÃ© automatiquement.";
         } catch {
-          feedback.textContent = "Impossible de charger le modèle officiel automatiquement. Charge le fichier manuellement.";
+          feedback.textContent = "Impossible de charger le modÃ¨le officiel automatiquement. Charge le fichier manuellement.";
         }
       });
     }
@@ -11646,7 +11649,7 @@ function initCertificationPageFinal() {
       const classId = classSelect.value || app.classes[0]?.id || "";
       const student = getStudentById(studentSelect.value) || getStudentsByClass(classId)[0];
       if (!student) {
-        feedback.textContent = "Aucun élève sélectionné.";
+        feedback.textContent = "Aucun Ã©lÃ¨ve sÃ©lectionnÃ©.";
         return;
       }
       const file = fileInput.files?.[0];
@@ -11676,9 +11679,9 @@ function initCertificationPageFinal() {
           cellStyles: true,
           bookType: "xlsx"
         });
-        feedback.textContent = "Grille nationale complétée et téléchargée.";
+        feedback.textContent = "Grille nationale complÃ©tÃ©e et tÃ©lÃ©chargÃ©e.";
       } catch (error) {
-        feedback.textContent = "Le fichier n'a pas pu être traité. Vérifie que tu charges bien la grille officielle .xlsx.";
+        feedback.textContent = "Le fichier n'a pas pu Ãªtre traitÃ©. VÃ©rifie que tu charges bien la grille officielle .xlsx.";
       }
     });
   }
@@ -11700,14 +11703,14 @@ function initCertificationPageFinal() {
   function buildEvidenceHtmlSafe(studentId) {
     const entries = getEvidenceEntriesSafe(studentId);
     if (!entries.length) {
-      return `<article class="period-card"><strong>Aucune preuve</strong><p class="muted-copy">Aucune preuve liÃ©e Ã  cet Ã©lÃ¨ve pour le moment.</p></article>`;
+      return `<article class="period-card"><strong>Aucune preuve</strong><p class="muted-copy">Aucune preuve liÃƒÂ©e ÃƒÂ  cet ÃƒÂ©lÃƒÂ¨ve pour le moment.</p></article>`;
     }
     return entries.map((entry) => {
       const skill = getSkillById(entry.skillId);
       return `
         <article class="period-card">
           <strong>${escapeHtml(entry.title || "Preuve")}</strong>
-          <p class="muted-copy">${escapeHtml(skill?.code || entry.skillId || "-")} // ${escapeHtml(skill?.title || "CompÃ©tence")} // ${escapeHtml(entry.type || "-")}</p>
+          <p class="muted-copy">${escapeHtml(skill?.code || entry.skillId || "-")} // ${escapeHtml(skill?.title || "CompÃƒÂ©tence")} // ${escapeHtml(entry.type || "-")}</p>
           <p class="muted-copy">${escapeHtml(entry.date || "-")} // ${escapeHtml(entry.note || "Sans commentaire")}</p>
           ${entry.url ? `<p class="muted-copy">${escapeHtml(entry.url)}</p>` : ""}
         </article>
@@ -11743,11 +11746,11 @@ function initCertificationPageFinal() {
           <article class="directory-row compact">
             <div>
               <strong>${item.skill.code} // ${item.skill.title}</strong>
-              <p>${escapeHtml(getSkillDomain(item.skill))} // ${item.activityHits} sÃ©ance(s) // ${item.pfmpHits} observation(s) PFMP</p>
-              <p>${item.neverWorked ? "Jamais travaillÃ©e." : "Validation fragile : trop peu de traces pour une compÃ©tence acquise."}</p>
+              <p>${escapeHtml(getSkillDomain(item.skill))} // ${item.activityHits} sÃƒÂ©ance(s) // ${item.pfmpHits} observation(s) PFMP</p>
+              <p>${item.neverWorked ? "Jamais travaillÃƒÂ©e." : "Validation fragile : trop peu de traces pour une compÃƒÂ©tence acquise."}</p>
             </div>
           </article>
-        `).join("") : `<article class="summary-card"><h3>CohÃ©rence satisfaisante</h3><p class="muted-copy">Aucune alerte de cohÃ©rence dÃ©tectÃ©e pour cette classe.</p></article>`;
+        `).join("") : `<article class="summary-card"><h3>CohÃƒÂ©rence satisfaisante</h3><p class="muted-copy">Aucune alerte de cohÃƒÂ©rence dÃƒÂ©tectÃƒÂ©e pour cette classe.</p></article>`;
       };
       render();
       if (!classSelect.dataset.coverageCoherenceBound) {
@@ -11806,8 +11809,8 @@ function initCertificationPageFinal() {
         evidencePanel.innerHTML = `
           <div class="hero-side-head">
             <div>
-              <h2>Preuves liÃ©es au candidat</h2>
-              <p class="results-count">Documents, productions et observations associÃ©s aux compÃ©tences.</p>
+              <h2>Preuves liÃƒÂ©es au candidat</h2>
+              <p class="results-count">Documents, productions et observations associÃƒÂ©s aux compÃƒÂ©tences.</p>
             </div>
           </div>
           <div id="candidate-evidence-list" class="class-cards"></div>
@@ -12802,3 +12805,4 @@ function initCertificationPageFinal() {
     window.setTimeout(enrichReportsPageSafe, 0);
   }
 })();
+
