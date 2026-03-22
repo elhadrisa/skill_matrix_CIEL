@@ -9006,6 +9006,13 @@ function initAccountsPage() {
     }
   }
 
+  function formatSkillTitleUltraSafe(skill) {
+    if (!skill) return "Indicateurs transversaux";
+    const match = String(skill.code || "").match(/^C(\d+)$/i);
+    const normalizedCode = match ? `C${String(match[1]).padStart(2, "0")}` : repairInlineLabelUltraSafe(skill.code || "Compétence");
+    return `${normalizedCode} - ${repairInlineLabelUltraSafe(skill.title || "")}`.trim();
+  }
+
   function getActivityIndicatorGroupsUltraSafe(activity) {
     const groups = [];
     const pushGroup = (skillId, indicators) => {
@@ -9013,7 +9020,7 @@ function initAccountsPage() {
       const skill = skillId ? getSkillById(skillId) : null;
       groups.push({
         id: skillId || "common",
-        title: repairInlineLabelUltraSafe(skill ? `${skill.code} // ${skill.title}` : "Indicateurs transversaux"),
+        title: formatSkillTitleUltraSafe(skill),
         domain: repairInlineLabelUltraSafe(skill ? getSkillDomain(skill) : "Séance"),
         indicators
       });
@@ -9102,7 +9109,7 @@ function initAccountsPage() {
                 <div class="activity-skill-group-head">
                   <div class="activity-skill-group-heading">
                     <strong>${escapeHtml(group.title)}</strong>
-                    <p class="muted-copy">${escapeHtml(group.domain)} // ${group.indicators.length} indicateur(s)</p>
+                    <p class="muted-copy">${group.indicators.length} indicateur(s)</p>
                   </div>
                   <div class="activity-skill-group-summary">
                     ${(() => {
