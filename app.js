@@ -665,14 +665,55 @@ async function bootstrapFromApi() {
   }
 }
 
+async function ensureBackendSessionFromLocalAccount() {
+  const session = getSession();
+  if (!session?.username) return false;
+
+  const bootstrap = await bootstrapFromApi();
+  if (bootstrap?.session) return true;
+
+  const account = loadLocalAccountsFallback().find((item) => String(item.username || "").toLowerCase() === String(session.username || "").toLowerCase());
+  if (!account?.password) return false;
+
+  try {
+    const response = await fetch("/api/login", {
+      method: "POST",
+      credentials: "include",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        username: String(account.username || "").trim().toLowerCase(),
+        password: account.password
+      })
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.session) return false;
+    setSession(payload.session);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function pushStateToApi(data) {
   try {
-    const response = await fetch("/api/state", {
+    await ensureBackendSessionFromLocalAccount();
+    let response = await fetch("/api/state", {
       method: "POST",
       credentials: "include",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ data })
     });
+    if (response.status === 401) {
+      const recovered = await ensureBackendSessionFromLocalAccount();
+      if (recovered) {
+        response = await fetch("/api/state", {
+          method: "POST",
+          credentials: "include",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ data })
+        });
+      }
+    }
     if (response.status === 401) {
       clearSession();
       if (PROTECTED_PAGES.has(page)) window.location.replace("login.html");
@@ -685,12 +726,24 @@ async function pushStateToApi(data) {
 
 async function pushAccountsToApi(accounts = app.accounts) {
   try {
-    const response = await fetch("/api/accounts", {
+    await ensureBackendSessionFromLocalAccount();
+    let response = await fetch("/api/accounts", {
       method: "POST",
       credentials: "include",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ accounts })
     });
+    if (response.status === 401) {
+      const recovered = await ensureBackendSessionFromLocalAccount();
+      if (recovered) {
+        response = await fetch("/api/accounts", {
+          method: "POST",
+          credentials: "include",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ accounts })
+        });
+      }
+    }
     if (response.status === 401) {
       clearSession();
       if (PROTECTED_PAGES.has(page)) window.location.replace("login.html");
