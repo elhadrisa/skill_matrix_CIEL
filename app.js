@@ -503,8 +503,9 @@ function initAccountsPageFinal() {
       previousUsername: adminAccount.username
     });
     logAction("Compte admin mis a jour", adminUsername.value.trim(), "Identifiant ou mot de passe modifie");
-    const synced = await persistCriticalAppData();
-    feedback.textContent = synced ? "Compte administrateur mis a jour." : "Compte administrateur mis a jour localement. Backend indisponible.";
+    const accountsSynced = await pushAccountsToApi(app.accounts);
+    const stateSynced = await persistCriticalAppData();
+    feedback.textContent = (accountsSynced || stateSynced) ? "Compte administrateur mis a jour." : "Compte administrateur mis a jour localement. Backend indisponible.";
     renderAdministration();
   });
 
@@ -514,10 +515,11 @@ function initAccountsPageFinal() {
     const account = addTeacherAccount(teacherUsername.value.trim(), teacherPassword.value.trim(), teacherRole.value);
     persistAccountsShadow(app.accounts);
     logAction("Compte cree", account.username, `Role: ${getRoleLabel(account.role)}`);
-    const synced = await persistCriticalAppData();
+    const accountsSynced = await pushAccountsToApi(app.accounts);
+    const stateSynced = await persistCriticalAppData();
     teacherForm.reset();
     teacherRole.value = "professeur";
-    feedback.textContent = synced ? "Compte ajoute." : "Compte ajoute localement. Backend indisponible.";
+    feedback.textContent = (accountsSynced || stateSynced) ? "Compte ajoute." : "Compte ajoute localement. Backend indisponible.";
     renderAdministration();
   });
 
@@ -588,8 +590,9 @@ function initAccountsPageFinal() {
         });
         persistAccountsShadow(app.accounts);
         logAction("Compte modifie", username.trim(), `Role: ${getRoleLabel(role.trim())}`);
-        const synced = await persistCriticalAppData();
-        feedback.textContent = synced ? "Compte modifie." : "Compte modifie localement. Backend indisponible.";
+        const accountsSynced = await pushAccountsToApi(app.accounts);
+        const stateSynced = await persistCriticalAppData();
+        feedback.textContent = (accountsSynced || stateSynced) ? "Compte modifie." : "Compte modifie localement. Backend indisponible.";
         renderAdministration();
       });
     });
@@ -601,8 +604,9 @@ function initAccountsPageFinal() {
         removeTeacherAccount(button.dataset.id);
         persistAccountsShadow(app.accounts);
         logAction("Compte supprime", removed.username, removed.label);
-        const synced = await persistCriticalAppData();
-        feedback.textContent = synced ? "Compte supprime." : "Compte supprime localement. Backend indisponible.";
+        const accountsSynced = await pushAccountsToApi(app.accounts);
+        const stateSynced = await persistCriticalAppData();
+        feedback.textContent = (accountsSynced || stateSynced) ? "Compte supprime." : "Compte supprime localement. Backend indisponible.";
         renderAdministration();
       });
     });
@@ -668,6 +672,24 @@ async function pushStateToApi(data) {
       credentials: "include",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ data })
+    });
+    if (response.status === 401) {
+      clearSession();
+      if (PROTECTED_PAGES.has(page)) window.location.replace("login.html");
+    }
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function pushAccountsToApi(accounts = app.accounts) {
+  try {
+    const response = await fetch("/api/accounts", {
+      method: "POST",
+      credentials: "include",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ accounts })
     });
     if (response.status === 401) {
       clearSession();
