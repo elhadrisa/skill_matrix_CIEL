@@ -1,6 +1,7 @@
 ﻿const STORAGE_KEY = "ciel-competences-app";
 const LEGACY_STUDENT_KEY = "ciel-competences-state";
 const SESSION_KEY = "ciel-session";
+const ACCOUNTS_SHADOW_KEY = "ciel-accounts-shadow";
 
 const skillCatalog = [
   { id: "c1", code: "C1", domain: "Pilotage pro", title: "Communiquer en situation professionnelle", description: "Restituer clairement une intervention, Ã©changer avec le client ou l'Ã©quipe et produire une communication technique exploitable." },
@@ -502,8 +503,8 @@ function initAccountsPageFinal() {
       previousUsername: adminAccount.username
     });
     logAction("Compte admin mis a jour", adminUsername.value.trim(), "Identifiant ou mot de passe modifie");
-    await persistCriticalAppData();
-    feedback.textContent = "Compte administrateur mis a jour.";
+    const synced = await persistCriticalAppData();
+    feedback.textContent = synced ? "Compte administrateur mis a jour." : "Compte administrateur mis a jour localement. Backend indisponible.";
     renderAdministration();
   });
 
@@ -512,10 +513,10 @@ function initAccountsPageFinal() {
     if (!teacherUsername.value.trim() || !teacherPassword.value.trim()) return;
     const account = addTeacherAccount(teacherUsername.value.trim(), teacherPassword.value.trim(), teacherRole.value);
     logAction("Compte cree", account.username, `Role: ${getRoleLabel(account.role)}`);
-    await persistCriticalAppData();
+    const synced = await persistCriticalAppData();
     teacherForm.reset();
     teacherRole.value = "professeur";
-    feedback.textContent = "Compte ajoute.";
+    feedback.textContent = synced ? "Compte ajoute." : "Compte ajoute localement. Backend indisponible.";
     renderAdministration();
   });
 
@@ -585,8 +586,8 @@ function initAccountsPageFinal() {
           previousUsername: account.username
         });
         logAction("Compte modifie", username.trim(), `Role: ${getRoleLabel(role.trim())}`);
-        await persistCriticalAppData();
-        feedback.textContent = "Compte modifie.";
+        const synced = await persistCriticalAppData();
+        feedback.textContent = synced ? "Compte modifie." : "Compte modifie localement. Backend indisponible.";
         renderAdministration();
       });
     });
@@ -597,8 +598,8 @@ function initAccountsPageFinal() {
         if (!removed) return;
         removeTeacherAccount(button.dataset.id);
         logAction("Compte supprime", removed.username, removed.label);
-        await persistCriticalAppData();
-        feedback.textContent = "Compte supprime.";
+        const synced = await persistCriticalAppData();
+        feedback.textContent = synced ? "Compte supprime." : "Compte supprime localement. Backend indisponible.";
         renderAdministration();
       });
     });
@@ -608,7 +609,11 @@ function initAccountsPageFinal() {
 function loadAppData() {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (raw) {
-    try { return hydrateAppData(JSON.parse(raw)); } catch {}
+    try {
+      const hydrated = hydrateAppData(JSON.parse(raw));
+      persistAccountsShadow(hydrated.accounts);
+      return hydrated;
+    } catch {}
   }
   const legacy = localStorage.getItem(LEGACY_STUDENT_KEY);
   if (legacy) {
@@ -635,6 +640,7 @@ function replaceAppState(data) {
   Object.keys(app).forEach((key) => { delete app[key]; });
   Object.assign(app, hydrated);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(app));
+  persistAccountsShadow(app.accounts);
 }
 
 async function bootstrapFromApi() {
@@ -659,18 +665,21 @@ async function pushStateToApi(data) {
       clearSession();
       if (PROTECTED_PAGES.has(page)) window.location.replace("login.html");
     }
-  } catch {}
+    return response.ok;
+  } catch {
+    return false;
+  }
 }
 
 async function persistCriticalAppData(data = app) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  persistAccountsShadow(data.accounts || app.accounts);
   if (persistTimeout) {
     window.clearTimeout(persistTimeout);
     persistTimeout = null;
   }
   if (!getSession()) return false;
-  await pushStateToApi(data);
-  return true;
+  return await pushStateToApi(data);
 }
 
 function hydrateAppData(data) {
@@ -701,7 +710,10 @@ function hydrateAppData(data) {
   const evaluationActivities = (data.evaluationActivities || defaultEvaluationActivities).map((activity, index) => hydrateEvaluationActivity(activity, index));
   const indicatorBank = hydrateIndicatorBank(data.indicatorBank || defaultIndicatorBank);
   const lessonLibrary = hydrateLessonLibrary(data.lessonLibrary || defaultLessonLibrary);
-  const accounts = hydrateAccounts(data.accounts || defaultAccounts);
+  const accounts = mergeAccountCollections(
+    hydrateAccounts(data.accounts || defaultAccounts),
+    readLocalAccountsShadow()
+  );
   const activityLog = hydrateActivityLog(data.activityLog || defaultActivityLog);
   const evidencePortfolio = (data.evidencePortfolio || defaultEvidencePortfolio).map((entry, index) => ({
     id: entry.id || `evidence-${index + 1}`,
@@ -744,18 +756,63 @@ function hydrateAppData(data) {
   };
 }
 
+function normalizeAccountRecord(account, index = 0) {
+  return {
+    id: account?.id || `account-${index + 1}`,
+    username: String(account?.username || `user${index + 1}`).trim(),
+    password: String(account?.password || "changeme"),
+    role: roleCatalog.some((item) => item.value === account?.role) ? account.role : "professeur",
+    label: account?.label || getRoleLabel(account?.role || "professeur")
+  };
+}
+
 function hydrateAccounts(accounts) {
-  const hydrated = (accounts || defaultAccounts).map((account, index) => ({
-    id: account.id || `account-${index + 1}`,
-    username: account.username || `user${index + 1}`,
-    password: account.password || "changeme",
-    role: roleCatalog.some((item) => item.value === account.role) ? account.role : "professeur",
-    label: account.label || getRoleLabel(account.role || "professeur")
-  }));
+  const hydrated = (accounts || defaultAccounts).map((account, index) => normalizeAccountRecord(account, index));
   if (!hydrated.some((account) => account.role === "admin")) {
     hydrated.unshift(defaultAccounts[0]);
   }
   return hydrated;
+}
+
+function getAccountMergeKey(account) {
+  const normalizedUsername = String(account?.username || "").trim().toLowerCase();
+  if (normalizedUsername) return `username:${normalizedUsername}`;
+  const normalizedId = String(account?.id || "").trim();
+  return normalizedId ? `id:${normalizedId}` : "";
+}
+
+function readLocalAccountsShadow() {
+  try {
+    const raw = localStorage.getItem(ACCOUNTS_SHADOW_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map((account, index) => normalizeAccountRecord(account, index));
+  } catch {
+    return [];
+  }
+}
+
+function mergeAccountCollections(primaryAccounts, secondaryAccounts = []) {
+  const mergedMap = new Map();
+  [...(primaryAccounts || []), ...(secondaryAccounts || [])].forEach((account, index) => {
+    const normalized = normalizeAccountRecord(account, index);
+    const key = getAccountMergeKey(normalized);
+    if (!key) return;
+    mergedMap.set(key, normalized);
+  });
+  const merged = [...mergedMap.values()];
+  if (!merged.some((account) => account.role === "admin")) {
+    merged.unshift(normalizeAccountRecord(defaultAccounts[0], 0));
+  }
+  return hydrateAccounts(merged);
+}
+
+function persistAccountsShadow(accounts = app.accounts) {
+  try {
+    const normalizedAccounts = mergeAccountCollections(accounts || [], []);
+    localStorage.setItem(ACCOUNTS_SHADOW_KEY, JSON.stringify(normalizedAccounts));
+  } catch {}
 }
 
 function hydrateActivityLog(items) {
@@ -996,6 +1053,7 @@ function normalizeStatus(value) {
 
 function persistAppData(data = app) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  persistAccountsShadow(data.accounts || app.accounts);
   if (!getSession()) return;
   if (persistTimeout) window.clearTimeout(persistTimeout);
   persistTimeout = window.setTimeout(() => {
