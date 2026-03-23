@@ -512,6 +512,7 @@ function initAccountsPageFinal() {
     event.preventDefault();
     if (!teacherUsername.value.trim() || !teacherPassword.value.trim()) return;
     const account = addTeacherAccount(teacherUsername.value.trim(), teacherPassword.value.trim(), teacherRole.value);
+    persistAccountsShadow(app.accounts);
     logAction("Compte cree", account.username, `Role: ${getRoleLabel(account.role)}`);
     const synced = await persistCriticalAppData();
     teacherForm.reset();
@@ -585,6 +586,7 @@ function initAccountsPageFinal() {
           role: role.trim(),
           previousUsername: account.username
         });
+        persistAccountsShadow(app.accounts);
         logAction("Compte modifie", username.trim(), `Role: ${getRoleLabel(role.trim())}`);
         const synced = await persistCriticalAppData();
         feedback.textContent = synced ? "Compte modifie." : "Compte modifie localement. Backend indisponible.";
@@ -597,6 +599,7 @@ function initAccountsPageFinal() {
         const removed = getAccountById(button.dataset.id);
         if (!removed) return;
         removeTeacherAccount(button.dataset.id);
+        persistAccountsShadow(app.accounts);
         logAction("Compte supprime", removed.username, removed.label);
         const synced = await persistCriticalAppData();
         feedback.textContent = synced ? "Compte supprime." : "Compte supprime localement. Backend indisponible.";
@@ -633,6 +636,11 @@ function loadAppData() {
 
 function loadLocalFallbackData() {
   return loadAppData();
+}
+
+function loadLocalAccountsFallback() {
+  const stateAccounts = Array.isArray(loadAppData()?.accounts) ? loadAppData().accounts : [];
+  return mergeAccountCollections(stateAccounts, readLocalAccountsShadow());
 }
 
 function replaceAppState(data) {
@@ -4304,17 +4312,18 @@ function initLoginPage() {
     }
 
     const localData = loadLocalFallbackData();
-    replaceAppState(localData);
-    const fallbackUser = localData.accounts.find((account) => String(account.username || "").toLowerCase() === username);
+    const localAccounts = loadLocalAccountsFallback();
+    replaceAppState({ ...localData, accounts: localAccounts });
+    const fallbackUser = localAccounts.find((account) => String(account.username || "").toLowerCase() === username);
     if (fallbackUser && fallbackUser.password === password) {
       setSession({ username: fallbackUser.username, role: fallbackUser.role, label: fallbackUser.label });
-      replaceAppState(loadLocalFallbackData());
+      replaceAppState({ ...loadLocalFallbackData(), accounts: loadLocalAccountsFallback() });
       window.location.href = "dashboard.html";
       return;
     }
     if (username === "admin" && password === "admin123") {
       setSession({ username: "admin", role: "admin", label: "Administrateur" });
-      replaceAppState(loadLocalFallbackData());
+      replaceAppState({ ...loadLocalFallbackData(), accounts: loadLocalAccountsFallback() });
       window.location.href = "dashboard.html";
       return;
     }
